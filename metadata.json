@@ -1,0 +1,6 @@
+{
+  "name": "منصة نحن معك",
+  "description": "منصة تعليمية عربية حديثة للطلاب - دروس فيديو وملخصات تفاعلية",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

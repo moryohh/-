@@ -1,0 +1,538 @@
+import React, { useState, useEffect } from 'react';
+import { EducationalLesson, SubjectChapter, SubjectChapterLesson } from '../types';
+import { getCurriculumForSubject } from '../data/mockCurriculums';
+import { getSubjectChapters, getChapterLessons, getLessonDetails } from '../services/lessonsService';
+import { AdventureWorldMap } from './AdventureWorldMap';
+import { MapRewardsModal } from './MapRewardsModal';
+import { MapLeaderboardModal } from './MapLeaderboardModal';
+import { useAppTheme } from '../services/themeService';
+import {
+  ArrowRight,
+  CheckCircle2,
+  Play,
+  Lock,
+  Clock,
+  BookOpen,
+  Sparkles,
+  Award,
+  ChevronDown,
+  ChevronUp,
+  Circle,
+  FileText,
+  Flame,
+  Check,
+  Map as MapIcon,
+  List,
+  Trophy,
+  Gift,
+  Star,
+  Zap,
+  Users,
+  Compass,
+  AlertCircle,
+  RefreshCw,
+} from 'lucide-react';
+
+interface SubjectLearningPathViewProps {
+  subject: {
+    id: string;
+    name: string;
+    enName?: string;
+    teacher: string;
+    teacherAvatar: string;
+    iconType: string;
+    color: string;
+    glowColor: string;
+    bgGradient: string;
+    borderColor: string;
+    badgeColor: string;
+    totalLessons?: number;
+    lessonCountText?: string;
+    lessonData?: EducationalLesson;
+  };
+  onSelectLesson: (lesson: EducationalLesson) => void;
+  onBack: () => void;
+  onOpenGames?: () => void;
+}
+
+export const SubjectLearningPathView: React.FC<SubjectLearningPathViewProps> = ({
+  subject,
+  onSelectLesson,
+  onBack,
+  onOpenGames,
+}) => {
+  const { theme } = useAppTheme();
+  const [chapters, setChapters] = useState<SubjectChapter[]>([]);
+  const [selectedChapterIndex, setSelectedChapterIndex] = useState<number>(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingLessons, setIsLoadingLessons] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // View state: 'map' (default island adventure map) or 'list' (detailed chapter list)
+  const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
+
+  // State to toggle chapter collapse in list mode
+  const [collapsedChapters, setCollapsedChapters] = useState<Record<string, boolean>>({});
+
+  // Modals state
+  const [isRewardsOpen, setIsRewardsOpen] = useState(false);
+  const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+
+  // Chests opened state
+  const [openedChests, setOpenedChests] = useState<string[]>([]);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Player stats
+  const [expCount, setExpCount] = useState(2250);
+  const [coinsCount, setCoinsCount] = useState(150);
+  const [starsCount, setStarsCount] = useState(30);
+
+  // Function to load lessons for a specific chapter index
+  const loadLessonsForChapter = async (
+    chIndex: number,
+    chaptersList: SubjectChapter[] = chapters
+  ) => {
+    const targetChapter = chaptersList[chIndex];
+    if (!targetChapter) return;
+
+    // If already loaded lessons, skip network
+    if (targetChapter.lessons && targetChapter.lessons.length > 0) return;
+
+    setIsLoadingLessons(true);
+    try {
+      const res = await getChapterLessons(
+        subject.id,
+        targetChapter.title,
+        chIndex + 1,
+        subject.name
+      );
+
+      if (res.data && res.data.length > 0) {
+        setChapters((prev) =>
+          prev.map((c, idx) =>
+            idx === chIndex ? { ...c, lessons: res.data, lessonsCount: res.data.length } : c
+          )
+        );
+      }
+    } catch (e) {
+      console.error('Failed to load chapter lessons:', e);
+    } finally {
+      setIsLoadingLessons(false);
+    }
+  };
+
+  // Lazy Load Chapters from Supabase Storage (Section: 'دروس')
+  useEffect(() => {
+    let isMounted = true;
+    async function loadData() {
+      setIsLoading(true);
+      setErrorMessage(null);
+      try {
+        const res = await getSubjectChapters(subject.id, subject.name);
+        if (!isMounted) return;
+        if (res.data && res.data.length > 0) {
+          setChapters(res.data);
+          // Auto-load lessons for the first/selected chapter
+          loadLessonsForChapter(0, res.data);
+        } else {
+          // Fallback only if no data returned
+          const fallbackData = getCurriculumForSubject(subject.id);
+          setChapters(fallbackData);
+          loadLessonsForChapter(0, fallbackData);
+        }
+        if (res.error) {
+          setErrorMessage(res.error);
+        }
+      } catch (err: any) {
+        console.error('Failed to load chapters:', err);
+        if (isMounted) {
+          const fallbackData = getCurriculumForSubject(subject.id);
+          setChapters(fallbackData);
+          loadLessonsForChapter(0, fallbackData);
+          setErrorMessage('تعذر الاتصال بـ Supabase لجلب الفصول');
+        }
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    loadData();
+    return () => {
+      isMounted = false;
+    };
+  }, [subject.id, subject.name]);
+
+  const handleSelectChapter = (chIndex: number) => {
+    setSelectedChapterIndex(chIndex);
+    loadLessonsForChapter(chIndex);
+  };
+
+  const toggleChapter = (chapterId: string) => {
+    setCollapsedChapters((prev) => ({
+      ...prev,
+      [chapterId]: !prev[chapterId],
+    }));
+  };
+
+  const handleOpenChest = (chestId: string) => {
+    if (openedChests.includes(chestId)) {
+      showToast('🎉 لقد فتحت هذا الصندوق مسبقاً!');
+      return;
+    }
+    setOpenedChests((prev) => [...prev, chestId]);
+    setExpCount((prev) => prev + 100);
+    setCoinsCount((prev) => prev + 50);
+    setStarsCount((prev) => prev + 1);
+    showToast('✨ مبروك! حصلت على +100 EXP و +50 كوينز ونجمة ذهبية! ⭐');
+  };
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3500);
+  };
+
+  // Lazy load specific lesson JSON when clicked by user
+  const handleSelectLessonWithLazyLoad = async (lessonItem: SubjectChapterLesson) => {
+    try {
+      const parentChapter = chapters.find((ch) =>
+        ch.lessons.some((l) => l.id === lessonItem.id)
+      );
+      const chapterTitle = parentChapter ? parentChapter.title : 'الفصل الأول';
+
+      const res = await getLessonDetails(
+        subject.id,
+        chapterTitle,
+        lessonItem.title,
+        subject.name
+      );
+
+      if (res.data) {
+        onSelectLesson(res.data);
+      } else {
+        onSelectLesson(lessonItem.lessonData);
+      }
+    } catch (err) {
+      console.error('Error in handleSelectLessonWithLazyLoad:', err);
+      onSelectLesson(lessonItem.lessonData);
+    }
+  };
+
+  // Calculate overall curriculum statistics
+  const totalLessons = chapters.reduce((sum, ch) => sum + ch.lessons.length, 0);
+  const completedLessons = chapters.reduce(
+    (sum, ch) => sum + ch.lessons.filter((l) => l.status === 'completed').length,
+    0
+  );
+  const overallPercentage = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+
+  // Find active/current lesson to resume quickly
+  let currentResumeLesson: SubjectChapterLesson | null = null;
+  for (const ch of chapters) {
+    const found = ch.lessons.find((l) => l.status === 'in_progress');
+    if (found) {
+      currentResumeLesson = found;
+      break;
+    }
+  }
+  if (!currentResumeLesson && chapters.length > 0 && chapters[0].lessons.length > 0) {
+    currentResumeLesson = chapters[0].lessons[0];
+  }
+
+  const handleStartNextChallenge = () => {
+    if (currentResumeLesson) {
+      handleSelectLessonWithLazyLoad(currentResumeLesson);
+    }
+  };
+
+  return (
+    <div className="min-h-full px-2 sm:px-3 pt-1 pb-16 text-right animate-in fade-in duration-300 select-none space-y-2">
+      {/* TOAST NOTIFICATION */}
+      {toastMessage && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black text-xs sm:text-sm shadow-2xl border-2 border-white animate-bounce flex items-center gap-2">
+          <span>🎁</span>
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* ERROR NOTICE (If Supabase error happens) */}
+      {errorMessage && (
+        <div className="p-2.5 rounded-xl bg-rose-950/80 border border-rose-500/40 text-rose-200 text-xs flex items-center justify-between gap-2 shadow-lg">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>{errorMessage} (تم تفعيل المنهاج الاحتياطي)</span>
+          </div>
+          <button
+            onClick={() => setErrorMessage(null)}
+            className="text-[10px] text-rose-300 hover:text-white px-2 py-0.5 rounded bg-white/10"
+          >
+            إغلاق
+          </button>
+        </div>
+      )}
+
+      {/* 1. TOP EXPLORER PROFILE CARD */}
+      <div
+        className={`flex items-center justify-center p-2 rounded-2xl border-2 shadow-xl transition-all duration-300 ${theme.classes.cardBg} ${theme.classes.cardBorder}`}
+        style={{
+          boxShadow: `0 4px 20px ${theme.colors.glow}`,
+        }}
+      >
+        <div
+          className="flex items-center gap-2.5 px-4 py-1.5 rounded-2xl shadow-lg border"
+          style={{
+            background: `linear-gradient(135deg, ${theme.colors.primary}25, ${theme.colors.secondary}20)`,
+            borderColor: theme.colors.primary,
+          }}
+        >
+          <div
+            className="w-10 h-10 rounded-full border-2 overflow-hidden shrink-0 shadow"
+            style={{ borderColor: theme.colors.primary }}
+          >
+            <img
+              src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80"
+              alt="المغامر"
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div className="min-w-0">
+            <div className={`text-xs font-black truncate ${theme.classes.textMain}`}>اسم المغامر: أحمد</div>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="text-[10px] font-bold" style={{ color: theme.colors.primary }}>
+                مستوى 22
+              </span>
+              {/* Level Progress */}
+              <div className="w-16 h-2 bg-black/40 rounded-full overflow-hidden border border-white/20">
+                <div
+                  className="h-full rounded-full"
+                  style={{ width: '45%', backgroundColor: theme.colors.primary }}
+                />
+              </div>
+              <span className={`text-[9px] font-bold ${theme.classes.textMuted}`}>45%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. MAIN VIEW BODY */}
+      {viewMode === 'map' ? (
+        /* ADVENTURE ISLANDS WORLD MAP VIEW */
+        <div className="relative">
+          <AdventureWorldMap
+            chapters={chapters}
+            subjectName={subject.name}
+            subjectColor={subject.color}
+            activeLesson={currentResumeLesson}
+            onSelectLesson={handleSelectLessonWithLazyLoad}
+            onOpenChest={handleOpenChest}
+            openedChests={openedChests}
+            selectedChapterIndex={selectedChapterIndex}
+            onSelectChapter={handleSelectChapter}
+            isLoadingLessons={isLoadingLessons}
+            isLoadingChapters={isLoading}
+          />
+        </div>
+      ) : (
+        /* DETAILED CHAPTERS & LESSONS LIST VIEW */
+        <div className="space-y-4 animate-in fade-in">
+          {chapters.map((chapter, chapterIndex) => {
+            const isCollapsed = !!collapsedChapters[chapter.id];
+            const chapterCompletedCount = chapter.lessons.filter((l) => l.status === 'completed').length;
+            const isChapterFullyCompleted =
+              chapter.lessons.length > 0 && chapterCompletedCount === chapter.lessons.length;
+            const chapterProgress =
+              chapter.lessons.length > 0
+                ? Math.round((chapterCompletedCount / chapter.lessons.length) * 100)
+                : 0;
+
+            return (
+              <div key={chapter.id} className="space-y-3">
+                {/* Chapter Card */}
+                <div className="rounded-2xl bg-[#091124]/95 border border-sky-500/30 overflow-hidden shadow-xl">
+                  {/* Chapter Header */}
+                  <div
+                    onClick={() => toggleChapter(chapter.id)}
+                    className="p-3.5 sm:p-4 bg-gradient-to-r from-[#0e1b3d] to-[#0a142c] flex items-center justify-between gap-3 cursor-pointer border-b border-white/5 select-none hover:bg-[#12224d] transition-colors"
+                  >
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm shrink-0 border ${
+                          isChapterFullyCompleted
+                            ? 'bg-emerald-500/20 border-emerald-400/60 text-emerald-300'
+                            : 'bg-[#182852] border-sky-400/40 text-sky-300'
+                        }`}
+                      >
+                        {isChapterFullyCompleted ? <Check className="w-5 h-5" /> : chapter.number}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-sm sm:text-base font-black text-white truncate">
+                          {chapter.title}
+                        </h3>
+                        {chapter.subtitle && (
+                          <p className="text-[11px] sm:text-xs text-blue-200/70 truncate mt-0.5">
+                            {chapter.subtitle}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                          isChapterFullyCompleted
+                            ? 'bg-emerald-950/60 border-emerald-500/50 text-emerald-300'
+                            : 'bg-[#0f1d42] border-sky-500/30 text-sky-300'
+                        }`}
+                      >
+                        {chapterCompletedCount}/{chapter.lessons.length} درس
+                      </span>
+                      <button
+                        type="button"
+                        aria-label="تبديل عرض الفصل"
+                        className="p-1 rounded-lg text-gray-400 hover:text-white transition-colors"
+                      >
+                        {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Lessons inside chapter */}
+                  {!isCollapsed && (
+                    <div className="p-3 sm:p-4 space-y-2.5">
+                      {chapter.lessons.map((lessonItem) => {
+                        const isCompleted = lessonItem.status === 'completed';
+                        const isInProgress = lessonItem.status === 'in_progress';
+                        const isLocked = lessonItem.status === 'locked';
+
+                        return (
+                          <div
+                            key={lessonItem.id}
+                            onClick={() => handleSelectLessonWithLazyLoad(lessonItem)}
+                            className={`flex items-center justify-between gap-3 p-3 rounded-xl border transition-all cursor-pointer active:scale-[0.99] ${
+                              isInProgress
+                                ? 'bg-gradient-to-r from-[#0c224d] to-[#071533] border-sky-400 shadow-[0_0_20px_rgba(56,189,248,0.2)]'
+                                : isCompleted
+                                ? 'bg-[#081229]/80 border-emerald-500/30 hover:border-emerald-400/60'
+                                : 'bg-[#070f24] border-white/10 hover:border-sky-400/50'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              <div
+                                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 border ${
+                                  isCompleted
+                                    ? 'bg-emerald-500/20 border-emerald-400 text-emerald-400'
+                                    : isInProgress
+                                    ? 'bg-amber-400 border-white text-black animate-pulse'
+                                    : isLocked
+                                    ? 'bg-gray-900 border-gray-700 text-gray-500'
+                                    : 'bg-[#0e1f47] border-sky-400 text-sky-200'
+                                }`}
+                              >
+                                {isCompleted ? (
+                                  <Check className="w-4 h-4 stroke-[3]" />
+                                ) : isLocked ? (
+                                  <Lock className="w-3.5 h-3.5" />
+                                ) : (
+                                  <span>{lessonItem.number}</span>
+                                )}
+                              </div>
+
+                              <div className="flex-1 min-w-0">
+                                <h4 className="text-xs sm:text-sm font-bold text-white truncate">
+                                  {lessonItem.title}
+                                </h4>
+                                <div className="flex items-center gap-2 mt-0.5 text-[10px] text-gray-400">
+                                  <Clock className="w-3 h-3 text-sky-400" />
+                                  <span>{lessonItem.duration}</span>
+                                  {isCompleted && <span className="text-emerald-400 font-bold">• تم الإنجاز</span>}
+                                  {isInProgress && <span className="text-amber-300 font-bold">• جاري التعلم</span>}
+                                </div>
+                              </div>
+                            </div>
+
+                            <button className="px-3 py-1 rounded-xl bg-sky-500 hover:bg-sky-400 text-black font-black text-xs flex items-center gap-1 shadow">
+                              <Play className="w-3 h-3 fill-current" />
+                              <span>{isInProgress ? 'متابعة' : 'بدء'}</span>
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* 3. GAMIFIED BOTTOM ACTION BAR */}
+      <div className="fixed bottom-3 inset-x-3 sm:inset-x-6 z-40 max-w-4xl mx-auto flex items-center justify-between gap-2 p-2 rounded-2xl bg-gradient-to-r from-[#2c1810] via-[#3d2314] to-[#2c1810] border-2 border-[#b47a3c] shadow-2xl">
+        {/* Navigation & Menu Actions */}
+        <div className="flex items-center gap-1 sm:gap-2">
+          {/* Menu / List */}
+          <button
+            onClick={() => setViewMode((prev) => (prev === 'map' ? 'list' : 'map'))}
+            className="flex flex-col items-center justify-center px-3 py-1.5 rounded-xl bg-[#522d1b] hover:bg-[#6d3c24] border border-[#a06338] text-[#f5cd79] hover:text-white transition-all active:scale-95 cursor-pointer shadow"
+          >
+            <List className="w-4 h-4" />
+            <span className="text-[10px] font-black">{viewMode === 'map' ? 'القائمة' : 'الخريطة'}</span>
+          </button>
+
+          {/* Lessons list */}
+          <button
+            onClick={() => setViewMode('list')}
+            className="flex flex-col items-center justify-center px-3 py-1.5 rounded-xl bg-[#522d1b] hover:bg-[#6d3c24] border border-[#a06338] text-[#f5cd79] hover:text-white transition-all active:scale-95 cursor-pointer shadow"
+          >
+            <BookOpen className="w-4 h-4" />
+            <span className="text-[10px] font-black">الدروس</span>
+          </button>
+
+          {/* Rewards */}
+          <button
+            onClick={() => setIsRewardsOpen(true)}
+            className="flex flex-col items-center justify-center px-3 py-1.5 rounded-xl bg-[#522d1b] hover:bg-[#6d3c24] border border-[#a06338] text-[#f5cd79] hover:text-white transition-all active:scale-95 cursor-pointer shadow"
+          >
+            <Gift className="w-4 h-4 text-amber-400" />
+            <span className="text-[10px] font-black">المكافآت</span>
+          </button>
+
+          {/* Leaderboard */}
+          <button
+            onClick={() => setIsLeaderboardOpen(true)}
+            className="flex flex-col items-center justify-center px-3 py-1.5 rounded-xl bg-[#522d1b] hover:bg-[#6d3c24] border border-[#a06338] text-[#f5cd79] hover:text-white transition-all active:scale-95 cursor-pointer shadow"
+          >
+            <Users className="w-4 h-4 text-sky-400" />
+            <span className="text-[10px] font-black">المتصدرون</span>
+          </button>
+        </div>
+
+        {/* Big Game Button: ابدأ التحدي التالي! */}
+        <button
+          onClick={handleStartNextChallenge}
+          className="flex-1 max-w-[200px] sm:max-w-[240px] py-2.5 px-4 rounded-xl bg-gradient-to-b from-[#2ecc71] via-[#27ae60] to-[#219653] hover:from-[#34d178] hover:to-[#27ae60] border-2 border-[#a8f0c6] text-white font-black text-xs sm:text-sm shadow-xl shadow-green-900/50 flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer drop-shadow-md"
+        >
+          <Play className="w-4 h-4 fill-current" />
+          <span>ابدأ التحدي التالي!</span>
+        </button>
+      </div>
+
+      {/* MODALS */}
+      <MapRewardsModal
+        isOpen={isRewardsOpen}
+        onClose={() => setIsRewardsOpen(false)}
+        starsCount={starsCount}
+        coinsCount={coinsCount}
+        expCount={expCount}
+      />
+
+      <MapLeaderboardModal
+        isOpen={isLeaderboardOpen}
+        onClose={() => setIsLeaderboardOpen(false)}
+      />
+    </div>
+  );
+};
+
