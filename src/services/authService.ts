@@ -1,59 +1,68 @@
 import { getSupabaseClient } from '../lib/supabase';
 import { UserProfile } from '../types';
 
-const STORAGE_KEY = 'nahnu_maak_current_user';
-
-export const DEV_MOCK_USER: UserProfile = {
-  id: 'dev-guest-001',
-  name: 'مطور المنصة',
-  email: 'dev@platform.local',
-  avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80',
-  grade: 'السادس الإعدادي',
-  branch: 'الفرع العلمي',
-  level: 22,
-  points: 2250,
-  studyHours: 14.2,
-  streakDays: 12,
-  isDevBypass: true,
-};
-
 /**
- * Check if the user object is the developer bypass session
+ * Strict email validation:
+ * 1. Must be a valid standard RFC email format without weird chars.
+ * 2. Checks domain and ensures no disposable or fake mail providers.
+ * 3. Rejects invalid email structures.
  */
-export const isDeveloperBypass = (user: UserProfile | null): boolean => {
-  return !!user?.isDevBypass || user?.id === 'dev-guest-001';
-};
+export function validateStudentEmail(email: string): { isValid: boolean; error?: string } {
+  const trimmed = email.trim().toLowerCase();
 
-/**
- * Get locally stored user session
- */
-export const getStoredUser = (): UserProfile | null => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch {
-    return null;
+  if (!trimmed) {
+    return { isValid: false, error: 'يرجى إدخال البريد الإلكتروني' };
   }
-};
 
-/**
- * Store user session in localStorage
- */
-export const storeUser = (user: UserProfile | null): void => {
-  try {
-    if (user) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-    } else {
-      localStorage.removeItem(STORAGE_KEY);
-    }
-  } catch (err) {
-    console.error('Error updating localStorage auth user:', err);
+  // Check strict email format
+  const emailRegex = /^[a-zA-Z0-9]+([._%+-][a-zA-Z0-9]+)*@[a-zA-Z0-9]+([.-][a-zA-Z0-9]+)*\.[a-zA-Z]{2,}$/;
+  if (!emailRegex.test(trimmed)) {
+    return { isValid: false, error: 'صيغة البريد الإلكتروني غير صحيحة' };
   }
-};
+
+  // Reject consecutive dots or dot at start/end of username
+  if (trimmed.includes('..') || trimmed.startsWith('.') || trimmed.includes('.@') || trimmed.includes('@.')) {
+    return { isValid: false, error: 'البريد يحتوي على نقاط غير صالحة' };
+  }
+
+  const parts = trimmed.split('@');
+  if (parts.length !== 2) {
+    return { isValid: false, error: 'صيغة البريد غير صحيحة' };
+  }
+
+  const [userPart, domain] = parts;
+
+  if (userPart.length < 3) {
+    return { isValid: false, error: 'اسم الحساب في البريد قصير جداً (3 أحرف على الأقل)' };
+  }
+
+  // Disallow known disposable/fake email services
+  const disposableDomains = [
+    'mailinator.com',
+    'tempmail.com',
+    '10minutemail.com',
+    'guerrillamail.com',
+    'throwawaymail.com',
+    'sharklasers.com',
+    'yopmail.com',
+    'fakemail.com',
+    'example.com',
+    'test.com',
+    'fake.com',
+    'temp-mail.org',
+    'dispostable.com',
+  ];
+
+  if (disposableDomains.includes(domain)) {
+    return { isValid: false, error: 'غير مسموح باستخدام بريد مؤقت أو وهمي' };
+  }
+
+  return { isValid: true };
+}
 
 /**
- * Synchronize or upsert student profile data into Supabase 'profiles' table
+ * Synchronize or upsert student profile data into Supabase 'profiles' table.
+ * Derives user metadata safely from authentic Supabase User session.
  */
 export async function syncUserProfile(supabaseUser: any): Promise<UserProfile> {
   const client = getSupabaseClient();
@@ -84,11 +93,9 @@ export async function syncUserProfile(supabaseUser: any): Promise<UserProfile> {
     points: 100,
     studyHours: 0.5,
     streakDays: 1,
-    isDevBypass: false,
   };
 
   if (!client) {
-    storeUser(baseProfile);
     return baseProfile;
   }
 
@@ -101,7 +108,7 @@ export async function syncUserProfile(supabaseUser: any): Promise<UserProfile> {
       .maybeSingle();
 
     if (existingProfile && !fetchErr) {
-      const mergedProfile: UserProfile = {
+      return {
         id: userId,
         email: existingProfile.email || email,
         name: existingProfile.full_name || existingProfile.name || name,
@@ -112,10 +119,7 @@ export async function syncUserProfile(supabaseUser: any): Promise<UserProfile> {
         points: existingProfile.points || 100,
         studyHours: existingProfile.study_hours || 0.5,
         streakDays: existingProfile.streak_days || 1,
-        isDevBypass: false,
       };
-      storeUser(mergedProfile);
-      return mergedProfile;
     }
 
     // 2. Insert or update student profile in Supabase table
@@ -133,35 +137,27 @@ export async function syncUserProfile(supabaseUser: any): Promise<UserProfile> {
       .from('profiles')
       .upsert(profilePayload, { onConflict: 'id' });
 
-    storeUser(baseProfile);
     return baseProfile;
   } catch (err) {
     console.warn('Profile sync fallback gracefully used:', err);
-    storeUser(baseProfile);
     return baseProfile;
   }
 }
 
 /**
- * 1. Sign In With Google OAuth
+ * 1. Sign In With Google OAuth via Supabase
  */
 export async function signInWithGoogle(): Promise<{ error?: string }> {
   const client = getSupabaseClient();
   if (!client) {
-    return { error: 'خدمة Supabase غير مهيأة حالياً. يمكنك استخدام الدخول السريع للمطور.' };
+    return { error: 'خدمة Supabase غير مهيأة حالياً. يرجى التحقق من المتغيرات البيئية.' };
   }
 
   try {
-    const redirectUrl = window.location.origin;
-
     const { error } = await client.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: redirectUrl,
-        queryParams: {
-          access_type: 'offline',
-          prompt: 'consent',
-        },
+        redirectTo: window.location.origin,
       },
     });
 
@@ -176,20 +172,21 @@ export async function signInWithGoogle(): Promise<{ error?: string }> {
 }
 
 /**
- * 2. Sign In as Developer (Temporary Bypass)
- */
-export function signInAsDeveloper(): UserProfile {
-  storeUser(DEV_MOCK_USER);
-  return DEV_MOCK_USER;
-}
-
-/**
- * 3. Sign In With Email & Password
+ * 2. Sign In With Email & Password (with strict verification)
  */
 export async function signInWithEmailPassword(
   email: string,
   pass: string
 ): Promise<{ user?: UserProfile; error?: string }> {
+  const validation = validateStudentEmail(email);
+  if (!validation.isValid) {
+    return { error: validation.error };
+  }
+
+  if (!pass || pass.length < 6) {
+    return { error: 'كلمة المرور يجب ألا تقل عن 6 خانات' };
+  }
+
   const client = getSupabaseClient();
   if (!client) {
     return { error: 'خدمة Supabase غير متوفرة.' };
@@ -197,11 +194,17 @@ export async function signInWithEmailPassword(
 
   try {
     const { data, error } = await client.auth.signInWithPassword({
-      email,
+      email: email.trim().toLowerCase(),
       password: pass,
     });
 
     if (error) {
+      if (error.message.includes('Invalid login credentials')) {
+        return { error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' };
+      }
+      if (error.message.includes('Email not confirmed')) {
+        return { error: 'يرجى تأكيد بريدك الإلكتروني أولاً من خلال الرابط المرسل إلى بريدك' };
+      }
       return { error: error.message };
     }
 
@@ -217,54 +220,117 @@ export async function signInWithEmailPassword(
 }
 
 /**
- * 4. Sign Up With Email & Password
+ * 3. Sign Up With Email & Password (with strict duplicate check)
  */
 export async function signUpWithEmailPassword(
   email: string,
   pass: string,
   fullName: string
 ): Promise<{ user?: UserProfile; error?: string; message?: string }> {
+  const validation = validateStudentEmail(email);
+  if (!validation.isValid) {
+    return { error: validation.error };
+  }
+
+  if (!fullName || fullName.trim().length < 3) {
+    return { error: 'يرجى إدخال اسم الطالب الثلاثي بشكل واضح' };
+  }
+
+  if (!pass || pass.length < 6) {
+    return { error: 'كلمة المرور يجب ألا تقل عن 6 أحرف أو أرقام' };
+  }
+
   const client = getSupabaseClient();
   if (!client) {
     return { error: 'خدمة Supabase غير متوفرة.' };
   }
 
   try {
+    const cleanEmail = email.trim().toLowerCase();
+
     const { data, error } = await client.auth.signUp({
-      email,
+      email: cleanEmail,
       password: pass,
       options: {
         data: {
-          full_name: fullName,
-          name: fullName,
+          full_name: fullName.trim(),
+          name: fullName.trim(),
         },
       },
     });
 
     if (error) {
+      if (
+        error.message.includes('User already registered') ||
+        error.message.includes('already exists') ||
+        error.message.includes('unique')
+      ) {
+        return { error: 'هذا البريد مسجل مسبقاً في المنصة! يرجى التبديل لتبويب تسجيل الدخول.' };
+      }
       return { error: error.message };
     }
 
+    // Supabase Security Behavior:
+    // If "Confirm email" is enabled or identities array is empty, Supabase returns a fake/empty user or user with identities: []
+    // to prevent email enumeration. If identities is empty, the user already exists!
     if (data?.user) {
+      const identities = data.user.identities;
+      if (Array.isArray(identities) && identities.length === 0) {
+        return {
+          error: 'هذا البريد مسجل مسبقاً بالفعل في قاعدة البيانات! يرجى التبديل إلى "تسجيل الدخول".',
+        };
+      }
+
+      // If user requires email confirmation (session is null)
+      if (!data.session) {
+        return {
+          message: 'تم إنشاء الحساب بنجاح! تم إرسال رابط تأكيد الحساب إلى بريدك الإلكتروني، يرجى تفعيله ثم تسجيل الدخول.',
+        };
+      }
+
       const profile = await syncUserProfile(data.user);
       return {
         user: profile,
-        message: 'تم إنشاء الحساب بنجاح! تفقد بريدك لتأكيد الحساب إذا لزم الأمر.',
+        message: 'تم إنشاء الحساب وتسجيل الدخول بنجاح!',
       };
     }
 
-    return { message: 'تم إرسال رسالة التأكيد إلى بريدك الإلكتروني.' };
+    return { message: 'تم إرسال رابط تأكيد الحساب إلى بريدك الإلكتروني.' };
   } catch (err: any) {
     return { error: err.message || 'فشل إنشاء الحساب' };
   }
 }
 
 /**
- * 5. Sign Out
+ * 3.1 Resend Email Confirmation Link
+ */
+export async function resendConfirmationEmail(email: string): Promise<{ success: boolean; error?: string }> {
+  const client = getSupabaseClient();
+  if (!client) {
+    return { success: false, error: 'خدمة Supabase غير متوفرة.' };
+  }
+
+  try {
+    const { error } = await client.auth.resend({
+      type: 'signup',
+      email: email.trim().toLowerCase(),
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'فشل إعادة إرسال رابط التأكيد' };
+  }
+}
+
+/**
+ * 4. Sign Out from Supabase
  */
 export async function signOutUser(): Promise<void> {
   const client = getSupabaseClient();
-  storeUser(null);
   if (client) {
     try {
       await client.auth.signOut();
@@ -275,34 +341,28 @@ export async function signOutUser(): Promise<void> {
 }
 
 /**
- * 6. Get Current Auth State on App Startup
+ * 5. Get Current Auth State strictly from Supabase session
  */
 export async function getInitialAuthState(): Promise<UserProfile | null> {
-  // Check stored dev session first
-  const localUser = getStoredUser();
-  if (localUser && localUser.isDevBypass) {
-    return localUser;
-  }
-
   const client = getSupabaseClient();
   if (!client) {
-    return localUser;
+    return null;
   }
 
   try {
-    const { data } = await client.auth.getSession();
-    if (data?.session?.user) {
-      return await syncUserProfile(data.session.user);
+    const { data, error } = await client.auth.getSession();
+    if (error || !data?.session?.user) {
+      return null;
     }
+    return await syncUserProfile(data.session.user);
   } catch (err) {
     console.debug('No active supabase session:', err);
+    return null;
   }
-
-  return localUser;
 }
 
 /**
- * 7. Listen for Auth State Changes (OAuth redirect completions, token refresh, etc.)
+ * 6. Listen strictly to Supabase Auth State Changes
  */
 export function onAuthStateChange(callback: (user: UserProfile | null) => void) {
   const client = getSupabaseClient();
@@ -312,12 +372,8 @@ export function onAuthStateChange(callback: (user: UserProfile | null) => void) 
     if (session?.user) {
       const profile = await syncUserProfile(session.user);
       callback(profile);
-    } else if (event === 'SIGNED_OUT') {
-      const current = getStoredUser();
-      if (!current?.isDevBypass) {
-        storeUser(null);
-        callback(null);
-      }
+    } else {
+      callback(null);
     }
   });
 

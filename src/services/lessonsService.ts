@@ -120,19 +120,139 @@ export function extractYoutubeId(urlOrId?: string, title = '', channel = '', sum
  * Maps subject IDs/keys to database subject_id values in educational_data table
  */
 export function getDbSubjectIds(subjectKey: string): string[] {
+  const s = (subjectKey || '').toLowerCase().trim();
   const map: Record<string, string[]> = {
-    biology: ['biology'],
-    physics: ['physics'],
-    chemistry: ['chemistry'],
-    mathematics: ['mathematics', 'math'],
-    'arabic-1': ['arabic_part1', 'arabic'],
-    'arabic-2': ['arabic_part2', 'arabic'],
-    arabic: ['arabic_part1', 'arabic_part2', 'arabic'],
-    islamic: ['islamic'],
-    english: ['english'],
+    biology: [
+      'biology',
+      'biology_6',
+      'bio',
+      'bio_6',
+      'biology-6',
+      'bio-6',
+      'biology_part1',
+      'biology_part2',
+      'احياء',
+      'أحياء',
+      'الاحياء',
+      'الأحياء',
+      'علم الأحياء',
+      'علم_الاحياء',
+      'al-ahyaa',
+      'alahyaa',
+      'al_ahyaa',
+      'ahyaa',
+      'ahya',
+      'al-ahya',
+      'biologie',
+      'biology_curriculum',
+    ],
+    physics: [
+      'physics',
+      'physics_6',
+      'phys',
+      'phys_6',
+      'physics-6',
+      'فيزياء',
+      'الفيزياء',
+      'علم الفيزياء',
+      'al-fizyaa',
+      'alfizyaa',
+      'fizyaa',
+    ],
+    chemistry: [
+      'chemistry',
+      'chemistry_6',
+      'chem',
+      'chem_6',
+      'chemistry-6',
+      'كيمياء',
+      'الكيمياء',
+      'علم الكيمياء',
+      'al-keemyaa',
+      'alkeemyaa',
+      'keemyaa',
+    ],
+    mathematics: [
+      'mathematics',
+      'math',
+      'maths',
+      'mathematics_6',
+      'math_6',
+      'رياضيات',
+      'الرياضيات',
+      'al-reyadhyat',
+      'reyadhyat',
+    ],
+    'arabic-1': [
+      'arabic_part1',
+      'arabic-1',
+      'arabic1',
+      'arabic_1',
+      'arabic',
+      'قواعد',
+      'قواعد اللغة العربية',
+      'عربي1',
+      'عربي_1',
+      'اللغة العربية ج1',
+      'اللغة العربية 1',
+    ],
+    'arabic-2': [
+      'arabic_part2',
+      'arabic-2',
+      'arabic2',
+      'arabic_2',
+      'arabic',
+      'ادب',
+      'أدب',
+      'الأدب والنصوص',
+      'عربي2',
+      'عربي_2',
+      'اللغة العربية ج2',
+      'اللغة العربية 2',
+    ],
+    arabic: [
+      'arabic_part1',
+      'arabic_part2',
+      'arabic',
+      'عربي',
+      'اللغة العربية',
+      'قواعد',
+      'أدب',
+      'ادب',
+    ],
+    islamic: [
+      'islamic',
+      'islamic_studies',
+      'islam',
+      'إسلامية',
+      'اسلامية',
+      'التربية الإسلامية',
+      'الاسلامية',
+      'الإسلامية',
+    ],
+    english: [
+      'english',
+      'english_6',
+      'eng',
+      'eng_6',
+      'انكليزي',
+      'إنكليزي',
+      'انجليزي',
+      'إنجليزي',
+      'اللغة الإنجليزية',
+      'اللغة الإنكليزية',
+    ],
   };
 
-  return map[subjectKey] || [subjectKey];
+  const list = map[s] || [s];
+  const allVariants = new Set<string>();
+  list.forEach((id) => {
+    allVariants.add(id);
+    allVariants.add(id.toLowerCase());
+    allVariants.add(id.toUpperCase());
+    allVariants.add(id.charAt(0).toUpperCase() + id.slice(1).toLowerCase());
+  });
+  return Array.from(allVariants);
 }
 
 /**
@@ -151,6 +271,44 @@ export function getSubjectFolderNames(subjectKey: string): string[] {
   };
 
   return map[subjectKey] || [subjectKey];
+}
+
+/**
+ * Formats any lesson title into clean Arabic, completely stripping "السجمنت" or "segment"
+ * Example: "الدرس / السجمنت 31" -> "الدرس 31"
+ * Example: "السجمنت 2" -> "الدرس 2"
+ * Example: "segment_31" -> "الدرس 31"
+ */
+export function formatArabicLessonTitle(title: string | undefined | null): string {
+  if (!title) return 'الدرس';
+  let t = String(title).trim();
+
+  // Strip .json suffix if present
+  t = t.replace(/\.json$/i, '');
+
+  // Strip file path if present
+  if (t.includes('/')) {
+    const parts = t.split('/');
+    t = parts[parts.length - 1];
+  }
+
+  // Replace "الدرس / السجمنت 31" or "الدرس / سجمنت 31" or "الدرس/السجمنت 31" -> "الدرس 31"
+  t = t.replace(/الدرس\s*[\/\-:]\s*(?:ال)?سجمنت\s*(\d+|[٠-٩]+)/gi, 'الدرس $1');
+  t = t.replace(/الدرس\s*[\/\-:]\s*(?:ال)?سجمنت/gi, 'الدرس');
+
+  // Replace "السجمنت 31" or "سجمنت 31" -> "الدرس 31"
+  t = t.replace(/(?:ال)?سجمنت\s*(\d+|[٠-٩]+)/gi, 'الدرس $1');
+  t = t.replace(/(?:ال)?سجمنت/gi, 'الدرس');
+
+  // Replace "segment_31" or "segment 31" or "seg_31" or "seg31" -> "الدرس 31"
+  t = t.replace(/(?:segment|seg)[\s_-]*(\d+)/gi, 'الدرس $1');
+
+  // Replace "lesson_31" or "les_31" -> "الدرس 31"
+  t = t.replace(/(?:lesson|les)[\s_-]*(\d+)/gi, 'الدرس $1');
+
+  // Clean any multiple spaces or stray slashes
+  t = t.replace(/\s+/g, ' ').replace(/^[\/\-:]\s*/, '').trim();
+  return t;
 }
 
 /**
@@ -252,7 +410,7 @@ export function transformJsonToLesson(
         teacherName: tName,
         channelName: channelTitle,
         subject: lessonObj.subject || subjectName,
-        title: vid.title || tName,
+        title: formatArabicLessonTitle(vid.title || tName),
         avatar: t.avatar || ytThumbnail,
         hasUnseen: true,
         youtubeId: tYoutubeId,
@@ -264,7 +422,7 @@ export function transformJsonToLesson(
           `شرح ${tName} للدرس من قناة (${channelTitle}).`,
         lessonData: {
           id: `${actualLessonId}-${idx}`,
-          title: vid.title || `${lessonObj.subject || subjectName} - ${tName}`,
+          title: formatArabicLessonTitle(vid.title || `${lessonObj.subject || subjectName} - ${tName}`),
           subtitle: `${lessonObj.grade || 'السادس الإعدادي'} - ${lessonObj.subject || subjectName}`,
           category: lessonObj.subject || subjectName,
           teacherName: tName,
@@ -316,16 +474,18 @@ export function transformJsonToLesson(
     }
   });
 
-  const resolvedTitle =
+  const rawTitle =
     activeVideo.title ||
     lessonObj.title ||
     rawJson.file_name ||
-    (segmentTopics.length > 0 ? segmentTopics[0] : 'درس تعليمي');
+    (segmentTopics.length > 0 ? segmentTopics[0] : 'الدرس');
+
+  const resolvedTitle = formatArabicLessonTitle(rawTitle);
 
   const resolvedDesc =
     activeVideo.content_summary ||
     lessonObj.description ||
-    (segmentTopics.length > 0 ? `المواضيع المغطاة: ${segmentTopics.join(' | ')}` : 'شرح تفصيلي للمنهج.');
+    (segmentTopics.length > 0 ? `المواضيع المغطاة: ${segmentTopics.join(' | ')}` : 'شرح تفصيلي للمنهج مع الأسئلة والتمارين الوزارية.');
 
   const rawResolvedName = activeTeacher.teacher_name || lessonObj.teacher_name || 'مدرس المادة';
   const resolvedTeacherName = cleanTeacherName(rawResolvedName) || rawResolvedName;
@@ -434,16 +594,72 @@ export async function getSubjectChapters(
   try {
     const dbSubjectIds = getDbSubjectIds(subjectKey);
 
-    // 1. Query Supabase educational_data table specifically for section_id = 'lessons'
-    const { data: dbRows, error: dbError } = await supabase
+    // 1. Query Supabase educational_data table for matching subject_id
+    let dbRows: any[] = [];
+    const { data: directRows, error: dbError } = await supabase
       .from('educational_data')
       .select('id, subject_id, section_id, file_name, content')
       .in('subject_id', dbSubjectIds)
-      .eq('section_id', 'lessons')
       .limit(2000);
 
     if (dbError) {
       console.warn('[Supabase DB] Error querying educational_data:', dbError);
+    } else if (directRows && directRows.length > 0) {
+      dbRows = directRows;
+    }
+
+    // 1.1 If no rows found with exact IN, search by partial ILIKE matches (e.g. for bio, احياء, etc.)
+    if (dbRows.length === 0) {
+      let filterStr = `subject_id.ilike.%${subjectKey}%,file_name.ilike.%${subjectKey}%`;
+      if (subjectKey === 'biology') {
+        filterStr += ',subject_id.ilike.%bio%,subject_id.ilike.%احياء%,subject_id.ilike.%أحياء%,file_name.ilike.%bio%,file_name.ilike.%احياء%,file_name.ilike.%أحياء%';
+      }
+      const { data: ilikeRows } = await supabase
+        .from('educational_data')
+        .select('id, subject_id, section_id, file_name, content')
+        .or(filterStr)
+        .limit(1000);
+
+      if (ilikeRows && ilikeRows.length > 0) {
+        dbRows = ilikeRows;
+      }
+    }
+
+    // 1.2 If still empty, check lessons_warehouse table
+    if (dbRows.length === 0) {
+      const { data: warehouseRows } = await supabase
+        .from('lessons_warehouse')
+        .select('*')
+        .limit(500);
+
+      if (warehouseRows && warehouseRows.length > 0) {
+        dbRows = warehouseRows.filter((r) =>
+          dbSubjectIds.some(
+            (sId) =>
+              r.subject_id?.toLowerCase()?.includes(sId.toLowerCase()) ||
+              r.subject?.toLowerCase()?.includes(sId.toLowerCase()) ||
+              r.title?.toLowerCase()?.includes(sId.toLowerCase()) ||
+              r.file_name?.toLowerCase()?.includes(sId.toLowerCase())
+          )
+        );
+      }
+    }
+
+    // 1.3 If still empty, inspect all rows in educational_data with JavaScript fuzzy match
+    if (dbRows.length === 0) {
+      const { data: anyRows } = await supabase
+        .from('educational_data')
+        .select('id, subject_id, section_id, file_name, content')
+        .limit(1000);
+      if (anyRows && anyRows.length > 0) {
+        dbRows = anyRows.filter((r) =>
+          dbSubjectIds.some(
+            (sId) =>
+              r.subject_id?.toLowerCase()?.includes(sId.toLowerCase()) ||
+              r.file_name?.toLowerCase()?.includes(sId.toLowerCase())
+          )
+        );
+      }
     }
 
     // 2. Find all organized tree records and pick the most complete one (highest chapter count)
@@ -474,7 +690,7 @@ export async function getSubjectChapters(
 
         const lessons: SubjectChapterLesson[] = rawLessons.map((l: any, lIdx: number) => {
           const lNum = l.lessonNumber || lIdx + 1;
-          const lTitle = l.lessonTitle || `الدرس ${lNum}`;
+          const lTitle = formatArabicLessonTitle(l.lessonTitle || `الدرس ${lNum}`);
           const rawLessonData = l.files?.[0]?.data || l.files?.[0] || l;
           const lessonId =
             l.files?.[0]?.lesson_id ||
@@ -550,10 +766,11 @@ export async function getSubjectChapters(
           const fallbackId = `les-${row.id || chNum + '-' + lNum}`;
           const parsedLesson = transformJsonToLesson(lessonContent, fallbackId, subjectName);
 
-          const lTitle =
+          const rawTitle =
             parsedLesson.title ||
             row.file_name?.split('/').pop()?.replace('.json', '') ||
             `الدرس ${lNum}`;
+          const lTitle = formatArabicLessonTitle(rawTitle);
 
           return {
             id: parsedLesson.id || fallbackId,
@@ -657,14 +874,35 @@ export async function getChapterLessons(
   try {
     const dbSubjectIds = getDbSubjectIds(subjectKey);
 
-    const { data: dbRows, error: dbError } = await supabase
+    // Query with resilient fallback for section_id
+    let dbRows: any[] = [];
+    const { data: sectionRows, error: dbError } = await supabase
       .from('educational_data')
       .select('id, subject_id, section_id, file_name, content')
       .in('subject_id', dbSubjectIds)
-      .eq('section_id', 'lessons')
       .limit(1000);
 
-    if (dbError) throw dbError;
+    if (dbError) {
+      console.warn('[Supabase DB] Error in fetchSubjectLessons:', dbError);
+    } else if (sectionRows && sectionRows.length > 0) {
+      dbRows = sectionRows;
+    }
+
+    if (dbRows.length === 0) {
+      let filterStr = `subject_id.ilike.%${subjectKey}%,file_name.ilike.%${subjectKey}%`;
+      if (subjectKey === 'biology') {
+        filterStr += ',subject_id.ilike.%bio%,subject_id.ilike.%احياء%,subject_id.ilike.%أحياء%,file_name.ilike.%bio%,file_name.ilike.%احياء%,file_name.ilike.%أحياء%';
+      }
+      const { data: ilikeRows } = await supabase
+        .from('educational_data')
+        .select('id, subject_id, section_id, file_name, content')
+        .or(filterStr)
+        .limit(1000);
+
+      if (ilikeRows && ilikeRows.length > 0) {
+        dbRows = ilikeRows;
+      }
+    }
 
     const lessons: SubjectChapterLesson[] = [];
 
@@ -687,10 +925,11 @@ export async function getChapterLessons(
         const fallbackId = `les-${row.id || chapterNumber + '-' + lNum}`;
         const parsedLesson = transformJsonToLesson(lessonContent, fallbackId, subjectName);
 
-        const lTitle =
+        const rawTitle =
           parsedLesson.title ||
           fn.split('/').pop()?.replace('.json', '') ||
           `الدرس ${lNum}`;
+        const lTitle = formatArabicLessonTitle(rawTitle);
 
         lessons.push({
           id: parsedLesson.id || fallbackId,

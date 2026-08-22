@@ -15,18 +15,28 @@ import {
   X,
   ShieldCheck,
   Flame,
+  LogOut,
+  Database,
+  RefreshCw,
+  Play,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
 import { useAppTheme, AppThemeId } from '../services/themeService';
 import { gameAudio } from '../utils/gameAudio';
+import { getSupabaseClient } from '../lib/supabase';
 
 interface SettingsViewProps {
   onOpenProfile?: () => void;
   onBack?: () => void;
+  onSignOut?: () => void;
 }
 
-export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenProfile, onBack }) => {
+export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenProfile, onBack, onSignOut }) => {
   const { currentThemeId, theme, setThemeId } = useAppTheme();
   const [isThemePickerOpen, setIsThemePickerOpen] = useState(false);
+  const [dbTestLoading, setDbTestLoading] = useState(false);
+  const [dbTestResult, setDbTestResult] = useState<any>(null);
 
   const themeList: {
     id: AppThemeId;
@@ -445,7 +455,133 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenProfile, onBac
       )}
 
       {/* ======================================================== */}
-      {/* 4. PLATFORM BADGE & ACCREDITATION INFO */}
+      {/* 4. SUPABASE LIVE DATABASE DIAGNOSTICS & TEST TOOL */}
+      {/* ======================================================== */}
+      <div
+        className={`p-4 rounded-3xl border space-y-3 transition-all duration-300 ${theme.classes.cardBg} ${theme.classes.cardBorder}`}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div
+              className="w-8 h-8 rounded-xl flex items-center justify-center border"
+              style={{
+                backgroundColor: `${theme.colors.primary}20`,
+                borderColor: theme.colors.primary,
+                color: theme.colors.primary,
+              }}
+            >
+              <Database className="w-4 h-4" />
+            </div>
+            <div>
+              <h4 className={`text-xs font-black ${theme.classes.textMain}`}>فاحص اتصال قاعدة البيانات الحية</h4>
+              <p className={`text-[10px] ${theme.classes.textMuted}`}>فحص الجداول وقراءة المحتوى التعليمي الفعلي من Supabase</p>
+            </div>
+          </div>
+          <button
+            onClick={async () => {
+              setDbTestLoading(true);
+              setDbTestResult(null);
+              try {
+                const client = getSupabaseClient();
+                if (!client) {
+                  setDbTestResult({ error: 'عميل Supabase غير مهيأ' });
+                  return;
+                }
+                // Check multiple tables
+                const { data: eduData, error: eduErr, count: eduCount } = await client
+                  .from('educational_data')
+                  .select('id, subject_id, section_id, file_name', { count: 'exact' })
+                  .limit(10);
+
+                const { data: wareData, error: wareErr, count: wareCount } = await client
+                  .from('lessons_warehouse')
+                  .select('*', { count: 'exact' })
+                  .limit(10);
+
+                const { data: profData, error: profErr, count: profCount } = await client
+                  .from('profiles')
+                  .select('id, email, full_name', { count: 'exact' })
+                  .limit(5);
+
+                setDbTestResult({
+                  success: !eduErr || !wareErr,
+                  educational_data: {
+                    count: eduCount ?? (eduData?.length || 0),
+                    sample: eduData || [],
+                    error: eduErr?.message || null,
+                  },
+                  lessons_warehouse: {
+                    count: wareCount ?? (wareData?.length || 0),
+                    sample: wareData || [],
+                    error: wareErr?.message || null,
+                  },
+                  profiles: {
+                    count: profCount ?? (profData?.length || 0),
+                    error: profErr?.message || null,
+                  },
+                });
+              } catch (e: any) {
+                setDbTestResult({ error: e?.message || 'فشل الاتصال' });
+              } finally {
+                setDbTestLoading(false);
+              }
+            }}
+            disabled={dbTestLoading}
+            className="px-3 py-1.5 rounded-xl text-[11px] font-black text-white shadow transition-all active:scale-95 disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+            style={{ backgroundColor: theme.colors.primary }}
+          >
+            {dbTestLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+            <span>{dbTestLoading ? 'جارِ الفحص...' : 'فحص الاتصال والبيانات'}</span>
+          </button>
+        </div>
+
+        {dbTestResult && (
+          <div className="p-3 rounded-2xl bg-black/20 border border-white/10 text-right space-y-2 text-[11px] font-mono">
+            {dbTestResult.error ? (
+              <div className="text-rose-400 font-sans font-bold flex items-center gap-1.5">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>خطأ: {dbTestResult.error}</span>
+              </div>
+            ) : (
+              <>
+                <div className="text-emerald-400 font-sans font-bold flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>تم فحص جداول Supabase بنجاح:</span>
+                </div>
+                <div className="text-xs space-y-1 text-slate-300 font-sans">
+                  <div>
+                    📦 جدول <code className="text-amber-400 font-bold">educational_data</code>: يحتوي على{' '}
+                    <b className="text-white">{dbTestResult.educational_data?.count ?? 0}</b> سجل.
+                    {dbTestResult.educational_data?.error && (
+                      <span className="text-rose-400 text-[10px] block">({dbTestResult.educational_data.error})</span>
+                    )}
+                  </div>
+                  <div>
+                    📚 جدول <code className="text-amber-400 font-bold">lessons_warehouse</code>: يحتوي على{' '}
+                    <b className="text-white">{dbTestResult.lessons_warehouse?.count ?? 0}</b> سجل.
+                    {dbTestResult.lessons_warehouse?.error && (
+                      <span className="text-rose-400 text-[10px] block">({dbTestResult.lessons_warehouse.error})</span>
+                    )}
+                  </div>
+                  <div>
+                    👤 جدول <code className="text-amber-400 font-bold">profiles</code>: يحتوي على{' '}
+                    <b className="text-white">{dbTestResult.profiles?.count ?? 0}</b> طالب مسجل.
+                  </div>
+                </div>
+                {dbTestResult.educational_data?.sample?.length > 0 && (
+                  <div className="pt-1 text-[10px] text-slate-400 border-t border-white/10">
+                    <span className="font-bold text-slate-300">عينات من الملفات المقروءة: </span>
+                    {dbTestResult.educational_data.sample.map((s: any) => s.file_name || s.id).slice(0, 3).join(', ')}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ======================================================== */}
+      {/* 5. PLATFORM BADGE & ACCREDITATION INFO */}
       {/* ======================================================== */}
       <div
         className={`p-3.5 rounded-3xl border text-center space-y-1.5 transition-all duration-300 ${theme.classes.cardBg} ${theme.classes.cardBorder}`}
@@ -458,6 +594,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenProfile, onBac
           الإصدار التفاعلي 3.2.0 • تم التحديث ليتطابق مع الامتحانات الوزارية 2026
         </p>
       </div>
+
+      {/* ======================================================== */}
+      {/* 5. LOGOUT BUTTON */}
+      {/* ======================================================== */}
+      {onSignOut && (
+        <button
+          onClick={onSignOut}
+          className="w-full py-3 px-4 rounded-2xl border border-rose-500/30 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-98 cursor-pointer"
+        >
+          <LogOut className="w-4 h-4" />
+          <span>تسجيل الخروج من الحساب</span>
+        </button>
+      )}
     </div>
   );
 };

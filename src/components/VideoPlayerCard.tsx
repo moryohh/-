@@ -17,7 +17,7 @@ import { LessonBookletView } from './LessonBookletView';
 import { LessonBookletData } from '../data/lessonBooklet';
 import { fetchLessonCurriculum } from '../services/curriculumService';
 import { cleanTeacherName } from '../utils/cleanTeacherName';
-import { extractYoutubeId } from '../services/lessonsService';
+import { extractYoutubeId, formatArabicLessonTitle } from '../services/lessonsService';
 import { useAppTheme } from '../services/themeService';
 
 interface VideoPlayerCardProps {
@@ -346,18 +346,18 @@ export const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
               color: theme.colors.primary,
             }}
           >
-            {lesson.subtitle || 'السادس الإعدادي - العراق'}
+            {formatArabicLessonTitle(lesson.subtitle || 'السادس الإعدادي - العراق')}
           </span>
           <span className={`text-xs font-semibold ${theme.classes.textMuted}`}>
             {cleanedTeacherName}
           </span>
         </div>
         <h2 className={`text-base sm:text-lg font-bold leading-snug ${theme.classes.textMain}`}>
-          {lesson.title}
+          {formatArabicLessonTitle(lesson.title)}
         </h2>
         {lesson.description && (
           <p className={`text-xs pt-0.5 leading-relaxed ${theme.classes.textMuted}`}>
-            {lesson.description}
+            {formatArabicLessonTitle(lesson.description)}
           </p>
         )}
       </div>
@@ -367,7 +367,7 @@ export const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
         bookletData={curriculumData}
         isLoading={isLoadingCurriculum}
         error={curriculumError}
-        lessonTitle={lesson.title}
+        lessonTitle={formatArabicLessonTitle(lesson.title)}
       />
 
       {/* ========================================================= */}

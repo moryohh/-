@@ -16,12 +16,14 @@ export interface TeacherStory {
 
 export interface CommunityStory {
   id: string;
+  userId?: string;
   userName: string;
   userAvatar: string;
   title: string;
   hasUnseen: boolean;
   storyImage?: string;
   textNotes?: string;
+  createdAt?: string;
 }
 
 export interface LessonAttachment {
@@ -45,28 +47,36 @@ export interface CommentItem {
 
 export interface CommunityComment {
   id: string;
+  postId?: string;
+  userId?: string;
   userName: string;
   userAvatar: string;
   timeAgo: string;
   text: string;
   likes: number;
   isLiked?: boolean;
+  createdAt?: string;
   replies?: CommunityComment[];
 }
 
 export interface CommunityPost {
   id: string;
+  userId?: string;
   userName: string;
   userAvatar: string;
   timeAgo: string;
   content: string;
   type?: 'question' | 'discussion' | 'summary' | 'general';
   image?: string;
+  images?: string[]; // Supports up to 4 images per post
   attachmentName?: string;
   likesCount: number;
   commentsCount: number;
   isLiked: boolean;
   isOwnPost?: boolean;
+  isPinned?: boolean; // Highlighted / pinned engaged post
+  engagementScore?: number;
+  createdAt?: string;
   comments: CommunityComment[];
 }
 
@@ -186,6 +196,5 @@ export interface UserProfile {
   points?: number;
   studyHours?: number;
   streakDays?: number;
-  isDevBypass?: boolean;
 }
 

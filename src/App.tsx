@@ -39,6 +39,14 @@ import { GRADE_6_SUBJECTS } from './data/mockSubjects';
 import { Toast } from './components/Toast';
 import { cleanTeacherName } from './utils/cleanTeacherName';
 import { ThemeProvider, useAppTheme } from './services/themeService';
+import { LoginPage } from './components/LoginPage';
+import {
+  getInitialAuthState,
+  onAuthStateChange,
+  signOutUser,
+} from './services/authService';
+import { UserProfile } from './types';
+import { Loader2 } from 'lucide-react';
 import {
   clearLessonsCache,
   getSubjectChapters,
@@ -47,9 +55,22 @@ import {
   createTeacherStoryFromLesson,
   extractYoutubeId,
 } from './services/lessonsService';
+import {
+  fetchCommunityPosts,
+  createCommunityPost,
+  toggleLikeCommunityPost,
+  addCommunityComment,
+  deleteCommunityComment,
+  deleteCommunityPost,
+  fetchCommunityStories,
+} from './services/communityService';
 
 function AppContent() {
   const { theme } = useAppTheme();
+
+  // Authentication state - Strictly driven by Supabase Auth sessions
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
 
   // Main app state
   const [activeTab, setActiveTab] = useState<NavTab>('home');
@@ -65,6 +86,33 @@ function AppContent() {
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
   const [activeCommunityPostForComments, setActiveCommunityPostForComments] = useState<CommunityPost | null>(null);
 
+  // Load Community posts and stories from Supabase on startup and when user changes
+  React.useEffect(() => {
+    let isMounted = true;
+    async function loadCommunity() {
+      try {
+        const [loadedPosts, loadedStories] = await Promise.all([
+          fetchCommunityPosts(currentUser?.id),
+          fetchCommunityStories(),
+        ]);
+        if (isMounted) {
+          if (loadedPosts && loadedPosts.length > 0) {
+            setCommunityPosts(loadedPosts);
+          }
+          if (loadedStories && loadedStories.length > 0) {
+            setCommunityStories(loadedStories);
+          }
+        }
+      } catch (err) {
+        console.debug('Error loading community data:', err);
+      }
+    }
+    loadCommunity();
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser?.id]);
+
   // Modals & Drawers state
   const [selectedStory, setSelectedStory] = useState<TeacherStory | null>(null);
   const [activeAttachment, setActiveAttachment] = useState<LessonAttachment | null>(null);
@@ -77,6 +125,39 @@ function AppContent() {
 
   // Toast feedback state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Initialize and listen to Auth state (Google OAuth, dev bypass, sessions)
+  React.useEffect(() => {
+    let isMounted = true;
+    getInitialAuthState().then((user) => {
+      if (isMounted) {
+        if (user) {
+          setCurrentUser(user);
+        }
+        setIsAuthChecking(false);
+      }
+    });
+
+    const unsubscribe = onAuthStateChange((user) => {
+      if (isMounted) {
+        setCurrentUser(user);
+        setIsAuthChecking(false);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
+
+  const handleSignOut = async () => {
+    await signOutUser();
+    setCurrentUser(null);
+    setActiveTab('home');
+    setHomeSubView('main_home');
+    showToast('تم تسجيل الخروج بنجاح');
+  };
 
   React.useEffect(() => {
     clearLessonsCache();
@@ -336,21 +417,28 @@ function AppContent() {
   };
 
   // Community Handlers
-  const handleCreatePost = (newPostData: Omit<CommunityPost, 'id' | 'likesCount' | 'commentsCount' | 'isLiked' | 'comments'>) => {
-    const newPost: CommunityPost = {
-      ...newPostData,
-      id: `post-${Date.now()}`,
-      likesCount: 0,
-      commentsCount: 0,
-      isLiked: false,
-      comments: [],
-    };
-
-    setCommunityPosts((prev) => [newPost, ...prev]);
-    showToast('تم نشر منشورك في المجتمع الطلابي بنجاح! 🎉');
+  const handleCreatePost = async (newPostData: Omit<CommunityPost, 'id' | 'likesCount' | 'commentsCount' | 'isLiked' | 'comments'>) => {
+    try {
+      const createdPost = await createCommunityPost(newPostData, currentUser?.id);
+      setCommunityPosts((prev) => [createdPost, ...prev]);
+      showToast('تم نشر منشورك في المجتمع الطلابي بنجاح! 🎉');
+    } catch (err) {
+      console.error('Failed to create post:', err);
+      const fallbackPost: CommunityPost = {
+        ...newPostData,
+        id: `post-${Date.now()}`,
+        likesCount: 0,
+        commentsCount: 0,
+        isLiked: false,
+        comments: [],
+      };
+      setCommunityPosts((prev) => [fallbackPost, ...prev]);
+      showToast('تم نشر منشورك محلياً! 🎉');
+    }
   };
 
-  const handleToggleLikeCommunityPost = (postId: string) => {
+  const handleToggleLikeCommunityPost = async (postId: string) => {
+    // Optimistic update
     setCommunityPosts((prev) =>
       prev.map((p) => {
         if (p.id === postId) {
@@ -364,6 +452,13 @@ function AppContent() {
         return p;
       })
     );
+
+    // Sync to Supabase
+    try {
+      await toggleLikeCommunityPost(postId, currentUser?.id);
+    } catch (e) {
+      console.debug('Error toggling like:', e);
+    }
   };
 
   const handleShareCommunityPost = (post: CommunityPost) => {
@@ -373,45 +468,44 @@ function AppContent() {
     showToast(`تم نسخ رابط منشور ${post.userName}! 🔗`);
   };
 
-  const handleDeleteCommunityPost = (postId: string) => {
+  const handleDeleteCommunityPost = async (postId: string) => {
     setCommunityPosts((prev) => prev.filter((p) => p.id !== postId));
     showToast('تم حذف المنشور بنجاح');
+    try {
+      await deleteCommunityPost(postId);
+    } catch (e) {
+      console.debug('Error deleting post:', e);
+    }
   };
 
   const handleReportCommunityPost = (postId: string) => {
     showToast('تم إرسال البلاغ للإدارة للتأكد من السلامة. شكراً لك! 🛡️');
   };
 
-  const handleAddCommunityComment = (postId: string, text: string) => {
-    const newComment: CommunityComment = {
-      id: `cc-${Date.now()}`,
-      userName: 'أنت (طالب منصة نحن معك)',
-      userAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
-      timeAgo: 'الآن',
-      text,
-      likes: 0,
-      isLiked: false,
-    };
-
-    setCommunityPosts((prev) =>
-      prev.map((p) => {
-        if (p.id === postId) {
-          const updatedComments = [newComment, ...p.comments];
-          const updatedPost = {
-            ...p,
-            comments: updatedComments,
-            commentsCount: updatedComments.length,
-          };
-          if (activeCommunityPostForComments?.id === postId) {
-            setActiveCommunityPostForComments(updatedPost);
+  const handleAddCommunityComment = async (postId: string, text: string) => {
+    try {
+      const newComment = await addCommunityComment(postId, text, currentUser);
+      setCommunityPosts((prev) =>
+        prev.map((p) => {
+          if (p.id === postId) {
+            const updatedComments = [newComment, ...p.comments];
+            const updatedPost = {
+              ...p,
+              comments: updatedComments,
+              commentsCount: updatedComments.length,
+            };
+            if (activeCommunityPostForComments?.id === postId) {
+              setActiveCommunityPostForComments(updatedPost);
+            }
+            return updatedPost;
           }
-          return updatedPost;
-        }
-        return p;
-      })
-    );
-
-    showToast('تم إضافة تعليقك على المنشور! 💬');
+          return p;
+        })
+      );
+      showToast('تم إضافة تعليقك على المنشور! 💬');
+    } catch (err) {
+      console.error('Error adding comment:', err);
+    }
   };
 
   const handleLikeCommunityComment = (postId: string, commentId: string) => {
@@ -440,7 +534,7 @@ function AppContent() {
     );
   };
 
-  const handleDeleteCommunityComment = (postId: string, commentId: string) => {
+  const handleDeleteCommunityComment = async (postId: string, commentId: string) => {
     setCommunityPosts((prev) =>
       prev.map((p) => {
         if (p.id === postId) {
@@ -459,6 +553,11 @@ function AppContent() {
       })
     );
     showToast('تم حذف التعليق');
+    try {
+      await deleteCommunityComment(postId, commentId);
+    } catch (e) {
+      console.debug('Error deleting comment:', e);
+    }
   };
 
   const handleSelectCommunityStory = (story: CommunityStory) => {
@@ -481,6 +580,31 @@ function AppContent() {
   };
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
+
+  // 1. Initial Auth Verification Loader
+  if (isAuthChecking && !currentUser) {
+    return (
+      <div className={`min-h-screen ${theme.classes.outerBg} ${theme.classes.textMain} flex items-center justify-center font-cairo`}>
+        <div className="flex flex-col items-center gap-3 p-6 text-center">
+          <Loader2 className="w-8 h-8 animate-spin" style={{ color: theme.colors.primary }} />
+          <p className="text-xs font-bold opacity-75">جاري التحقق من الحساب...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Gateway Login Screen: Shown if not authenticated
+  if (!currentUser) {
+    return (
+      <div className={`min-h-screen ${theme.classes.outerBg} ${theme.classes.textMain} flex flex-col items-center justify-center font-cairo`}>
+        <Toast message={toastMessage} onClear={() => setToastMessage(null)} />
+        <LoginPage onLoginSuccess={(user) => {
+          setCurrentUser(user);
+          showToast(`أهلاً بك يا ${user.name}`);
+        }} />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -619,7 +743,7 @@ function AppContent() {
             <CommunityView
               posts={communityPosts}
               stories={communityStories}
-              onOpenCreatePost={() => setIsCreatePostOpen(false)}
+              onOpenCreatePost={() => setIsCreatePostOpen(true)}
               onOpenComments={(post) => setActiveCommunityPostForComments(post)}
               onToggleLikePost={handleToggleLikeCommunityPost}
               onSharePost={handleShareCommunityPost}
@@ -640,15 +764,22 @@ function AppContent() {
                 setActiveTab('home');
                 setHomeSubView('main_home');
               }}
+              onSignOut={handleSignOut}
             />
           )}
 
           {activeTab === 'profile' && (
             <ProfileView
+              user={currentUser}
+              userPosts={communityPosts}
+              onUpdateUser={(updated) => setCurrentUser(updated)}
+              onDeletePost={handleDeleteCommunityPost}
+              onOpenComments={(post) => setActiveCommunityPostForComments(post)}
               onBack={() => {
                 setActiveTab('home');
                 setHomeSubView('main_home');
               }}
+              onSignOut={handleSignOut}
             />
           )}
         </main>
@@ -693,6 +824,7 @@ function AppContent() {
 
       <CreatePostModal
         isOpen={isCreatePostOpen}
+        currentUser={currentUser}
         onClose={() => setIsCreatePostOpen(false)}
         onSubmitPost={handleCreatePost}
       />

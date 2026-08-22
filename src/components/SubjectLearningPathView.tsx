@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { EducationalLesson, SubjectChapter, SubjectChapterLesson } from '../types';
 import { getCurriculumForSubject } from '../data/mockCurriculums';
-import { getSubjectChapters, getChapterLessons, getLessonDetails } from '../services/lessonsService';
+import { getSubjectChapters, getChapterLessons, getLessonDetails, formatArabicLessonTitle } from '../services/lessonsService';
 import { AdventureWorldMap } from './AdventureWorldMap';
 import { MapRewardsModal } from './MapRewardsModal';
 import { MapLeaderboardModal } from './MapLeaderboardModal';
@@ -247,7 +247,7 @@ export const SubjectLearningPathView: React.FC<SubjectLearningPathViewProps> = (
   };
 
   return (
-    <div className="min-h-full px-2 sm:px-3 pt-1 pb-16 text-right animate-in fade-in duration-300 select-none space-y-2">
+    <div className="min-h-full px-2 sm:px-3 pt-1 pb-6 text-right animate-in fade-in duration-300 select-none space-y-2">
       {/* TOAST NOTIFICATION */}
       {toastMessage && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black text-xs sm:text-sm shadow-2xl border-2 border-white animate-bounce flex items-center gap-2">
@@ -441,7 +441,7 @@ export const SubjectLearningPathView: React.FC<SubjectLearningPathViewProps> = (
 
                               <div className="flex-1 min-w-0">
                                 <h4 className="text-xs sm:text-sm font-bold text-white truncate">
-                                  {lessonItem.title}
+                                  {formatArabicLessonTitle(lessonItem.title)}
                                 </h4>
                                 <div className="flex items-center gap-2 mt-0.5 text-[10px] text-gray-400">
                                   <Clock className="w-3 h-3 text-sky-400" />
@@ -467,57 +467,6 @@ export const SubjectLearningPathView: React.FC<SubjectLearningPathViewProps> = (
           })}
         </div>
       )}
-
-      {/* 3. GAMIFIED BOTTOM ACTION BAR */}
-      <div className="fixed bottom-3 inset-x-3 sm:inset-x-6 z-40 max-w-4xl mx-auto flex items-center justify-between gap-2 p-2 rounded-2xl bg-gradient-to-r from-[#2c1810] via-[#3d2314] to-[#2c1810] border-2 border-[#b47a3c] shadow-2xl">
-        {/* Navigation & Menu Actions */}
-        <div className="flex items-center gap-1 sm:gap-2">
-          {/* Menu / List */}
-          <button
-            onClick={() => setViewMode((prev) => (prev === 'map' ? 'list' : 'map'))}
-            className="flex flex-col items-center justify-center px-3 py-1.5 rounded-xl bg-[#522d1b] hover:bg-[#6d3c24] border border-[#a06338] text-[#f5cd79] hover:text-white transition-all active:scale-95 cursor-pointer shadow"
-          >
-            <List className="w-4 h-4" />
-            <span className="text-[10px] font-black">{viewMode === 'map' ? 'القائمة' : 'الخريطة'}</span>
-          </button>
-
-          {/* Lessons list */}
-          <button
-            onClick={() => setViewMode('list')}
-            className="flex flex-col items-center justify-center px-3 py-1.5 rounded-xl bg-[#522d1b] hover:bg-[#6d3c24] border border-[#a06338] text-[#f5cd79] hover:text-white transition-all active:scale-95 cursor-pointer shadow"
-          >
-            <BookOpen className="w-4 h-4" />
-            <span className="text-[10px] font-black">الدروس</span>
-          </button>
-
-          {/* Rewards */}
-          <button
-            onClick={() => setIsRewardsOpen(true)}
-            className="flex flex-col items-center justify-center px-3 py-1.5 rounded-xl bg-[#522d1b] hover:bg-[#6d3c24] border border-[#a06338] text-[#f5cd79] hover:text-white transition-all active:scale-95 cursor-pointer shadow"
-          >
-            <Gift className="w-4 h-4 text-amber-400" />
-            <span className="text-[10px] font-black">المكافآت</span>
-          </button>
-
-          {/* Leaderboard */}
-          <button
-            onClick={() => setIsLeaderboardOpen(true)}
-            className="flex flex-col items-center justify-center px-3 py-1.5 rounded-xl bg-[#522d1b] hover:bg-[#6d3c24] border border-[#a06338] text-[#f5cd79] hover:text-white transition-all active:scale-95 cursor-pointer shadow"
-          >
-            <Users className="w-4 h-4 text-sky-400" />
-            <span className="text-[10px] font-black">المتصدرون</span>
-          </button>
-        </div>
-
-        {/* Big Game Button: ابدأ التحدي التالي! */}
-        <button
-          onClick={handleStartNextChallenge}
-          className="flex-1 max-w-[200px] sm:max-w-[240px] py-2.5 px-4 rounded-xl bg-gradient-to-b from-[#2ecc71] via-[#27ae60] to-[#219653] hover:from-[#34d178] hover:to-[#27ae60] border-2 border-[#a8f0c6] text-white font-black text-xs sm:text-sm shadow-xl shadow-green-900/50 flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer drop-shadow-md"
-        >
-          <Play className="w-4 h-4 fill-current" />
-          <span>ابدأ التحدي التالي!</span>
-        </button>
-      </div>
 
       {/* MODALS */}
       <MapRewardsModal

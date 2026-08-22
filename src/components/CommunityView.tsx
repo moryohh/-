@@ -13,6 +13,12 @@ import {
   Trash2,
   Paperclip,
   ArrowRight,
+  Pin,
+  Flame,
+  Check,
+  Eye,
+  X,
+  ExternalLink,
 } from 'lucide-react';
 import { CommunityPost, CommunityStory } from '../types';
 import { useAppTheme } from '../services/themeService';
@@ -45,6 +51,8 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
   const { theme } = useAppTheme();
   const [activeMenuPostId, setActiveMenuPostId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<'all' | 'questions' | 'summaries' | 'discussions'>('all');
+  const [expandedImage, setExpandedImage] = useState<string | null>(null);
+  const [copiedPostId, setCopiedPostId] = useState<string | null>(null);
 
   const filteredPosts = posts.filter((post) => {
     if (activeFilter === 'questions') return post.type === 'question';
@@ -53,8 +61,34 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
     return true;
   });
 
+  const handleShare = (post: CommunityPost) => {
+    onSharePost(post);
+    setCopiedPostId(post.id);
+    setTimeout(() => setCopiedPostId(null), 2500);
+  };
+
   return (
     <div className="p-3 sm:p-4 space-y-4 text-right select-none animate-in fade-in duration-200">
+      {/* Lightbox / Expanded Image Modal */}
+      {expandedImage && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-3 animate-in fade-in"
+          onClick={() => setExpandedImage(null)}
+        >
+          <button
+            onClick={() => setExpandedImage(null)}
+            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all"
+          >
+            <X className="w-6 h-6" />
+          </button>
+          <img
+            src={expandedImage}
+            alt="صورة مكبرة"
+            className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-white/10"
+          />
+        </div>
+      )}
+
       {/* Header Banner Section */}
       <div
         className={`border rounded-3xl p-5 shadow-2xl relative overflow-hidden transition-all duration-300 ${theme.classes.cardBg} ${theme.classes.cardBorder}`}
@@ -82,10 +116,10 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
               >
                 <Users className="w-5 h-5" />
               </div>
-              <h1 className={`text-lg font-bold ${theme.classes.textMain}`}>المجتمع الطلابي</h1>
+              <h1 className={`text-lg font-black ${theme.classes.textMain}`}>المجتمع الطلابي</h1>
             </div>
             <p className={`text-xs ${theme.classes.textMuted} leading-relaxed max-w-xs mt-1`}>
-              مساحة للطلاب لتبادل الأسئلة والأفكار والخبرات التعليمية.
+              مساحة تفاعلية للطلاب لمناقشة الأسئلة الوزارية، تبادل الملخصات، ومشاركة المعرفة.
             </p>
           </div>
 
@@ -103,14 +137,14 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
 
             <button
               onClick={onOpenCreatePost}
-              className="text-white font-bold py-2.5 px-3.5 rounded-2xl text-xs flex items-center gap-1.5 shadow-lg active:scale-95 transition-all cursor-pointer"
+              className="text-white font-black py-2.5 px-4 rounded-2xl text-xs flex items-center gap-1.5 shadow-lg active:scale-95 transition-all cursor-pointer"
               style={{
                 backgroundColor: theme.colors.primary,
                 boxShadow: `0 4px 15px ${theme.colors.glow}`,
               }}
             >
               <Plus className="w-4 h-4" />
-              <span>منشور</span>
+              <span>إنشاء منشور</span>
             </button>
           </div>
         </div>
@@ -119,7 +153,7 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
         <div className={`flex items-center gap-2 mt-4 pt-3 border-t overflow-x-auto no-scrollbar text-xs ${theme.classes.cardBorder}`}>
           <button
             onClick={() => setActiveFilter('all')}
-            className={`px-3 py-1.5 rounded-xl border text-[11px] font-semibold whitespace-nowrap transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-xl border text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer ${
               activeFilter === 'all'
                 ? 'text-white shadow-md'
                 : `${theme.classes.cardSubtleBg} ${theme.classes.cardBorder} ${theme.classes.textMuted}`
@@ -130,36 +164,36 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
           </button>
           <button
             onClick={() => setActiveFilter('questions')}
-            className={`px-3 py-1.5 rounded-xl border text-[11px] font-semibold whitespace-nowrap transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-xl border text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer ${
               activeFilter === 'questions'
                 ? 'text-white shadow-md'
                 : `${theme.classes.cardSubtleBg} ${theme.classes.cardBorder} ${theme.classes.textMuted}`
             }`}
             style={activeFilter === 'questions' ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary } : {}}
           >
-            أسئلة وإجابات ❓
+            ❓ أسئلة وزارية
           </button>
           <button
             onClick={() => setActiveFilter('summaries')}
-            className={`px-3 py-1.5 rounded-xl border text-[11px] font-semibold whitespace-nowrap transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-xl border text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer ${
               activeFilter === 'summaries'
                 ? 'text-white shadow-md'
                 : `${theme.classes.cardSubtleBg} ${theme.classes.cardBorder} ${theme.classes.textMuted}`
             }`}
             style={activeFilter === 'summaries' ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary } : {}}
           >
-            ملخصات دراسية 📚
+            📚 ملخصات وملازم
           </button>
           <button
             onClick={() => setActiveFilter('discussions')}
-            className={`px-3 py-1.5 rounded-xl border text-[11px] font-semibold whitespace-nowrap transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-xl border text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer ${
               activeFilter === 'discussions'
                 ? 'text-white shadow-md'
                 : `${theme.classes.cardSubtleBg} ${theme.classes.cardBorder} ${theme.classes.textMuted}`
             }`}
             style={activeFilter === 'discussions' ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary } : {}}
           >
-            مناقشة الشروحات 💬
+            💬 نقاشات دراسية
           </button>
         </div>
       </div>
@@ -167,11 +201,11 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
       {/* Community Stories Horizontal Section */}
       <div className={`border rounded-3xl p-3.5 shadow-xl transition-all duration-300 ${theme.classes.cardBg} ${theme.classes.cardBorder}`}>
         <div className="flex items-center justify-between px-1 mb-2.5">
-          <span className={`text-xs font-bold flex items-center gap-1.5 ${theme.classes.textMain}`}>
+          <span className={`text-xs font-black flex items-center gap-1.5 ${theme.classes.textMain}`}>
             <Sparkles className="w-3.5 h-3.5" style={{ color: theme.colors.primary }} />
-            قصص وتجارب الطلاب
+            <span>قصص وتجارب الطلاب (Stories)</span>
           </span>
-          <span className={`text-[10px] ${theme.classes.textMuted}`}>تحديثات تعليمية قصيرة</span>
+          <span className={`text-[10px] ${theme.classes.textMuted}`}>اضغط للمشاهدة والتفاعل</span>
         </div>
 
         <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-1 pr-1">
@@ -189,7 +223,7 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
             >
               <Plus className="w-6 h-6" />
             </div>
-            <span className={`text-[10px] font-medium ${theme.classes.textMuted}`}>أضف القصة</span>
+            <span className={`text-[10px] font-bold ${theme.classes.textMuted}`}>أضف قصة</span>
           </button>
 
           {/* Student stories list */}
@@ -204,17 +238,17 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
                   story.hasUnseen ? 'shadow-lg' : ''
                 }`}
                 style={{
-                  borderColor: story.hasUnseen ? theme.colors.primary : 'rgba(0,0,0,0.1)',
-                  boxShadow: story.hasUnseen ? `0 0 10px ${theme.colors.glow}` : undefined,
+                  borderColor: story.hasUnseen ? theme.colors.primary : 'rgba(255,255,255,0.15)',
+                  boxShadow: story.hasUnseen ? `0 0 12px ${theme.colors.glow}` : undefined,
                 }}
               >
                 <img
                   src={story.userAvatar}
                   alt={story.userName}
-                  className="w-full h-full rounded-full object-cover"
+                  className="w-full h-full rounded-full object-cover bg-slate-800"
                 />
               </div>
-              <span className={`text-[10px] font-medium max-w-[60px] truncate text-center ${theme.classes.textMain}`}>
+              <span className={`text-[10px] font-bold max-w-[65px] truncate text-center ${theme.classes.textMain}`}>
                 {story.userName.split(' ')[0]}
               </span>
             </button>
@@ -228,32 +262,54 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
           <div className={`border rounded-3xl p-8 text-center space-y-2 ${theme.classes.cardBg} ${theme.classes.cardBorder}`}>
             <Users className="w-10 h-10 mx-auto opacity-40" style={{ color: theme.colors.primary }} />
             <h3 className={`text-sm font-bold ${theme.classes.textMain}`}>لا توجد منشورات في هذه الفئة</h3>
-            <p className={`text-xs ${theme.classes.textMuted}`}>كن أول من يشارك بسؤال أو فكرة في المجتمع الطلابي!</p>
+            <p className={`text-xs ${theme.classes.textMuted}`}>كن أول من يشارك بسؤال أو ملخص دراسي في المجتمع الطلابي!</p>
           </div>
         ) : (
           filteredPosts.map((post) => {
             const isMenuOpen = activeMenuPostId === post.id;
+            const postImages: string[] = post.images && post.images.length > 0 
+              ? post.images 
+              : (post.image ? [post.image] : []);
+            
+            const isHighlyEngaged = (post.engagementScore ?? (post.likesCount * 2 + post.commentsCount * 3)) >= 10;
+            const isPinned = post.isPinned || isHighlyEngaged;
 
             return (
               <div
                 key={post.id}
-                className={`border rounded-3xl p-4 sm:p-5 shadow-xl space-y-3 text-right relative transition-all duration-300 ${theme.classes.cardBg} ${theme.classes.cardBorder}`}
+                className={`border rounded-3xl p-4 sm:p-5 shadow-xl space-y-3 text-right relative transition-all duration-300 ${
+                  isPinned ? 'border-sky-500/40' : theme.classes.cardBorder
+                } ${theme.classes.cardBg}`}
                 style={{
-                  boxShadow: `0 4px 20px ${theme.colors.glow}`,
+                  boxShadow: isPinned ? `0 6px 25px ${theme.colors.glow}` : `0 4px 20px rgba(0,0,0,0.15)`,
                 }}
               >
+                {/* Pinned / Top Highlight Header */}
+                {isPinned && (
+                  <div className="flex items-center justify-between pb-2 border-b border-sky-500/20 text-sky-400 text-[11px] font-black">
+                    <div className="flex items-center gap-1.5">
+                      <Pin className="w-3.5 h-3.5 rotate-45" />
+                      <span>منشور مميز ونشط في مجتمع الطلاب</span>
+                    </div>
+                    <span className="flex items-center gap-1 text-amber-400">
+                      <Flame className="w-3 h-3 fill-amber-400" />
+                      <span>تفاعل عالي</span>
+                    </span>
+                  </div>
+                )}
+
                 {/* Post Header */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <img
                       src={post.userAvatar}
                       alt={post.userName}
-                      className="w-10 h-10 rounded-full border object-cover"
+                      className="w-10 h-10 rounded-full border-2 object-cover bg-slate-800"
                       style={{ borderColor: theme.colors.primary }}
                     />
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <h3 className={`text-xs font-bold ${theme.classes.textMain}`}>{post.userName}</h3>
+                        <h3 className={`text-xs font-black ${theme.classes.textMain}`}>{post.userName}</h3>
                         {post.type === 'question' && (
                           <span
                             className="text-[9px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 border"
@@ -264,13 +320,13 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
                             }}
                           >
                             <HelpCircle className="w-2.5 h-2.5" />
-                            سؤال
+                            سؤال وزاري
                           </span>
                         )}
                         {post.type === 'summary' && (
                           <span className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[9px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
                             <FileText className="w-2.5 h-2.5" />
-                            ملخص
+                            ملخص دراسي
                           </span>
                         )}
                         {post.type === 'discussion' && (
@@ -297,17 +353,29 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
 
                     {/* Dropdown Menu */}
                     {isMenuOpen && (
-                      <div className={`absolute top-8 left-0 border rounded-2xl shadow-2xl z-30 py-1.5 text-xs w-40 animate-in fade-in ${theme.classes.cardBg} ${theme.classes.cardBorder}`}>
+                      <div className={`absolute top-8 left-0 border rounded-2xl shadow-2xl z-30 py-1.5 text-xs w-44 animate-in fade-in ${theme.classes.cardBg} ${theme.classes.cardBorder}`}>
+                        <button
+                          onClick={() => {
+                            handleShare(post);
+                            setActiveMenuPostId(null);
+                          }}
+                          className="w-full px-3.5 py-2 text-right hover:opacity-80 flex items-center gap-2 text-sky-400 font-medium cursor-pointer"
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                          <span>نسخ رابط المنشور</span>
+                        </button>
+
                         <button
                           onClick={() => {
                             onReportPost(post.id);
                             setActiveMenuPostId(null);
                           }}
-                          className="w-full px-3.5 py-2 text-right hover:opacity-80 flex items-center gap-2 text-amber-500 font-medium cursor-pointer"
+                          className="w-full px-3.5 py-2 text-right hover:opacity-80 flex items-center gap-2 text-amber-500 font-medium cursor-pointer border-t border-white/5"
                         >
                           <Flag className="w-3.5 h-3.5" />
                           <span>الإبلاغ عن المنشور</span>
                         </button>
+
                         {post.isOwnPost && (
                           <button
                             onClick={() => {
@@ -326,18 +394,39 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
                 </div>
 
                 {/* Post Content */}
-                <p className={`text-xs sm:text-sm leading-relaxed font-normal ${theme.classes.textMain}`}>
+                <p className={`text-xs sm:text-sm leading-relaxed font-normal whitespace-pre-wrap ${theme.classes.textMain}`}>
                   {post.content}
                 </p>
 
-                {/* Optional Image */}
-                {post.image && (
-                  <div className={`rounded-2xl overflow-hidden border max-h-56 ${theme.classes.cardBorder} ${theme.classes.cardSubtleBg}`}>
-                    <img
-                      src={post.image}
-                      alt="مرفق منشور"
-                      className="w-full h-full object-cover"
-                    />
+                {/* Multi-Images Grid (Supports up to 4 images per post) */}
+                {postImages.length > 0 && (
+                  <div
+                    className={`rounded-2xl overflow-hidden border gap-1.5 p-1 ${theme.classes.cardBorder} ${theme.classes.cardSubtleBg} ${
+                      postImages.length === 1
+                        ? 'grid grid-cols-1'
+                        : postImages.length === 2
+                        ? 'grid grid-cols-2'
+                        : postImages.length === 3
+                        ? 'grid grid-cols-3'
+                        : 'grid grid-cols-2'
+                    }`}
+                  >
+                    {postImages.slice(0, 4).map((imgUrl, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => setExpandedImage(imgUrl)}
+                        className="relative rounded-xl overflow-hidden group cursor-pointer bg-black/40 aspect-video"
+                      >
+                        <img
+                          src={imgUrl}
+                          alt={`مرفق منشور ${idx + 1}`}
+                          className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                          <Eye className="w-5 h-5" />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
 
@@ -358,11 +447,11 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
                         <span className={`font-bold block text-[11px] ${theme.classes.textMain}`}>
                           {post.attachmentName}
                         </span>
-                        <span className={`text-[9px] ${theme.classes.textMuted}`}>مرفق تعليمي جاهز للتحميل</span>
+                        <span className={`text-[9px] ${theme.classes.textMuted}`}>ملف دراسي جاهز للمطالعة</span>
                       </div>
                     </div>
                     <span
-                      className="text-[10px] font-bold px-2 py-1 rounded-lg border"
+                      className="text-[10px] font-black px-2.5 py-1 rounded-lg border"
                       style={{
                         backgroundColor: `${theme.colors.primary}20`,
                         borderColor: `${theme.colors.primary}40`,
@@ -374,6 +463,14 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
                   </div>
                 )}
 
+                {/* Share copied toast */}
+                {copiedPostId === post.id && (
+                  <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in">
+                    <Check className="w-3.5 h-3.5" />
+                    <span>تم نسخ رابط ومحتوى المنشور للمشاركة!</span>
+                  </div>
+                )}
+
                 {/* Stats line */}
                 <div className={`flex items-center justify-between pt-2 text-[11px] border-t ${theme.classes.textMuted} ${theme.classes.cardBorder}`}>
                   <div className="flex items-center gap-1">
@@ -382,14 +479,14 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
                   </div>
                   <button
                     onClick={() => onOpenComments(post)}
-                    className="hover:opacity-80 cursor-pointer"
+                    className="hover:opacity-80 cursor-pointer font-bold"
                   >
                     {post.commentsCount} تعليق
                   </button>
                 </div>
 
                 {/* Interaction Action Buttons */}
-                <div className={`grid grid-cols-3 gap-1 pt-1 border-t text-xs font-semibold ${theme.classes.cardBorder}`}>
+                <div className={`grid grid-cols-3 gap-1 pt-1 border-t text-xs font-bold ${theme.classes.cardBorder}`}>
                   {/* Like Button */}
                   <button
                     onClick={() => onToggleLikePost(post.id)}
@@ -413,12 +510,12 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
                     className={`py-2 rounded-xl border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder} ${theme.classes.textMuted}`}
                   >
                     <MessageSquare className="w-4 h-4" style={{ color: theme.colors.primary }} />
-                    <span>تعليق</span>
+                    <span>تعليق ({post.commentsCount})</span>
                   </button>
 
                   {/* Share Button */}
                   <button
-                    onClick={() => onSharePost(post)}
+                    onClick={() => handleShare(post)}
                     className={`py-2 rounded-xl border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder} ${theme.classes.textMuted}`}
                   >
                     <Share2 className="w-4 h-4" />

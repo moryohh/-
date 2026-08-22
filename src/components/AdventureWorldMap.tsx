@@ -7,6 +7,7 @@ import biome3Img from '../assets/images/biome3_harbor_refinery_1786898690005.jpg
 import biome4Img from '../assets/images/biome4_night_realm_1786898703967.jpg';
 import { SubjectChapter, SubjectChapterLesson } from '../types';
 import { useAppTheme } from '../services/themeService';
+import { formatArabicLessonTitle } from '../services/lessonsService';
 import {
   Check,
   Lock,
@@ -707,7 +708,7 @@ export const AdventureWorldMap: React.FC<AdventureWorldMapProps> = ({
                 </div>
                 <div>
                   <span className="text-[10px] text-sky-300 font-bold block">تفاصيل الدرس</span>
-                  <h3 className="text-sm sm:text-base font-black text-white">{previewLesson.lesson.title}</h3>
+                  <h3 className="text-sm sm:text-base font-black text-white">{formatArabicLessonTitle(previewLesson.lesson.title)}</h3>
                 </div>
               </div>
               <button
