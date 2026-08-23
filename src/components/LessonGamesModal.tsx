@@ -16,7 +16,7 @@ import {
   Database,
   FileText,
 } from 'lucide-react';
-import { EducationalGame } from '../types';
+import { EducationalGame, OpenLessonContext } from '../types';
 import { MillionaireGameModal } from './MillionaireGameModal';
 import { TrueFalseGameModal } from './TrueFalseGameModal';
 import { GibhaSahGameModal } from './GibhaSahGameModal';
@@ -33,6 +33,7 @@ interface LessonGamesModalProps {
   lessonTitle: string;
   lessonId?: string;
   category?: string;
+  openLessonContext?: OpenLessonContext | null;
 }
 
 export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
@@ -42,6 +43,7 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
   lessonTitle,
   lessonId = 'lesson-bio-ch3',
   category = 'المادة التعليمية',
+  openLessonContext,
 }) => {
   const { theme } = useAppTheme();
   // Mode: 'menu' | 'millionaire' | 'true_false' | 'gibha_sah' | 'daily_exam' | 'quick'
@@ -56,25 +58,48 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
   useEffect(() => {
     let isCancelled = false;
     if (isOpen) {
+      setGamesBundle(null);
       setIsLoadingBundle(true);
-      fetchLessonGamesData(category, lessonId, lessonTitle, category)
-        .then((bundle) => {
-          if (!isCancelled) {
-            setGamesBundle(bundle);
-            setIsLoadingBundle(false);
-          }
-        })
-        .catch((err) => {
-          console.error('Failed to load games bundle:', err);
-          if (!isCancelled) {
-            setIsLoadingBundle(false);
-          }
-        });
+      if (openLessonContext) {
+        fetchLessonGamesData(openLessonContext)
+          .then((bundle) => {
+            if (!isCancelled) {
+              setGamesBundle(bundle);
+              setIsLoadingBundle(false);
+            }
+          })
+          .catch((err) => {
+            console.error('Failed to load games bundle:', err);
+            if (!isCancelled) {
+              setIsLoadingBundle(false);
+            }
+          });
+      } else {
+        const subjectId = category;
+        fetchLessonGamesData(
+          subjectId,
+          lessonId,
+          lessonTitle,
+          subjectId
+        )
+          .then((bundle) => {
+            if (!isCancelled) {
+              setGamesBundle(bundle);
+              setIsLoadingBundle(false);
+            }
+          })
+          .catch((err) => {
+            console.error('Failed to load games bundle:', err);
+            if (!isCancelled) {
+              setIsLoadingBundle(false);
+            }
+          });
+      }
     }
     return () => {
       isCancelled = true;
     };
-  }, [isOpen, category, lessonId, lessonTitle]);
+  }, [isOpen, category, lessonId, lessonTitle, openLessonContext?.subjectId, openLessonContext?.chapterNumber, openLessonContext?.lessonNumber, openLessonContext?.lessonId]);
 
   // Quick game states (fallback direct quiz)
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -133,9 +158,9 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
       <MillionaireGameModal
         isOpen={true}
         onClose={() => setActiveGameMode('menu')}
-        lessonId={lessonId}
-        lessonTitle={lessonTitle}
-        category={category}
+        lessonId={openLessonContext?.lessonId || lessonId}
+        lessonTitle={openLessonContext?.lessonTitle || lessonTitle}
+        category={openLessonContext?.subjectId || category}
         customConfig={gamesBundle?.mcqConfig}
       />
     );
@@ -147,9 +172,9 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
       <TrueFalseGameModal
         isOpen={true}
         onClose={() => setActiveGameMode('menu')}
-        lessonId={lessonId}
-        lessonTitle={lessonTitle}
-        category={category}
+        lessonId={openLessonContext?.lessonId || lessonId}
+        lessonTitle={openLessonContext?.lessonTitle || lessonTitle}
+        category={openLessonContext?.subjectId || category}
         customConfig={gamesBundle?.trueFalseConfig}
       />
     );
@@ -161,9 +186,9 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
       <GibhaSahGameModal
         isOpen={true}
         onClose={() => setActiveGameMode('menu')}
-        lessonId={lessonId}
-        lessonTitle={lessonTitle}
-        category={category}
+        lessonId={openLessonContext?.lessonId || lessonId}
+        lessonTitle={openLessonContext?.lessonTitle || lessonTitle}
+        category={openLessonContext?.subjectId || category}
         customConfig={gamesBundle?.gibhaSahConfig}
       />
     );
@@ -175,9 +200,10 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
       <DailyExamModal
         isOpen={true}
         onClose={() => setActiveGameMode('menu')}
-        lessonId={lessonId}
-        lessonTitle={lessonTitle}
-        category={category}
+        lessonId={openLessonContext?.lessonId || lessonId}
+        lessonTitle={openLessonContext?.lessonTitle || lessonTitle}
+        category={openLessonContext?.subjectId || category}
+        openLessonContext={openLessonContext}
       />
     );
   }

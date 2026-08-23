@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
-import { getDbSubjectIds } from './lessonsService';
-import { MillionaireGameConfig, MillionaireQuestion } from '../types';
+import { getDbSubjectIds, getLessonContentBundle } from './lessonsService';
+import { MillionaireGameConfig, MillionaireQuestion, OpenLessonContext } from '../types';
 import { TrueFalseGameConfig, TrueFalseQuestion, getTrueFalseGameForLesson } from '../data/mockTrueFalse';
 import { GibhaSahGameConfig, GibhaSahQuestion, GibhaSahCard, getGibhaSahGameForLesson } from '../data/mockGibhaSah';
 import { getMillionaireGameForLesson } from '../data/mockMillionaire';
@@ -234,17 +234,74 @@ function parsePhToGibhaSah(
 /**
  * Main On-Demand Loader for Interactive Games
  * ONLY downloads data when the user opens the games modal.
+ * Accepts either OpenLessonContext or legacy parameters.
  */
 export async function fetchLessonGamesData(
-  subjectId: string,
-  lessonId: string,
+  contextOrSubjectId: OpenLessonContext | string,
+  lessonId?: string,
   lessonTitle: string = 'الدرس التعليمي',
   category: string = 'المادة التعليمية',
-  chapterIndex?: number,
-  lessonIndex?: number
+  chapterNumber?: number,
+  lessonNumber?: number
 ): Promise<LessonGamesBundle> {
-  const normKey = getSubjectNormalizedKey(subjectId || category);
-  const cacheKey = `${normKey}_${lessonId}`;
+  let subjectId: string;
+  let actualLessonId: string;
+  let actualLessonTitle: string;
+  let actualCategory: string;
+  let actualChapterNumber: number | undefined;
+  let actualLessonNumber: number | undefined;
+
+  if (typeof contextOrSubjectId === 'object' && contextOrSubjectId !== null) {
+    const ctx = contextOrSubjectId as OpenLessonContext;
+    subjectId = ctx.subjectId;
+    actualLessonId = ctx.lessonId;
+    actualLessonTitle = ctx.title || ctx.lessonTitle || `الدرس ${ctx.lessonNumber}`;
+    actualCategory = ctx.subjectId;
+    actualChapterNumber = ctx.chapterNumber;
+    actualLessonNumber = ctx.lessonNumber;
+
+    // Check if we can get data directly from bundle
+    try {
+      const bundle = await getLessonContentBundle(ctx);
+      if (bundle && (bundle.mcqData || bundle.trueFalseData || bundle.phData)) {
+        const mcqConfig = bundle.mcqData
+          ? parseMcqToMillionaire(bundle.mcqData, actualLessonId, actualLessonTitle, actualCategory)
+          : getMillionaireGameForLesson(actualLessonId, actualLessonTitle, actualCategory);
+
+        const trueFalseConfig = bundle.trueFalseData
+          ? parseTrueFalseConfig(bundle.trueFalseData, actualLessonId, actualLessonTitle, actualCategory)
+          : getTrueFalseGameForLesson(actualLessonId, actualLessonTitle, actualCategory);
+
+        const gibhaSahConfig = bundle.phData
+          ? parsePhToGibhaSah(bundle.phData, actualLessonId, actualLessonTitle, actualCategory)
+          : getGibhaSahGameForLesson(actualLessonId, actualLessonTitle, actualCategory);
+
+        return {
+          mcqConfig,
+          trueFalseConfig,
+          gibhaSahConfig,
+          source: 'database',
+          loadedAt: Date.now(),
+        };
+      }
+    } catch (e) {
+      // fallback to standard querying
+    }
+  } else {
+    subjectId = String(contextOrSubjectId);
+    actualLessonId = lessonId || 'les-1';
+    actualLessonTitle = lessonTitle;
+    actualCategory = category;
+    actualChapterNumber = chapterNumber;
+    actualLessonNumber = lessonNumber;
+  }
+
+  const normKey = getSubjectNormalizedKey(subjectId || actualCategory);
+  const { chapter: extractedCh, segment: extractedSeg } = extractChapterAndSegment(actualLessonId);
+  const targetChapter = actualChapterNumber !== undefined && actualChapterNumber > 0 ? actualChapterNumber : extractedCh;
+  const targetSegment = actualLessonNumber !== undefined && actualLessonNumber > 0 ? actualLessonNumber : extractedSeg;
+
+  const cacheKey = `${normKey}_ch${targetChapter || 'all'}_les${targetSegment || 'all'}_${actualLessonId}`;
 
   // Return cached result if already fetched
   if (gamesCache[cacheKey]) {
@@ -252,9 +309,6 @@ export async function fetchLessonGamesData(
   }
 
   const dbSubjects = getDbSubjectIds(normKey);
-  const { chapter: extractedCh, segment: extractedSeg } = extractChapterAndSegment(lessonId);
-  const targetChapter = chapterIndex !== undefined ? chapterIndex + 1 : extractedCh;
-  const targetSegment = lessonIndex !== undefined ? lessonIndex + 1 : extractedSeg;
 
   try {
     // Concurrently fetch MCQ, True/False, and PH from Supabase educational_data
@@ -267,25 +321,34 @@ export async function fetchLessonGamesData(
             .select('id, file_name, subject_id, section_id, content')
             .in('subject_id', dbSubjects)
             .eq('section_id', 'mcq')
-            .ilike('file_name', `%ch${targetChapter}%`);
+            .or(`file_name.ilike.%ch${targetChapter}%,file_name.ilike.%فصل%${targetChapter}%`);
 
           if (targetSegment !== undefined) {
-            query = query.or(`file_name.ilike.%segment${targetSegment}%,file_name.ilike.%lesson${targetSegment}%,file_name.ilike.%les${targetSegment}%`);
+            query = query.or(
+              `file_name.ilike.%segment${targetSegment}%,file_name.ilike.%lesson${targetSegment}%,file_name.ilike.%les${targetSegment}%,file_name.ilike.%درس%${targetSegment}%`
+            );
           }
 
           const { data } = await query.limit(1);
           if (data && data.length > 0 && data[0].content) return data[0].content;
         }
 
-        // Fallback MCQ for subject
-        const { data: fallbackMcq } = await supabase
-          .from('educational_data')
-          .select('id, file_name, subject_id, section_id, content')
-          .in('subject_id', dbSubjects)
-          .eq('section_id', 'mcq')
-          .limit(1);
+        // Only query direct lesson ID without chapter-jumping
+        if (actualLessonId && actualLessonId.length > 3) {
+          const { data: directData } = await supabase
+            .from('educational_data')
+            .select('id, file_name, subject_id, section_id, content')
+            .in('subject_id', dbSubjects)
+            .eq('section_id', 'mcq')
+            .ilike('file_name', `%${actualLessonId.replace(/\.json$/i, '')}%`)
+            .limit(1);
 
-        return fallbackMcq?.[0]?.content || null;
+          if (directData && directData.length > 0 && directData[0].content) {
+            return directData[0].content;
+          }
+        }
+
+        return null;
       })(),
 
       // 2. Fetch True/False
@@ -296,25 +359,33 @@ export async function fetchLessonGamesData(
             .select('id, file_name, subject_id, section_id, content')
             .in('subject_id', dbSubjects)
             .eq('section_id', 'true_false')
-            .ilike('file_name', `%ch${targetChapter}%`);
+            .or(`file_name.ilike.%ch${targetChapter}%,file_name.ilike.%فصل%${targetChapter}%`);
 
           if (targetSegment !== undefined) {
-            query = query.or(`file_name.ilike.%segment${targetSegment}%,file_name.ilike.%lesson${targetSegment}%,file_name.ilike.%les${targetSegment}%`);
+            query = query.or(
+              `file_name.ilike.%segment${targetSegment}%,file_name.ilike.%lesson${targetSegment}%,file_name.ilike.%les${targetSegment}%,file_name.ilike.%درس%${targetSegment}%`
+            );
           }
 
           const { data } = await query.limit(1);
           if (data && data.length > 0 && data[0].content) return data[0].content;
         }
 
-        // Fallback True/False for subject
-        const { data: fallbackTf } = await supabase
-          .from('educational_data')
-          .select('id, file_name, subject_id, section_id, content')
-          .in('subject_id', dbSubjects)
-          .eq('section_id', 'true_false')
-          .limit(1);
+        if (actualLessonId && actualLessonId.length > 3) {
+          const { data: directData } = await supabase
+            .from('educational_data')
+            .select('id, file_name, subject_id, section_id, content')
+            .in('subject_id', dbSubjects)
+            .eq('section_id', 'true_false')
+            .ilike('file_name', `%${actualLessonId.replace(/\.json$/i, '')}%`)
+            .limit(1);
 
-        return fallbackTf?.[0]?.content || null;
+          if (directData && directData.length > 0 && directData[0].content) {
+            return directData[0].content;
+          }
+        }
+
+        return null;
       })(),
 
       // 3. Fetch PH (Gibha Sah)
@@ -325,40 +396,48 @@ export async function fetchLessonGamesData(
             .select('id, file_name, subject_id, section_id, content')
             .in('subject_id', dbSubjects)
             .eq('section_id', 'ph')
-            .ilike('file_name', `%ch${targetChapter}%`);
+            .or(`file_name.ilike.%ch${targetChapter}%,file_name.ilike.%فصل%${targetChapter}%`);
 
           if (targetSegment !== undefined) {
-            query = query.or(`file_name.ilike.%segment${targetSegment}%,file_name.ilike.%lesson${targetSegment}%,file_name.ilike.%les${targetSegment}%`);
+            query = query.or(
+              `file_name.ilike.%segment${targetSegment}%,file_name.ilike.%lesson${targetSegment}%,file_name.ilike.%les${targetSegment}%,file_name.ilike.%درس%${targetSegment}%`
+            );
           }
 
           const { data } = await query.limit(1);
           if (data && data.length > 0 && data[0].content) return data[0].content;
         }
 
-        // Fallback PH for subject
-        const { data: fallbackPh } = await supabase
-          .from('educational_data')
-          .select('id, file_name, subject_id, section_id, content')
-          .in('subject_id', dbSubjects)
-          .eq('section_id', 'ph')
-          .limit(1);
+        if (actualLessonId && actualLessonId.length > 3) {
+          const { data: directData } = await supabase
+            .from('educational_data')
+            .select('id, file_name, subject_id, section_id, content')
+            .in('subject_id', dbSubjects)
+            .eq('section_id', 'ph')
+            .ilike('file_name', `%${actualLessonId.replace(/\.json$/i, '')}%`)
+            .limit(1);
 
-        return fallbackPh?.[0]?.content || null;
+          if (directData && directData.length > 0 && directData[0].content) {
+            return directData[0].content;
+          }
+        }
+
+        return null;
       })(),
     ]);
 
     // Parse configs
     const mcqConfig = mcqRes
-      ? parseMcqToMillionaire(mcqRes, lessonId, lessonTitle, category)
-      : getMillionaireGameForLesson(lessonId, lessonTitle, category);
+      ? parseMcqToMillionaire(mcqRes, actualLessonId, actualLessonTitle, actualCategory)
+      : getMillionaireGameForLesson(actualLessonId, actualLessonTitle, actualCategory);
 
     const trueFalseConfig = tfRes
-      ? parseTrueFalseConfig(tfRes, lessonId, lessonTitle, category)
-      : getTrueFalseGameForLesson(lessonId, lessonTitle, category);
+      ? parseTrueFalseConfig(tfRes, actualLessonId, actualLessonTitle, actualCategory)
+      : getTrueFalseGameForLesson(actualLessonId, actualLessonTitle, actualCategory);
 
     const gibhaSahConfig = phRes
-      ? parsePhToGibhaSah(phRes, lessonId, lessonTitle, category)
-      : getGibhaSahGameForLesson(lessonId, lessonTitle, category);
+      ? parsePhToGibhaSah(phRes, actualLessonId, actualLessonTitle, actualCategory)
+      : getGibhaSahGameForLesson(actualLessonId, actualLessonTitle, actualCategory);
 
     const bundle: LessonGamesBundle = {
       mcqConfig,
@@ -373,9 +452,9 @@ export async function fetchLessonGamesData(
   } catch (err) {
     console.error('Error fetching games bundle on-demand:', err);
     const fallbackBundle: LessonGamesBundle = {
-      mcqConfig: getMillionaireGameForLesson(lessonId, lessonTitle, category),
-      trueFalseConfig: getTrueFalseGameForLesson(lessonId, lessonTitle, category),
-      gibhaSahConfig: getGibhaSahGameForLesson(lessonId, lessonTitle, category),
+      mcqConfig: getMillionaireGameForLesson(actualLessonId, actualLessonTitle, actualCategory),
+      trueFalseConfig: getTrueFalseGameForLesson(actualLessonId, actualLessonTitle, actualCategory),
+      gibhaSahConfig: getGibhaSahGameForLesson(actualLessonId, actualLessonTitle, actualCategory),
       source: 'fallback',
       loadedAt: Date.now(),
     };

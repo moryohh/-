@@ -31,6 +31,8 @@ interface AdventureWorldMapProps {
   onSelectLesson: (lesson: SubjectChapterLesson) => void;
   onOpenChest: (chestId: string) => void;
   openedChests: string[];
+  selectedChapterNumber?: number;
+  onSelectChapterNumber?: (chapterNumber: number) => void;
   selectedChapterIndex?: number;
   onSelectChapter?: (chapterIndex: number) => void;
   isLoadingLessons?: boolean;
@@ -55,6 +57,8 @@ export const AdventureWorldMap: React.FC<AdventureWorldMapProps> = ({
   onSelectLesson,
   onOpenChest,
   openedChests,
+  selectedChapterNumber: controlledChapterNumber,
+  onSelectChapterNumber,
   selectedChapterIndex: controlledChapterIndex,
   onSelectChapter,
   isLoadingLessons = false,
@@ -66,7 +70,18 @@ export const AdventureWorldMap: React.FC<AdventureWorldMapProps> = ({
 
   // Selected Chapter State & Dropdown
   const [internalChapterIndex, setInternalChapterIndex] = useState<number>(0);
-  const selectedChapterIndex = controlledChapterIndex !== undefined ? controlledChapterIndex : internalChapterIndex;
+
+  const selectedChapterIndex = useMemo(() => {
+    if (controlledChapterNumber !== undefined) {
+      const idx = chapters.findIndex((c) => c.number === controlledChapterNumber);
+      if (idx !== -1) return idx;
+    }
+    if (controlledChapterIndex !== undefined) {
+      return controlledChapterIndex;
+    }
+    return internalChapterIndex;
+  }, [controlledChapterNumber, controlledChapterIndex, internalChapterIndex, chapters]);
+
   const [isChapterDropdownOpen, setIsChapterDropdownOpen] = useState<boolean>(false);
 
   // Selected lesson modal
@@ -130,8 +145,11 @@ export const AdventureWorldMap: React.FC<AdventureWorldMapProps> = ({
     return () => clearTimeout(timer);
   }, [selectedChapterIndex, totalStepsCount]);
 
-  const scrollToChapter = (chapterIndex: number) => {
+  const scrollToChapter = (chapter: SubjectChapter, chapterIndex: number) => {
     setInternalChapterIndex(chapterIndex);
+    if (onSelectChapterNumber) {
+      onSelectChapterNumber(chapter.number);
+    }
     onSelectChapter?.(chapterIndex);
     setIsChapterDropdownOpen(false);
   };
@@ -340,7 +358,7 @@ export const AdventureWorldMap: React.FC<AdventureWorldMapProps> = ({
                     return (
                       <button
                         key={chapter.id || `ch-${idx}`}
-                        onClick={() => scrollToChapter(idx)}
+                        onClick={() => scrollToChapter(chapter, idx)}
                         className={`w-full flex items-center justify-between gap-2 p-2.5 rounded-xl text-right transition-all cursor-pointer ${
                           isSelected
                             ? 'bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 text-white border border-white/40 shadow-lg'

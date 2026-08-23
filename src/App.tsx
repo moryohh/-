@@ -16,6 +16,8 @@ import {
   CommunityPost,
   CommunityStory,
   CommunityComment,
+  OpenLessonContext,
+  LearningPosition,
 } from './types';
 import { Header } from './components/Header';
 import { StoriesSection } from './components/StoriesSection';
@@ -65,6 +67,28 @@ import {
   fetchCommunityStories,
 } from './services/communityService';
 
+const LEARNING_POSITIONS_STORAGE_KEY = 'nahnu_maek_learning_positions_v2';
+
+function loadStoredPositions(): Record<string, LearningPosition> {
+  try {
+    const raw = localStorage.getItem(LEARNING_POSITIONS_STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {
+    console.debug('Failed to load learning positions:', e);
+  }
+  return {};
+}
+
+function saveStoredPosition(pos: LearningPosition) {
+  try {
+    const current = loadStoredPositions();
+    current[pos.subjectId] = pos;
+    localStorage.setItem(LEARNING_POSITIONS_STORAGE_KEY, JSON.stringify(current));
+  } catch (e) {
+    console.debug('Failed to save learning position:', e);
+  }
+}
+
 function AppContent() {
   const { theme } = useAppTheme();
 
@@ -79,6 +103,15 @@ function AppContent() {
   const [stories, setStories] = useState<TeacherStory[]>(INITIAL_STORIES);
   const [lesson, setLesson] = useState<EducationalLesson>(FEATURED_LESSON);
   const [notifications, setNotifications] = useState<AppNotification[]>(NOTIFICATIONS_DATA);
+
+  // Learning Position & Context Management
+  const [savedPositions, setSavedPositions] = useState<Record<string, LearningPosition>>(loadStoredPositions);
+  const [learningPosition, setLearningPosition] = useState<LearningPosition | null>(() => {
+    const initialSubId = GRADE_6_SUBJECTS[0]?.id || 'biology';
+    const stored = loadStoredPositions();
+    return stored[initialSubId] || { subjectId: initialSubId, chapterNumber: 1, lessonNumber: 1 };
+  });
+  const [openLessonContext, setOpenLessonContext] = useState<OpenLessonContext | null>(null);
 
   // Community state
   const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>(INITIAL_COMMUNITY_POSTS);
@@ -169,6 +202,53 @@ function AppContent() {
       setStories((lesson as any).teacherStories);
     }
   }, [lesson]);
+
+  const handleSelectSubject = (subject: (typeof GRADE_6_SUBJECTS)[0]) => {
+    setSelectedSubject(subject);
+    const existingPos = savedPositions[subject.id] || {
+      subjectId: subject.id,
+      chapterNumber: 1,
+      lessonNumber: 1,
+    };
+    setLearningPosition(existingPos);
+    setHomeSubView('learning_path');
+  };
+
+  const handlePositionChange = (pos: LearningPosition) => {
+    setLearningPosition(pos);
+    setSavedPositions((prev) => ({ ...prev, [pos.subjectId]: pos }));
+    saveStoredPosition(pos);
+  };
+
+  const handleSelectLessonWithContext = (
+    selectedLesson: EducationalLesson,
+    context?: OpenLessonContext
+  ) => {
+    setLesson(selectedLesson);
+    if (context) {
+      setOpenLessonContext(context);
+      const newPos: LearningPosition = {
+        subjectId: context.subjectId,
+        chapterNumber: context.chapterNumber,
+        lessonNumber: context.lessonNumber,
+        lessonId: context.lessonId,
+      };
+      handlePositionChange(newPos);
+    } else if (selectedSubject) {
+      const defaultCtx: OpenLessonContext = {
+        subjectId: selectedSubject.id,
+        chapterNumber: learningPosition?.chapterNumber || 1,
+        lessonNumber: learningPosition?.lessonNumber || 1,
+        lessonId: selectedLesson.id,
+        lessonTitle: selectedLesson.title,
+      };
+      setOpenLessonContext(defaultCtx);
+    }
+    if ((selectedLesson as any).teacherStories && (selectedLesson as any).teacherStories.length > 0) {
+      setStories((selectedLesson as any).teacherStories);
+    }
+    setHomeSubView('lesson_player');
+  };
 
   // Dynamic Stories: Update stories based on selected subject and chapters from Supabase Storage
   React.useEffect(() => {
@@ -670,13 +750,9 @@ function AppContent() {
           {/* 1. Main Home Subject Grid */}
           {activeTab === 'home' && homeSubView === 'main_home' && (
             <MainHomeView
-              onSelectSubject={(subject) => {
-                setSelectedSubject(subject);
-                setHomeSubView('learning_path');
-              }}
+              onSelectSubject={handleSelectSubject}
               onSelectLesson={(selectedLesson) => {
-                setLesson(selectedLesson);
-                setHomeSubView('lesson_player');
+                handleSelectLessonWithContext(selectedLesson);
               }}
               onOpenGames={() => setIsGamesOpen(true)}
             />
@@ -686,13 +762,10 @@ function AppContent() {
           {activeTab === 'home' && homeSubView === 'learning_path' && selectedSubject && (
             <SubjectLearningPathView
               subject={selectedSubject}
-              onSelectLesson={(selectedLesson) => {
-                setLesson(selectedLesson);
-                if ((selectedLesson as any).teacherStories && (selectedLesson as any).teacherStories.length > 0) {
-                  setStories((selectedLesson as any).teacherStories);
-                }
-                setHomeSubView('lesson_player');
-              }}
+              learningPosition={learningPosition}
+              onPositionChange={handlePositionChange}
+              openLessonContext={openLessonContext}
+              onSelectLesson={handleSelectLessonWithContext}
               onBack={() => {
                 setHomeSubView('main_home');
               }}
@@ -716,6 +789,7 @@ function AppContent() {
               <div className="px-3">
                 <VideoPlayerCard
                   lesson={lesson}
+                  openLessonContext={openLessonContext}
                   onOpenTeacherInfo={() => setIsTeacherInfoOpen(true)}
                   isPaused={isGamesOpen || isAttachmentOpen || isTeacherInfoOpen || isNotificationsOpen}
                   onBackToMap={() => setHomeSubView('learning_path')}
@@ -861,6 +935,7 @@ function AppContent() {
         lessonTitle={lesson.title}
         lessonId={lesson.id}
         category={lesson.category}
+        openLessonContext={openLessonContext}
       />
     </div>
   );

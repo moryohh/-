@@ -171,7 +171,56 @@ export interface SubjectChapterLesson {
   duration: string;
   status: 'completed' | 'in_progress' | 'available' | 'locked';
   progressPercentage: number;
-  lessonData: EducationalLesson;
+  lessonData?: EducationalLesson;
+}
+
+export type LessonSectionType = 'curriculum' | 'lessons' | 'mcq' | 'ph' | 'true_false';
+
+export interface LessonIndexFile {
+  recordId: string;
+  fileName: string;
+}
+
+export interface LessonIndex {
+  lessonKey: string;
+  subjectId: string;
+  chapterNumber: number;
+  lessonNumber: number;
+  lessonId: string;
+  title: string;
+  files: Partial<Record<LessonSectionType, LessonIndexFile>>;
+}
+
+export interface SubjectChapterIndex {
+  chapterNumber: number;
+  title: string;
+  lessons: LessonIndex[];
+}
+
+export interface SubjectIndex {
+  subjectId: string;
+  subjectName?: string;
+  chapters: SubjectChapterIndex[];
+  allLessons: Record<string, LessonIndex>;
+  totalLessons: number;
+}
+
+export interface OpenLessonContext {
+  subjectId: string;
+  chapterNumber: number;
+  lessonNumber: number;
+  lessonId: string;
+  lessonKey?: string;
+  title?: string;
+  lessonTitle?: string;
+}
+
+export interface LearningPosition {
+  subjectId: string;
+  chapterNumber: number;
+  lessonNumber: number;
+  lessonId?: string;
+  lessonKey?: string;
 }
 
 export interface SubjectChapter {

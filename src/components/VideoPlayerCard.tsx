@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { EducationalLesson } from '../types';
+import { EducationalLesson, OpenLessonContext } from '../types';
 import {
   Play,
   Maximize2,
@@ -22,6 +22,7 @@ import { useAppTheme } from '../services/themeService';
 
 interface VideoPlayerCardProps {
   lesson: EducationalLesson;
+  openLessonContext?: OpenLessonContext | null;
   onOpenTeacherInfo?: () => void;
   isPaused?: boolean;
   onBackToMap?: () => void;
@@ -30,6 +31,7 @@ interface VideoPlayerCardProps {
 
 export const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
   lesson,
+  openLessonContext,
   onOpenTeacherInfo,
   isPaused = false,
   onBackToMap,
@@ -74,13 +76,22 @@ export const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
   useEffect(() => {
     setIsPlaying(true);
     setProgress(0);
+    setCurriculumData(null);
 
     let isMounted = true;
     setIsLoadingCurriculum(true);
     setCurriculumError(null);
 
-    const subjectCategory = lesson.category || 'chemistry';
-    fetchLessonCurriculum(subjectCategory, lesson.id)
+    const curriculumPromise = openLessonContext
+      ? fetchLessonCurriculum(openLessonContext)
+      : fetchLessonCurriculum(
+          lesson.category || 'chemistry',
+          lesson.id,
+          undefined,
+          undefined
+        );
+
+    curriculumPromise
       .then((res) => {
         if (isMounted) {
           if (res.data) {
@@ -106,7 +117,7 @@ export const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
         iframeRef.current.contentWindow?.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
       }
     };
-  }, [lesson.id, validYoutubeId, lesson.category]);
+  }, [lesson.id, validYoutubeId, lesson.category, openLessonContext?.subjectId, openLessonContext?.chapterNumber, openLessonContext?.lessonNumber, openLessonContext?.lessonId]);
 
   // Simulated progress timer when playing
   useEffect(() => {

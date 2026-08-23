@@ -1,9 +1,22 @@
-import { getSupabaseClient, SUPABASE_STORAGE_BUCKET, isSupabaseConfigured } from '../lib/supabase';
-import { EducationalLesson, SubjectChapter, SubjectChapterLesson } from '../types';
+import { getSupabaseClient, isSupabaseConfigured } from '../lib/supabase';
+import {
+  EducationalLesson,
+  SubjectChapter,
+  SubjectChapterLesson,
+  OpenLessonContext,
+  LessonIndex,
+  LessonIndexFile,
+  SubjectChapterIndex,
+  SubjectIndex,
+  LessonSectionType,
+  TeacherStory,
+} from '../types';
 import { SUBJECTS_CURRICULUM_DATA } from '../data/mockCurriculums';
 import { cleanTeacherName } from '../utils/cleanTeacherName';
 
 // In-Memory Cache Store for Lazy-Loaded Data
+const subjectIndexCache = new Map<string, SubjectIndex>();
+const lessonBundleCache = new Map<string, LessonContentBundle>();
 const chaptersCache = new Map<string, SubjectChapter[]>();
 const chapterLessonsCache = new Map<string, SubjectChapterLesson[]>();
 const lessonJsonCache = new Map<string, EducationalLesson>();
@@ -14,19 +27,76 @@ export interface ServiceResponse<T> {
   isFallback: boolean;
 }
 
+export interface LessonContentBundle {
+  cacheKey: string;
+  subjectId: string;
+  chapterNumber: number;
+  lessonNumber: number;
+  lessonId: string;
+  lessonKey: string;
+  loadedSections: string[];
+  lesson: EducationalLesson;
+  teacherStories: TeacherStory[];
+  curriculumData?: any;
+  mcqData?: any;
+  trueFalseData?: any;
+  phData?: any;
+}
+
+/**
+ * Builds the canonical lesson key
+ * Format: `${subjectId}:ch${chapterNumber}:les${lessonNumber}`
+ */
+export function buildLessonKey(
+  subjectId: string,
+  chapterNumber: number,
+  lessonNumber: number
+): string {
+  const cleanSub = (subjectId || '').toLowerCase().trim();
+  return `${cleanSub}:ch${chapterNumber}:les${lessonNumber}`;
+}
+
+/**
+ * Builds the canonical cache key
+ * Format: `${subjectId}:ch${chapterNumber}:les${lessonNumber}:${lessonId}`
+ */
+export function buildCacheKey(
+  subjectId: string,
+  chapterNumber: number,
+  lessonNumber: number,
+  lessonId: string
+): string {
+  const cleanSub = (subjectId || '').toLowerCase().trim();
+  return `${cleanSub}:ch${chapterNumber}:les${lessonNumber}:${lessonId}`;
+}
+
+/**
+ * Normalizes section ID from database.
+ * If section_id = 'tf', normalizes to 'true_false' in app layer.
+ */
+export function normalizeSectionId(sectionId: string): LessonSectionType | null {
+  const s = (sectionId || '').toLowerCase().trim();
+  if (s === 'curriculum' || s === 'منهج') return 'curriculum';
+  if (s === 'lessons' || s === 'دروس' || s === 'lesson') return 'lessons';
+  if (s === 'mcq' || s === 'اختيارات') return 'mcq';
+  if (s === 'ph' || s === 'فلاش_كاردز' || s === 'بطاقات') return 'ph';
+  if (s === 'true_false' || s === 'tf' || s === 'صح_خطأ' || s === 'صح_ام_خطا') return 'true_false';
+  return null;
+}
+
 /**
  * Blacklist of known dummy, test, music, and entertainment YouTube video IDs
  * that must NEVER be shown in an educational curriculum platform.
  */
 export const BLACKLISTED_DUMMY_YOUTUBE_IDS = new Set([
-  'dQw4w9WgXcQ', // Rick Astley - Never Gonna Give You Up
-  '9bZkp7q19f0', // Psy - Gangnam Style
-  'kJQP7kiw5Fk', // Ray William Johnson
-  '2ePf9rue1Ao', // Fireplace
-  'Air0g9qgCgM', // Dummy placeholder
-  'jNQXAC9IVRw', // Me at the zoo
-  'M7lc1UVf-VE', // YouTube developer video
-  'y6120QOlsfU', // Darude Sandstorm
+  'dQw4w9WgXcQ',
+  '9bZkp7q19f0',
+  'kJQP7kiw5Fk',
+  '2ePf9rue1Ao',
+  'Air0g9qgCgM',
+  'jNQXAC9IVRw',
+  'M7lc1UVf-VE',
+  'y6120QOlsfU',
   'C0DPdy98e4c',
   'ZbZSe6N_BXs',
   'RgKAFK5djSk',
@@ -256,28 +326,29 @@ export function getDbSubjectIds(subjectKey: string): string[] {
 }
 
 /**
- * Maps subject IDs/keys to potential folder names in Supabase Storage (if used)
+ * Extracts chapter and segment/lesson numbers from strings or filenames
  */
-export function getSubjectFolderNames(subjectKey: string): string[] {
-  const map: Record<string, string[]> = {
-    biology: ['أحياء', 'احياء', 'البيولوجيا', 'علم الأحياء', 'biology', 'Biology', 'bio'],
-    physics: ['فيزياء', 'الفيزياء', 'physics', 'Physics', 'phys'],
-    chemistry: ['كيمياء', 'الكيمياء', 'chemistry', 'Chemistry', 'chem'],
-    mathematics: ['رياضيات', 'الرياضيات', 'mathematics', 'math', 'Math'],
-    'arabic-1': ['اللغة العربية ج1', 'عربي 1', 'قواعد اللغة العربية', 'arabic_part1', 'arabic-1'],
-    'arabic-2': ['اللغة العربية ج2', 'عربي 2', 'الأدب والنصوص', 'arabic_part2', 'arabic-2'],
-    islamic: ['التربية الإسلامية', 'إسلامية', 'اسلامية', 'الاسلامية', 'islamic', 'Islamic'],
-    english: ['اللغة الإنجليزية', 'إنكليزي', 'انكليزي', 'انجليزي', 'english', 'English'],
-  };
+export function extractChapterAndSegment(input: string): { chapter?: number; segment?: number } {
+  if (!input) return {};
+  const chMatch =
+    input.match(/ch(?:apter)?[\s_-]*(\d+|[٠-٩]+)/i) ||
+    input.match(/فصل[\s_-]*(\d+|[٠-٩]+)/i) ||
+    input.match(/\/(\d+|[٠-٩]+)\//);
+  const segMatch =
+    input.match(/(?:segment|lesson|les)[\s_-]*(\d+|[٠-٩]+)/i) ||
+    input.match(/(?:ال)?سجمنت[\s_-]*(\d+|[٠-٩]+)/i) ||
+    input.match(/الدرس[\s_-]*(\d+|[٠-٩]+)/i) ||
+    input.match(/_(\d+)\.json$/i) ||
+    input.match(/(\d+)/);
 
-  return map[subjectKey] || [subjectKey];
+  return {
+    chapter: chMatch ? parseInt(chMatch[1], 10) : undefined,
+    segment: segMatch ? parseInt(segMatch[1], 10) : undefined,
+  };
 }
 
 /**
  * Formats any lesson title into clean Arabic, completely stripping "السجمنت" or "segment"
- * Example: "الدرس / السجمنت 31" -> "الدرس 31"
- * Example: "السجمنت 2" -> "الدرس 2"
- * Example: "segment_31" -> "الدرس 31"
  */
 export function formatArabicLessonTitle(title: string | undefined | null): string {
   if (!title) return 'الدرس';
@@ -292,7 +363,7 @@ export function formatArabicLessonTitle(title: string | undefined | null): strin
     t = parts[parts.length - 1];
   }
 
-  // Replace "الدرس / السجمنت 31" or "الدرس / سجمنت 31" or "الدرس/السجمنت 31" -> "الدرس 31"
+  // Replace "الدرس / السجمنت 31" or "الدرس / سجمنت 31" -> "الدرس 31"
   t = t.replace(/الدرس\s*[\/\-:]\s*(?:ال)?سجمنت\s*(\d+|[٠-٩]+)/gi, 'الدرس $1');
   t = t.replace(/الدرس\s*[\/\-:]\s*(?:ال)?سجمنت/gi, 'الدرس');
 
@@ -300,245 +371,17 @@ export function formatArabicLessonTitle(title: string | undefined | null): strin
   t = t.replace(/(?:ال)?سجمنت\s*(\d+|[٠-٩]+)/gi, 'الدرس $1');
   t = t.replace(/(?:ال)?سجمنت/gi, 'الدرس');
 
-  // Replace "segment_31" or "segment 31" or "seg_31" or "seg31" -> "الدرس 31"
+  // Replace "segment_31" or "segment 31" or "seg_31" -> "الدرس 31"
   t = t.replace(/(?:segment|seg)[\s_-]*(\d+)/gi, 'الدرس $1');
 
   // Replace "lesson_31" or "les_31" -> "الدرس 31"
   t = t.replace(/(?:lesson|les)[\s_-]*(\d+)/gi, 'الدرس $1');
 
-  // Clean any multiple spaces or stray slashes
+  // Clean multiple spaces
   t = t.replace(/\s+/g, ' ').replace(/^[\/\-:]\s*/, '').trim();
   return t;
 }
 
-/**
- * Converts a raw JSON object from Supabase into our application's EducationalLesson model.
- * Preserves the exact `lesson_id` from JSON.
- * Completely omits fake/random videos.
- */
-export function transformJsonToLesson(
-  rawJson: any,
-  fallbackId: string,
-  subjectName = 'المادة'
-): EducationalLesson {
-  // Handle root 'lessons' array structure (curriculum schema)
-  let lessonObj: any = rawJson;
-  let segmentTopics: string[] = [];
-
-  if (rawJson && Array.isArray(rawJson.lessons) && rawJson.lessons.length > 0) {
-    lessonObj = rawJson.lessons[0];
-    segmentTopics = rawJson.segment_topics || [];
-  }
-
-  const actualLessonId = lessonObj.lesson_id || lessonObj.lessonId || lessonObj.id || fallbackId;
-  const teachersList = Array.isArray(lessonObj.teachers) ? lessonObj.teachers : [];
-
-  // Find first teacher with a verified valid video
-  let firstValidVideo: any = null;
-  let firstTeacher: any = null;
-
-  for (const t of teachersList) {
-    if (t && Array.isArray(t.videos) && t.videos.length > 0) {
-      const v = t.videos.find((vid: any) => {
-        if (!vid) return false;
-        const testId = extractYoutubeId(
-          vid.url || vid.youtubeId || vid.youtube_url || vid.youtube_id || '',
-          vid.title || '',
-          t.channel_title || t.channelTitle || t.teacher_name || '',
-          vid.content_summary || ''
-        );
-        return Boolean(testId);
-      });
-      if (v) {
-        firstValidVideo = v;
-        firstTeacher = t;
-        break;
-      }
-    }
-  }
-
-  const activeVideo = firstValidVideo || {};
-  const activeTeacher = firstTeacher || teachersList[0] || {};
-
-  const videoUrlOrId =
-    activeVideo.url ||
-    activeVideo.youtube_url ||
-    activeVideo.youtubeUrl ||
-    activeVideo.youtube_id ||
-    lessonObj.youtube_id ||
-    lessonObj.youtubeId ||
-    lessonObj.youtube_url ||
-    '';
-
-  const youtubeId = extractYoutubeId(
-    videoUrlOrId,
-    activeVideo.title || lessonObj.title || '',
-    activeTeacher.channel_title || activeTeacher.teacher_name || '',
-    activeVideo.content_summary || lessonObj.description || ''
-  );
-
-  // Generate dynamic teacher stories list for this lesson (ONLY teachers with valid, non-dummy videos)
-  const teacherStories: import('../types').TeacherStory[] = teachersList
-    .map((t: any, idx: number) => {
-      const rawTName = t.teacher_name || t.name || `أستاذ ${idx + 1}`;
-      const tName = cleanTeacherName(rawTName) || rawTName;
-      const channelTitle = t.channel_title || t.channelTitle || t.channel_name || tName;
-
-      const vid = t.videos?.find((v: any) => {
-        if (!v) return false;
-        return Boolean(
-          extractYoutubeId(
-            v.url || v.youtube_url || v.youtubeId || v.youtube_id || '',
-            v.title || '',
-            channelTitle,
-            v.content_summary || ''
-          )
-        );
-      }) || t.videos?.[0] || {};
-
-      const tYoutubeId = extractYoutubeId(
-        vid.url || vid.youtube_url || vid.youtubeId || vid.youtube_id || '',
-        vid.title || '',
-        channelTitle,
-        vid.content_summary || ''
-      );
-      if (!tYoutubeId) return null; // Omit completely if video is missing or fake
-      const ytThumbnail = `https://img.youtube.com/vi/${tYoutubeId}/hqdefault.jpg`;
-
-      return {
-        id: `teacher-${actualLessonId}-${idx}`,
-        teacherName: tName,
-        channelName: channelTitle,
-        subject: lessonObj.subject || subjectName,
-        title: formatArabicLessonTitle(vid.title || tName),
-        avatar: t.avatar || ytThumbnail,
-        hasUnseen: true,
-        youtubeId: tYoutubeId,
-        videoUrl: `https://www.youtube.com/watch?v=${tYoutubeId}`,
-        duration: '20:00',
-        storyImage: ytThumbnail,
-        textNotes:
-          vid.content_summary ||
-          `شرح ${tName} للدرس من قناة (${channelTitle}).`,
-        lessonData: {
-          id: `${actualLessonId}-${idx}`,
-          title: formatArabicLessonTitle(vid.title || `${lessonObj.subject || subjectName} - ${tName}`),
-          subtitle: `${lessonObj.grade || 'السادس الإعدادي'} - ${lessonObj.subject || subjectName}`,
-          category: lessonObj.subject || subjectName,
-          teacherName: tName,
-          teacherAvatar: t.avatar || ytThumbnail,
-          teacherRole: channelTitle,
-          youtubeId: tYoutubeId,
-          duration: '20:00',
-          currentTime: '00:00',
-          progressPercentage: 0,
-          description:
-            vid.content_summary ||
-            `شرح ${tName}. المطابقة المنهجية: ${vid.semantic_overlap || 95}%. المواضيع: ${
-              segmentTopics.join('، ') || 'مقدمة المنهج'
-            }`,
-          viewsCount: vid.view_count
-            ? `${(Number(vid.view_count) / 1000).toFixed(0)}K`
-            : '15.2K',
-          likesCount: 1200,
-          isLiked: false,
-          isBookmarked: false,
-          attachments: {
-            aids: {
-              id: `att-aid-${actualLessonId}-${idx}`,
-              title: `ملف المعينات والملخصات - ${tName}`,
-              type: 'pdf',
-              size: '2.4 ميجابايت',
-              downloadUrl: '#',
-              description: `ملخص شامل وملاحظات الدرس للمدرس ${tName}.`,
-            },
-            psh: {
-              id: `att-psh-${actualLessonId}-${idx}`,
-              title: `حزمة التحميل الخاص (PSH) - ${tName}`,
-              type: 'psh',
-              size: '4.8 ميجابايت',
-              downloadUrl: '#',
-              description: 'أوراق عمل تفاعلية وتمارين وزارية تطبيقية.',
-            },
-          },
-          comments: [],
-        },
-      };
-    })
-    .filter((s): s is NonNullable<typeof s> => s !== null && Boolean(s.youtubeId));
-
-  // Propagate all teacher stories to each teacher's lessonData
-  teacherStories.forEach((ts) => {
-    if (ts.lessonData) {
-      ts.lessonData.teacherStories = teacherStories;
-    }
-  });
-
-  const rawTitle =
-    activeVideo.title ||
-    lessonObj.title ||
-    rawJson.file_name ||
-    (segmentTopics.length > 0 ? segmentTopics[0] : 'الدرس');
-
-  const resolvedTitle = formatArabicLessonTitle(rawTitle);
-
-  const resolvedDesc =
-    activeVideo.content_summary ||
-    lessonObj.description ||
-    (segmentTopics.length > 0 ? `المواضيع المغطاة: ${segmentTopics.join(' | ')}` : 'شرح تفصيلي للمنهج مع الأسئلة والتمارين الوزارية.');
-
-  const rawResolvedName = activeTeacher.teacher_name || lessonObj.teacher_name || 'مدرس المادة';
-  const resolvedTeacherName = cleanTeacherName(rawResolvedName) || rawResolvedName;
-
-  const defaultAvatar = youtubeId
-    ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`
-    : (activeTeacher.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80');
-
-  return {
-    id: actualLessonId,
-    title: resolvedTitle,
-    subtitle: `${lessonObj.grade || 'السادس الإعدادي'} - ${lessonObj.subject || subjectName}`,
-    category: lessonObj.subject || subjectName,
-    teacherName: resolvedTeacherName,
-    teacherAvatar: activeTeacher.avatar || defaultAvatar,
-    teacherRole: activeTeacher.channel_title || activeTeacher.affiliation ? `قناة ${activeTeacher.channel_title || activeTeacher.affiliation}` : 'مدرس المادة',
-    youtubeId, // Empty string if no valid video exists
-    duration: '20:00',
-    currentTime: '00:00',
-    progressPercentage: 0,
-    description: resolvedDesc,
-    viewsCount: activeVideo.view_count
-      ? `${(Number(activeVideo.view_count) / 1000).toFixed(0)}K`
-      : '15.2K',
-    likesCount: 1200,
-    isLiked: false,
-    isBookmarked: false,
-    attachments: {
-      aids: {
-        id: `att-aid-${actualLessonId}`,
-        title: `ملف المعينات والملخصات`,
-        type: 'pdf',
-        size: '2.4 ميجابايت',
-        downloadUrl: '#',
-        description: 'ملخص شامل وملاحظات وخرائط ذهنية للدرس بصيغة PDF.',
-      },
-      psh: {
-        id: `att-psh-${actualLessonId}`,
-        title: `حزمة التحميل الخاص (PSH)`,
-        type: 'psh',
-        size: '5.2 ميجابايت',
-        downloadUrl: '#',
-        description: 'أوراق عمل تفاعلية وتمارين وزارية تطبيقية.',
-      },
-    },
-    comments: [],
-    teacherStories: teacherStories.length > 0 ? teacherStories : undefined,
-  };
-}
-
-/**
- * Converts ordinal number to Arabic ordinal word
- */
 const ARABIC_ORDINALS = [
   'الأول',
   'الثاني',
@@ -552,492 +395,698 @@ const ARABIC_ORDINALS = [
   'العاشر',
 ];
 
-function getArabicChapterTitle(num: number, rawTitle?: string): string {
-  const ordinal = ARABIC_ORDINALS[num - 1] || `${num}`;
+export function getArabicChapterTitle(num: number, rawTitle?: string): string {
   if (rawTitle && rawTitle.includes('الفصل')) {
     return rawTitle;
   }
+  const ordinal = ARABIC_ORDINALS[num - 1] || `${num}`;
   return `الفصل ${ordinal}`;
 }
 
 /**
- * 1. Get Chapters for a Subject (Lazy Loading Step 1)
- * Queries the Supabase `educational_data` database table specifically for `section_id = 'lessons'`.
+ * ============================================================================
+ * 1. getSubjectIndex (Stage 1: Subject Index & Metadata Only)
+ * ============================================================================
+ * Fetches lightweight metadata from `educational_content_index` view or RPC.
+ * Does NOT request the heavy JSON `content` column.
+ */
+export async function getSubjectIndex(
+  subjectId: string,
+  subjectName = 'المادة'
+): Promise<SubjectIndex> {
+  const normKey = (subjectId || '').toLowerCase().trim();
+  if (subjectIndexCache.has(normKey)) {
+    return subjectIndexCache.get(normKey)!;
+  }
+
+  const startTime = Date.now();
+  const supabase = getSupabaseClient();
+  const dbSubjects = getDbSubjectIds(normKey);
+
+  let rawRows: any[] = [];
+  let fetchError: any = null;
+
+  if (supabase && isSupabaseConfigured()) {
+    try {
+      // 1. Try querying the dedicated View: `educational_content_index`
+      const { data: viewData, error: viewError } = await supabase
+        .from('educational_content_index')
+        .select('record_id, subject_id, section_id, file_name, lesson_id, chapter_number, lesson_number, title, has_content')
+        .in('subject_id', dbSubjects)
+        .order('chapter_number', { ascending: true })
+        .order('lesson_number', { ascending: true });
+
+      if (!viewError && viewData && viewData.length > 0) {
+        rawRows = viewData;
+      } else {
+        // 2. Try RPC: `get_subject_content_index`
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_subject_content_index', {
+          p_subject_id: dbSubjects[0] || normKey,
+        });
+
+        if (!rpcError && rpcData && Array.isArray(rpcData) && rpcData.length > 0) {
+          rawRows = rpcData;
+        } else {
+          // 3. Fallback: Query educational_data selecting metadata ONLY (no content column!)
+          const { data: metaData, error: metaError } = await supabase
+            .from('educational_data')
+            .select('id, subject_id, section_id, file_name')
+            .in('subject_id', dbSubjects)
+            .limit(2000);
+
+          if (!metaError && metaData && metaData.length > 0) {
+            rawRows = metaData.map((row) => {
+              const { chapter, segment } = extractChapterAndSegment(row.file_name || '');
+              return {
+                record_id: row.id,
+                subject_id: row.subject_id,
+                section_id: row.section_id,
+                file_name: row.file_name,
+                lesson_id: row.file_name?.split('/').pop()?.replace('.json', '') || `les-${chapter || 1}-${segment || 1}`,
+                chapter_number: chapter || 1,
+                lesson_number: segment || 1,
+                title: formatArabicLessonTitle(row.file_name),
+                has_content: true,
+              };
+            });
+          } else {
+            fetchError = viewError || rpcError || metaError;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[getSubjectIndex] Database query error:', err);
+      fetchError = err;
+    }
+  }
+
+  // 4. Normalize and group raw index rows into LessonIndex by lessonKey
+  const allLessonsMap: Record<string, LessonIndex> = {};
+  const chapterGroups: Record<number, { chapterNumber: number; title: string; lessons: LessonIndex[] }> = {};
+
+  if (rawRows.length > 0) {
+    rawRows.forEach((row) => {
+      if (row.file_name?.includes('organized_tree')) return;
+
+      const chNum = Number(row.chapter_number) || 1;
+      const lesNum = Number(row.lesson_number) || 1;
+      const rawSection = row.section_id || '';
+      const normalizedSection = normalizeSectionId(rawSection);
+
+      const lessonKey = buildLessonKey(normKey, chNum, lesNum);
+      const rawRecordId = row.record_id || row.id;
+      const rawFileName = row.file_name || '';
+      const rawLessonId =
+        row.lesson_id ||
+        rawFileName.split('/').pop()?.replace('.json', '') ||
+        `${normKey}-ch${chNum}-les${lesNum}`;
+
+      if (!allLessonsMap[lessonKey]) {
+        allLessonsMap[lessonKey] = {
+          lessonKey,
+          subjectId: normKey,
+          chapterNumber: chNum,
+          lessonNumber: lesNum,
+          lessonId: rawLessonId,
+          title: formatArabicLessonTitle(row.title || `الدرس ${lesNum}`),
+          files: {},
+        };
+      }
+
+      if (normalizedSection && rawRecordId) {
+        allLessonsMap[lessonKey].files[normalizedSection] = {
+          recordId: String(rawRecordId),
+          fileName: rawFileName,
+        };
+      }
+    });
+
+    // Group into chapters
+    Object.values(allLessonsMap).forEach((lesson) => {
+      const chNum = lesson.chapterNumber;
+      if (!chapterGroups[chNum]) {
+        chapterGroups[chNum] = {
+          chapterNumber: chNum,
+          title: getArabicChapterTitle(chNum),
+          lessons: [],
+        };
+      }
+      chapterGroups[chNum].lessons.push(lesson);
+    });
+  }
+
+  // 5. Fallback from local static mock curriculums if database has no records
+  if (Object.keys(chapterGroups).length === 0) {
+    const mockChapters = SUBJECTS_CURRICULUM_DATA[normKey] || [];
+    mockChapters.forEach((ch, chIdx) => {
+      const chNum = ch.number || chIdx + 1;
+      const lessonsList: LessonIndex[] = (ch.lessons || []).map((l, lIdx) => {
+        const lNum = l.number || lIdx + 1;
+        const lessonKey = buildLessonKey(normKey, chNum, lNum);
+        const lIndex: LessonIndex = {
+          lessonKey,
+          subjectId: normKey,
+          chapterNumber: chNum,
+          lessonNumber: lNum,
+          lessonId: l.id || `${normKey}-ch${chNum}-les${lNum}`,
+          title: formatArabicLessonTitle(l.title || `الدرس ${lNum}`),
+          files: {
+            lessons: { recordId: `mock-les-${l.id}`, fileName: `${l.id}.json` },
+            curriculum: { recordId: `mock-cur-${l.id}`, fileName: `curriculum_${l.id}.json` },
+            mcq: { recordId: `mock-mcq-${l.id}`, fileName: `mcq_${l.id}.json` },
+            true_false: { recordId: `mock-tf-${l.id}`, fileName: `tf_${l.id}.json` },
+            ph: { recordId: `mock-ph-${l.id}`, fileName: `ph_${l.id}.json` },
+          },
+        };
+        allLessonsMap[lessonKey] = lIndex;
+        return lIndex;
+      });
+
+      chapterGroups[chNum] = {
+        chapterNumber: chNum,
+        title: ch.title || getArabicChapterTitle(chNum),
+        lessons: lessonsList,
+      };
+    });
+  }
+
+  // Sort chapters and lessons ascending
+  const chapters: SubjectChapterIndex[] = Object.values(chapterGroups)
+    .sort((a, b) => a.chapterNumber - b.chapterNumber)
+    .map((cg) => ({
+      ...cg,
+      lessons: cg.lessons.sort((a, b) => a.lessonNumber - b.lessonNumber),
+    }));
+
+  const totalLessons = Object.keys(allLessonsMap).length;
+
+  const result: SubjectIndex = {
+    subjectId: normKey,
+    subjectName,
+    chapters,
+    allLessons: allLessonsMap,
+    totalLessons,
+  };
+
+  subjectIndexCache.set(normKey, result);
+
+  const indexMs = Date.now() - startTime;
+  console.debug('[content-timing] Index loaded:', {
+    subjectId: normKey,
+    indexMs,
+    chaptersCount: chapters.length,
+    totalLessons,
+  });
+
+  return result;
+}
+
+/**
+ * Helper to build TeacherStories from lessons[0].teachers[].videos[]
+ * Supporting all keys: url, video_url, youtube_url, youtubeId, youtube_id, video_id, embed_url, link
+ */
+export function buildTeacherStoriesFromLessonJson(
+  rawJson: any,
+  context: OpenLessonContext,
+  subjectName = 'المادة'
+): TeacherStory[] {
+  let teachersList: any[] = [];
+
+  if (rawJson && Array.isArray(rawJson.lessons) && rawJson.lessons.length > 0) {
+    const l0 = rawJson.lessons[0];
+    teachersList = Array.isArray(l0.teachers) ? l0.teachers : [];
+  } else if (rawJson && Array.isArray(rawJson.teachers)) {
+    teachersList = rawJson.teachers;
+  }
+
+  const stories: TeacherStory[] = [];
+
+  teachersList.forEach((t: any, idx: number) => {
+    const rawTName = t.teacher_name || t.name || `أستاذ ${idx + 1}`;
+    const tName = cleanTeacherName(rawTName) || rawTName;
+    const channelTitle = t.channel_title || t.channelTitle || t.channel_name || tName;
+
+    const videos: any[] = Array.isArray(t.videos) ? t.videos : [];
+    for (const vid of videos) {
+      if (!vid) continue;
+      const rawVideoUrlOrId =
+        vid.url ||
+        vid.video_url ||
+        vid.youtube_url ||
+        vid.youtubeUrl ||
+        vid.youtubeId ||
+        vid.youtube_id ||
+        vid.video_id ||
+        vid.embed_url ||
+        vid.link ||
+        '';
+
+      const validYtId = extractYoutubeId(
+        rawVideoUrlOrId,
+        vid.title || '',
+        channelTitle,
+        vid.content_summary || ''
+      );
+
+      if (validYtId) {
+        const ytThumb = `https://img.youtube.com/vi/${validYtId}/hqdefault.jpg`;
+        const vTitle = formatArabicLessonTitle(vid.title || context.title);
+
+        const storyObj: TeacherStory = {
+          id: `story-${context.lessonKey}-${idx}-${validYtId}`,
+          teacherName: tName,
+          channelName: channelTitle,
+          subject: subjectName,
+          title: vTitle,
+          avatar: t.avatar && !t.avatar.includes('unsplash.com/photo-1573496359142') ? t.avatar : ytThumb,
+          hasUnseen: true,
+          youtubeId: validYtId,
+          videoUrl: `https://www.youtube.com/watch?v=${validYtId}`,
+          duration: vid.duration || '20:00',
+          storyImage: ytThumb,
+          textNotes: vid.content_summary || `شرح ${tName} لدرس ${vTitle}`,
+        };
+
+        stories.push(storyObj);
+        break; // One primary video story per teacher
+      }
+    }
+  });
+
+  return stories;
+}
+
+/**
+ * ============================================================================
+ * 2. getLessonContentBundle (Stage 3: Fetch 5 Section Files for This Lesson ONLY)
+ * ============================================================================
+ */
+export async function getLessonContentBundle(
+  context: OpenLessonContext,
+  lessonIndex?: LessonIndex,
+  signal?: AbortSignal
+): Promise<LessonContentBundle> {
+  const startTime = Date.now();
+  const cacheKey = buildCacheKey(
+    context.subjectId,
+    context.chapterNumber,
+    context.lessonNumber,
+    context.lessonId
+  );
+
+  if (lessonBundleCache.has(cacheKey)) {
+    return lessonBundleCache.get(cacheKey)!;
+  }
+
+  const supabase = getSupabaseClient();
+  let indexData = lessonIndex;
+
+  if (!indexData) {
+    const subIdx = await getSubjectIndex(context.subjectId);
+    indexData = subIdx.allLessons[context.lessonKey];
+  }
+
+  // 1. Gather recordIds for the 5 sections from index
+  const recordIds = indexData?.files
+    ? (Object.values(indexData.files)
+        .map((f) => f?.recordId)
+        .filter(Boolean) as string[])
+    : [];
+
+  let rawSectionRows: any[] = [];
+
+  if (supabase && isSupabaseConfigured()) {
+    try {
+      if (recordIds.length > 0) {
+        const { data, error } = await supabase
+          .from('educational_data')
+          .select('id, subject_id, section_id, file_name, content')
+          .in('id', recordIds);
+
+        if (!error && data) {
+          rawSectionRows = data;
+        }
+      }
+
+      // If recordIds was missing for a section, query precisely with subject_id, chapter & lesson match
+      const loadedSections = new Set(rawSectionRows.map((r) => normalizeSectionId(r.section_id)));
+      const requiredSections: LessonSectionType[] = ['lessons', 'curriculum', 'mcq', 'true_false', 'ph'];
+      const missingSections = requiredSections.filter((sec) => !loadedSections.has(sec));
+
+      if (missingSections.length > 0) {
+        const dbSubjects = getDbSubjectIds(context.subjectId);
+        for (const sec of missingSections) {
+          if (signal?.aborted) break;
+          const { data: directRows } = await supabase
+            .from('educational_data')
+            .select('id, subject_id, section_id, file_name, content')
+            .in('subject_id', dbSubjects)
+            .eq('section_id', sec === 'true_false' ? 'true_false' : sec)
+            .or(`file_name.ilike.%ch${context.chapterNumber}%,file_name.ilike.%فصل%${context.chapterNumber}%`)
+            .or(`file_name.ilike.%les${context.lessonNumber}%,file_name.ilike.%segment${context.lessonNumber}%,file_name.ilike.%درس%${context.lessonNumber}%`)
+            .limit(1);
+
+          if (directRows && directRows.length > 0 && directRows[0].content) {
+            rawSectionRows.push(directRows[0]);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[getLessonContentBundle] Fetch error:', err);
+    }
+  }
+
+  // 2. Separate into independent parsers
+  let lessonsJson: any = null;
+  let curriculumJson: any = null;
+  let mcqJson: any = null;
+  let tfJson: any = null;
+  let phJson: any = null;
+
+  rawSectionRows.forEach((row) => {
+    const sec = normalizeSectionId(row.section_id);
+    if (!sec) return;
+    if (sec === 'lessons') lessonsJson = row.content;
+    if (sec === 'curriculum') curriculumJson = row.content;
+    if (sec === 'mcq') mcqJson = row.content;
+    if (sec === 'true_false') tfJson = row.content;
+    if (sec === 'ph') phJson = row.content;
+  });
+
+  // 3. Build teacher stories strictly for this lesson
+  let teacherStories: TeacherStory[] = [];
+  if (lessonsJson) {
+    teacherStories = buildTeacherStoriesFromLessonJson(lessonsJson, context);
+  }
+
+  // 4. Construct EducationalLesson object
+  let mainLesson: EducationalLesson;
+
+  if (lessonsJson && teacherStories.length > 0) {
+    const firstStory = teacherStories[0];
+    const rawLessonObj = lessonsJson.lessons?.[0] || lessonsJson;
+
+    mainLesson = {
+      id: context.lessonId,
+      title: context.title || firstStory.title,
+      subtitle: `الفصل ${context.chapterNumber} - ${context.subjectId}`,
+      category: context.subjectId,
+      teacherName: firstStory.teacherName,
+      teacherAvatar: firstStory.avatar,
+      teacherRole: firstStory.channelName || firstStory.teacherName,
+      youtubeId: firstStory.youtubeId || '',
+      duration: firstStory.duration || '20:00',
+      currentTime: '00:00',
+      progressPercentage: 0,
+      description:
+        firstStory.textNotes ||
+        rawLessonObj.description ||
+        `شرح ${firstStory.teacherName} لمفردات الدرس المنهجي.`,
+      viewsCount: '18.5K',
+      likesCount: 1420,
+      isLiked: false,
+      isBookmarked: false,
+      attachments: {
+        aids: {
+          id: `aid-${context.lessonKey}`,
+          title: 'ملف المعينات والملخصات المنهجية',
+          type: 'pdf',
+          size: '2.8 MB',
+          downloadUrl: '#',
+          description: 'ملخص شامل ومخططات الدرس.',
+        },
+        psh: {
+          id: `psh-${context.lessonKey}`,
+          title: 'حزمة الاختبارات والتمارين (PSH)',
+          type: 'psh',
+          size: '4.5 MB',
+          downloadUrl: '#',
+          description: 'نماذج تدريبية تطبيقية.',
+        },
+      },
+      comments: [],
+      teacherStories,
+    };
+  } else {
+    // Empty state for lessons without video / unavailable sections (e.g. Mathematics or missing lesson files)
+    const emptyNotice = `لا يوجد ملف دروس متاح للمادة (${context.subjectId})، الفصل [${context.chapterNumber}]، الدرس [${context.lessonNumber}].`;
+    mainLesson = {
+      id: context.lessonId,
+      title: context.title || `الدرس ${context.lessonNumber}`,
+      subtitle: `الفصل ${context.chapterNumber} - ${context.subjectId}`,
+      category: context.subjectId,
+      teacherName: '',
+      teacherAvatar: '',
+      teacherRole: '',
+      youtubeId: '',
+      duration: '00:00',
+      currentTime: '00:00',
+      progressPercentage: 0,
+      description: emptyNotice,
+      viewsCount: '0',
+      likesCount: 0,
+      isLiked: false,
+      isBookmarked: false,
+      attachments: {
+        aids: {
+          id: `aid-${context.lessonKey}`,
+          title: 'الملخص المنهجي',
+          type: 'pdf',
+          size: '1.2 MB',
+          downloadUrl: '#',
+          description: 'الملخصات المتاحة للمنهج.',
+        },
+        psh: {
+          id: `psh-${context.lessonKey}`,
+          title: 'الواجبات اليومية',
+          type: 'psh',
+          size: '2.0 MB',
+          downloadUrl: '#',
+          description: 'الواجبات والتطبيقات.',
+        },
+      },
+      comments: [],
+      teacherStories: [],
+    };
+  }
+
+  const loadedSecs: string[] = [];
+  if (lessonsJson) loadedSecs.push('lessons');
+  if (curriculumJson) loadedSecs.push('curriculum');
+  if (mcqJson) loadedSecs.push('mcq');
+  if (tfJson) loadedSecs.push('true_false');
+  if (phJson) loadedSecs.push('ph');
+
+  const bundle: LessonContentBundle = {
+    cacheKey,
+    subjectId: context.subjectId,
+    chapterNumber: context.chapterNumber,
+    lessonNumber: context.lessonNumber,
+    lessonId: context.lessonId,
+    lessonKey: context.lessonKey,
+    loadedSections: loadedSecs,
+    lesson: mainLesson,
+    teacherStories,
+    curriculumData: curriculumJson,
+    mcqData: mcqJson,
+    trueFalseData: tfJson,
+    phData: phJson,
+  };
+
+  lessonBundleCache.set(cacheKey, bundle);
+
+  const lessonContentMs = Date.now() - startTime;
+  console.debug('[content-timing] Lesson content bundle loaded:', {
+    subjectId: context.subjectId,
+    lessonKey: context.lessonKey,
+    lessonContentMs,
+    sectionsLoaded: loadedSecs,
+    storiesCount: teacherStories.length,
+  });
+
+  return bundle;
+}
+
+/**
+ * Legacy/compatibility adapters for SubjectChapters
  */
 export async function getSubjectChapters(
   subjectKey: string,
   subjectName = 'المادة'
 ): Promise<ServiceResponse<SubjectChapter[]>> {
-  // 1. Check in-memory cache
-  const cacheKey = `chapters_${subjectKey}`;
+  const normKey = (subjectKey || '').toLowerCase().trim();
+  const cacheKey = `chapters_${normKey}`;
   if (chaptersCache.has(cacheKey)) {
-    return {
-      data: chaptersCache.get(cacheKey)!,
-      error: null,
-      isFallback: false,
-    };
+    return { data: chaptersCache.get(cacheKey)!, error: null, isFallback: false };
   }
 
-  const supabase = getSupabaseClient();
+  const subIndex = await getSubjectIndex(normKey, subjectName);
 
-  // If Supabase is not configured, return local mock curriculum
-  if (!supabase || !isSupabaseConfigured()) {
-    const fallbackData = SUBJECTS_CURRICULUM_DATA[subjectKey] || [];
-    chaptersCache.set(cacheKey, fallbackData);
+  const chapters: SubjectChapter[] = subIndex.chapters.map((ch) => {
+    const lessons: SubjectChapterLesson[] = ch.lessons.map((l, lIdx) => ({
+      id: l.lessonId,
+      number: l.lessonNumber,
+      title: l.title,
+      duration: '20:00',
+      status: l.lessonNumber === 1 && ch.chapterNumber === 1 ? 'in_progress' : 'available',
+      progressPercentage: 0,
+      lessonData: {
+        id: l.lessonId,
+        title: l.title,
+        subtitle: `${subjectName} - الفصل ${ch.chapterNumber}`,
+        category: subjectName,
+        teacherName: '',
+        teacherAvatar: '',
+        teacherRole: '',
+        youtubeId: '',
+        duration: '20:00',
+        currentTime: '00:00',
+        progressPercentage: 0,
+        description: `الدرس المنهجي رقم ${l.lessonNumber}`,
+        viewsCount: '0',
+        likesCount: 0,
+        isLiked: false,
+        isBookmarked: false,
+        attachments: {
+          aids: {
+            id: `aid-${l.lessonKey}`,
+            title: 'المعينات',
+            type: 'pdf',
+            size: '2MB',
+            downloadUrl: '#',
+            description: 'ملخص الدرس',
+          },
+          psh: {
+            id: `psh-${l.lessonKey}`,
+            title: 'الواجبات',
+            type: 'psh',
+            size: '3MB',
+            downloadUrl: '#',
+            description: 'تمارين',
+          },
+        },
+        comments: [],
+      },
+    }));
+
     return {
-      data: fallbackData,
-      error: null,
-      isFallback: true,
+      id: `ch-${normKey}-${ch.chapterNumber}`,
+      number: ch.chapterNumber,
+      title: ch.title,
+      subtitle: `${subjectName} - السادس الإعدادي`,
+      description: `الفصل الدراسي رقم ${ch.chapterNumber}`,
+      lessonsCount: ch.lessons.length,
+      completedLessonsCount: 0,
+      lessons,
     };
-  }
+  });
 
-  try {
-    const dbSubjectIds = getDbSubjectIds(subjectKey);
-
-    // 1. Query Supabase educational_data table for matching subject_id
-    let dbRows: any[] = [];
-    const { data: directRows, error: dbError } = await supabase
-      .from('educational_data')
-      .select('id, subject_id, section_id, file_name, content')
-      .in('subject_id', dbSubjectIds)
-      .limit(2000);
-
-    if (dbError) {
-      console.warn('[Supabase DB] Error querying educational_data:', dbError);
-    } else if (directRows && directRows.length > 0) {
-      dbRows = directRows;
-    }
-
-    // 1.1 If no rows found with exact IN, search by partial ILIKE matches (e.g. for bio, احياء, etc.)
-    if (dbRows.length === 0) {
-      let filterStr = `subject_id.ilike.%${subjectKey}%,file_name.ilike.%${subjectKey}%`;
-      if (subjectKey === 'biology') {
-        filterStr += ',subject_id.ilike.%bio%,subject_id.ilike.%احياء%,subject_id.ilike.%أحياء%,file_name.ilike.%bio%,file_name.ilike.%احياء%,file_name.ilike.%أحياء%';
-      }
-      const { data: ilikeRows } = await supabase
-        .from('educational_data')
-        .select('id, subject_id, section_id, file_name, content')
-        .or(filterStr)
-        .limit(1000);
-
-      if (ilikeRows && ilikeRows.length > 0) {
-        dbRows = ilikeRows;
-      }
-    }
-
-    // 1.2 If still empty, check lessons_warehouse table
-    if (dbRows.length === 0) {
-      const { data: warehouseRows } = await supabase
-        .from('lessons_warehouse')
-        .select('*')
-        .limit(500);
-
-      if (warehouseRows && warehouseRows.length > 0) {
-        dbRows = warehouseRows.filter((r) =>
-          dbSubjectIds.some(
-            (sId) =>
-              r.subject_id?.toLowerCase()?.includes(sId.toLowerCase()) ||
-              r.subject?.toLowerCase()?.includes(sId.toLowerCase()) ||
-              r.title?.toLowerCase()?.includes(sId.toLowerCase()) ||
-              r.file_name?.toLowerCase()?.includes(sId.toLowerCase())
-          )
-        );
-      }
-    }
-
-    // 1.3 If still empty, inspect all rows in educational_data with JavaScript fuzzy match
-    if (dbRows.length === 0) {
-      const { data: anyRows } = await supabase
-        .from('educational_data')
-        .select('id, subject_id, section_id, file_name, content')
-        .limit(1000);
-      if (anyRows && anyRows.length > 0) {
-        dbRows = anyRows.filter((r) =>
-          dbSubjectIds.some(
-            (sId) =>
-              r.subject_id?.toLowerCase()?.includes(sId.toLowerCase()) ||
-              r.file_name?.toLowerCase()?.includes(sId.toLowerCase())
-          )
-        );
-      }
-    }
-
-    // 2. Find all organized tree records and pick the most complete one (highest chapter count)
-    const treeRows = (dbRows || []).filter(
-      (r) =>
-        r.file_name?.includes('organized_tree') ||
-        (r.content && Array.isArray(r.content.chapters) && r.content.chapters.length > 0)
-    );
-
-    treeRows.sort((a, b) => {
-      const lenA = a.content?.chapters?.length || 0;
-      const lenB = b.content?.chapters?.length || 0;
-      return lenB - lenA;
-    });
-
-    const treeRow = treeRows[0];
-
-    let parsedChapters: SubjectChapter[] = [];
-
-    if (treeRow && treeRow.content && Array.isArray(treeRow.content.chapters)) {
-      const treeChapters = treeRow.content.chapters;
-
-      parsedChapters = treeChapters.map((ch: any, idx: number) => {
-        const chNum = ch.chapterNumber || idx + 1;
-        const rawTitle = ch.chapterTitle || `الفصل ${chNum}`;
-        const chapterTitle = getArabicChapterTitle(chNum, rawTitle);
-        const rawLessons = Array.isArray(ch.lessons) ? ch.lessons : [];
-
-        const lessons: SubjectChapterLesson[] = rawLessons.map((l: any, lIdx: number) => {
-          const lNum = l.lessonNumber || lIdx + 1;
-          const lTitle = formatArabicLessonTitle(l.lessonTitle || `الدرس ${lNum}`);
-          const rawLessonData = l.files?.[0]?.data || l.files?.[0] || l;
-          const lessonId =
-            l.files?.[0]?.lesson_id ||
-            l.files?.[0]?.id ||
-            `${subjectKey}-ch${chNum}-les${lNum}`;
-
-          return {
-            id: lessonId,
-            number: lNum,
-            title: lTitle,
-            duration: '20:00',
-            status: lIdx === 0 ? 'in_progress' : 'available',
-            progressPercentage: 0,
-            lessonData: transformJsonToLesson(rawLessonData, lessonId, subjectName),
-          };
-        });
-
-        return {
-          id: `ch-${subjectKey}-${chNum}`,
-          number: chNum,
-          title: chapterTitle,
-          subtitle: `${subjectName} - السادس العلمي`,
-          description: `الفصل الدراسي مع شرح الدروس والمدرسين المعتمدين.`,
-          lessonsCount: lessons.length,
-          completedLessonsCount: 0,
-          lessons,
-        };
-      });
-
-      // Sort chapters ascending by chapter number (1, 2, 3...)
-      parsedChapters.sort((a, b) => a.number - b.number);
-    }
-
-    // 3. If no tree row or chapters need augmentation, parse individual lesson files in section_id = 'lessons'
-    if (parsedChapters.length === 0 && dbRows && dbRows.length > 0) {
-      const chapterGroups: Record<number, { title: string; rows: any[] }> = {};
-
-      dbRows.forEach((r) => {
-        if (r.file_name?.includes('organized_tree')) return;
-        const fn = r.file_name || '';
-
-        // Extract chapter number from file_name or content
-        let chNum = 1;
-        const matchSlash = fn.match(/\/(\d+|[٠-٩]+)\//);
-        const matchFasl = fn.match(/فصل\s*(\d+|[٠-٩]+)/i);
-        const matchCh = fn.match(/ch(\d+)/i);
-        const matchPart = fn.match(/ج\s*(\d+)/i);
-
-        if (matchSlash) {
-          chNum = parseInt(matchSlash[1], 10) || 1;
-        } else if (matchFasl) {
-          chNum = parseInt(matchFasl[1], 10) || 1;
-        } else if (matchCh) {
-          chNum = parseInt(matchCh[1], 10) || 1;
-        } else if (matchPart) {
-          chNum = parseInt(matchPart[1], 10) || 1;
-        }
-
-        if (!chapterGroups[chNum]) {
-          chapterGroups[chNum] = {
-            title: getArabicChapterTitle(chNum),
-            rows: [],
-          };
-        }
-        chapterGroups[chNum].rows.push(r);
-      });
-
-      parsedChapters = Object.entries(chapterGroups).map(([numStr, group]) => {
-        const chNum = parseInt(numStr, 10);
-        const lessons: SubjectChapterLesson[] = group.rows.map((row, idx) => {
-          const lNum = idx + 1;
-          const lessonContent = row.content || {};
-          const fallbackId = `les-${row.id || chNum + '-' + lNum}`;
-          const parsedLesson = transformJsonToLesson(lessonContent, fallbackId, subjectName);
-
-          const rawTitle =
-            parsedLesson.title ||
-            row.file_name?.split('/').pop()?.replace('.json', '') ||
-            `الدرس ${lNum}`;
-          const lTitle = formatArabicLessonTitle(rawTitle);
-
-          return {
-            id: parsedLesson.id || fallbackId,
-            number: lNum,
-            title: lTitle,
-            duration: parsedLesson.duration || '20:00',
-            status: lNum === 1 ? 'in_progress' : 'available',
-            progressPercentage: lNum === 1 ? 25 : 0,
-            lessonData: parsedLesson,
-          };
-        });
-
-        return {
-          id: `ch-${subjectKey}-${chNum}`,
-          number: chNum,
-          title: group.title,
-          subtitle: `${subjectName} - السادس العلمي`,
-          description: `شروحات وفصول ${subjectName} من قاعدة البيانات.`,
-          lessonsCount: lessons.length,
-          completedLessonsCount: 0,
-          lessons,
-        };
-      });
-
-      parsedChapters.sort((a, b) => a.number - b.number);
-    }
-
-    // 4. If chapters still empty, try parsing mock fallback
-    if (parsedChapters.length === 0) {
-      parsedChapters = SUBJECTS_CURRICULUM_DATA[subjectKey] || [];
-    }
-
-    chaptersCache.set(cacheKey, parsedChapters);
-    return {
-      data: parsedChapters,
-      error: null,
-      isFallback: false,
-    };
-  } catch (err: any) {
-    console.error('Error fetching subject chapters from Supabase:', err);
-    const fallbackData = SUBJECTS_CURRICULUM_DATA[subjectKey] || [];
-    chaptersCache.set(cacheKey, fallbackData);
-    return {
-      data: fallbackData,
-      error: err?.message || 'تعذر تحميل الفصول من Supabase',
-      isFallback: true,
-    };
-  }
+  chaptersCache.set(cacheKey, chapters);
+  return { data: chapters, error: null, isFallback: false };
 }
 
-/**
- * 2. Get Lessons for a Specific Chapter (Lazy Loading Step 2)
- */
 export async function getChapterLessons(
   subjectKey: string,
   chapterFolderName: string,
   chapterNumber = 1,
   subjectName = 'المادة'
 ): Promise<ServiceResponse<SubjectChapterLesson[]>> {
-  const cacheKey = `lessons_${subjectKey}_${chapterFolderName}`;
-  if (chapterLessonsCache.has(cacheKey)) {
-    return {
-      data: chapterLessonsCache.get(cacheKey)!,
-      error: null,
-      isFallback: false,
-    };
+  const normKey = (subjectKey || '').toLowerCase().trim();
+  const subIndex = await getSubjectIndex(normKey, subjectName);
+  const targetChapter = subIndex.chapters.find((c) => c.chapterNumber === chapterNumber) || subIndex.chapters[0];
+
+  if (!targetChapter) {
+    return { data: [], error: 'لم يتم العثور على الفصل', isFallback: true };
   }
 
-  // 1. Check if already loaded in chapters cache
-  const cachedChapters = chaptersCache.get(`chapters_${subjectKey}`);
-  if (cachedChapters) {
-    const matchingChapter = cachedChapters.find(
-      (c) =>
-        c.number === chapterNumber ||
-        c.title.includes(chapterFolderName) ||
-        chapterFolderName.includes(c.title)
-    );
-    if (matchingChapter && matchingChapter.lessons.length > 0) {
-      chapterLessonsCache.set(cacheKey, matchingChapter.lessons);
-      return {
-        data: matchingChapter.lessons,
-        error: null,
-        isFallback: false,
-      };
-    }
-  }
+  const lessons: SubjectChapterLesson[] = targetChapter.lessons.map((l) => ({
+    id: l.lessonId,
+    number: l.lessonNumber,
+    title: l.title,
+    duration: '20:00',
+    status: l.lessonNumber === 1 ? 'in_progress' : 'available',
+    progressPercentage: 0,
+    lessonData: {
+      id: l.lessonId,
+      title: l.title,
+      subtitle: `${subjectName} - الفصل ${targetChapter.chapterNumber}`,
+      category: subjectName,
+      teacherName: '',
+      teacherAvatar: '',
+      teacherRole: '',
+      youtubeId: '',
+      duration: '20:00',
+      currentTime: '00:00',
+      progressPercentage: 0,
+      description: `شرح ${l.title}`,
+      viewsCount: '0',
+      likesCount: 0,
+      isLiked: false,
+      isBookmarked: false,
+      attachments: {
+        aids: {
+          id: `aid-${l.lessonKey}`,
+          title: 'المعينات',
+          type: 'pdf',
+          size: '2MB',
+          downloadUrl: '#',
+          description: 'ملخص الدرس',
+        },
+        psh: {
+          id: `psh-${l.lessonKey}`,
+          title: 'الواجبات',
+          type: 'psh',
+          size: '3MB',
+          downloadUrl: '#',
+          description: 'تمارين',
+        },
+      },
+      comments: [],
+    },
+  }));
 
-  const supabase = getSupabaseClient();
-  if (!supabase || !isSupabaseConfigured()) {
-    const fallbackChapters = SUBJECTS_CURRICULUM_DATA[subjectKey] || [];
-    const fallbackChapter = fallbackChapters.find((c) => c.number === chapterNumber) || fallbackChapters[0];
-    const fallbackLessons = fallbackChapter ? fallbackChapter.lessons : [];
-    chapterLessonsCache.set(cacheKey, fallbackLessons);
-    return {
-      data: fallbackLessons,
-      error: null,
-      isFallback: true,
+  return { data: lessons, error: null, isFallback: false };
+}
+
+export async function getLessonDetails(
+  contextOrSubjectKey: OpenLessonContext | string,
+  chapterFolderName?: string,
+  lessonFolderName?: string,
+  subjectName = 'المادة',
+  chapterNumber = 1,
+  lessonNumber = 1
+): Promise<ServiceResponse<EducationalLesson>> {
+  let context: OpenLessonContext;
+
+  if (typeof contextOrSubjectKey === 'object' && contextOrSubjectKey !== null) {
+    context = contextOrSubjectKey as OpenLessonContext;
+  } else {
+    const rawKey = typeof contextOrSubjectKey === 'string' ? contextOrSubjectKey : '';
+    const normKey = rawKey.toLowerCase().trim();
+    const lessonKey = buildLessonKey(normKey, chapterNumber, lessonNumber);
+    context = {
+      subjectId: normKey,
+      chapterNumber,
+      lessonNumber,
+      lessonId: `${normKey}-ch${chapterNumber}-les${lessonNumber}`,
+      lessonKey,
+      title: formatArabicLessonTitle(lessonFolderName || `الدرس ${lessonNumber}`),
     };
   }
 
   try {
-    const dbSubjectIds = getDbSubjectIds(subjectKey);
-
-    // Query with resilient fallback for section_id
-    let dbRows: any[] = [];
-    const { data: sectionRows, error: dbError } = await supabase
-      .from('educational_data')
-      .select('id, subject_id, section_id, file_name, content')
-      .in('subject_id', dbSubjectIds)
-      .limit(1000);
-
-    if (dbError) {
-      console.warn('[Supabase DB] Error in fetchSubjectLessons:', dbError);
-    } else if (sectionRows && sectionRows.length > 0) {
-      dbRows = sectionRows;
-    }
-
-    if (dbRows.length === 0) {
-      let filterStr = `subject_id.ilike.%${subjectKey}%,file_name.ilike.%${subjectKey}%`;
-      if (subjectKey === 'biology') {
-        filterStr += ',subject_id.ilike.%bio%,subject_id.ilike.%احياء%,subject_id.ilike.%أحياء%,file_name.ilike.%bio%,file_name.ilike.%احياء%,file_name.ilike.%أحياء%';
-      }
-      const { data: ilikeRows } = await supabase
-        .from('educational_data')
-        .select('id, subject_id, section_id, file_name, content')
-        .or(filterStr)
-        .limit(1000);
-
-      if (ilikeRows && ilikeRows.length > 0) {
-        dbRows = ilikeRows;
-      }
-    }
-
-    const lessons: SubjectChapterLesson[] = [];
-
-    (dbRows || []).forEach((row, idx) => {
-      if (row.file_name?.includes('organized_tree')) return;
-      const fn = row.file_name || '';
-
-      const matchSlash = fn.match(/\/(\d+|[٠-٩]+)\//);
-      const matchFasl = fn.match(/فصل\s*(\d+|[٠-٩]+)/i);
-      const matchCh = fn.match(/ch(\d+)/i);
-      const rowChNum =
-        (matchSlash && parseInt(matchSlash[1], 10)) ||
-        (matchFasl && parseInt(matchFasl[1], 10)) ||
-        (matchCh && parseInt(matchCh[1], 10)) ||
-        1;
-
-      if (rowChNum === chapterNumber || fn.includes(chapterFolderName)) {
-        const lNum = lessons.length + 1;
-        const lessonContent = row.content || {};
-        const fallbackId = `les-${row.id || chapterNumber + '-' + lNum}`;
-        const parsedLesson = transformJsonToLesson(lessonContent, fallbackId, subjectName);
-
-        const rawTitle =
-          parsedLesson.title ||
-          fn.split('/').pop()?.replace('.json', '') ||
-          `الدرس ${lNum}`;
-        const lTitle = formatArabicLessonTitle(rawTitle);
-
-        lessons.push({
-          id: parsedLesson.id || fallbackId,
-          number: lNum,
-          title: lTitle,
-          duration: parsedLesson.duration || '20:00',
-          status: lNum === 1 ? 'in_progress' : 'available',
-          progressPercentage: lNum === 1 ? 25 : 0,
-          lessonData: parsedLesson,
-        });
-      }
-    });
-
-    if (lessons.length === 0) {
-      const fallbackChapters = SUBJECTS_CURRICULUM_DATA[subjectKey] || [];
-      const fallbackChapter = fallbackChapters.find((c) => c.number === chapterNumber) || fallbackChapters[0];
-      const fallbackLessons = fallbackChapter ? fallbackChapter.lessons : [];
-      chapterLessonsCache.set(cacheKey, fallbackLessons);
-      return {
-        data: fallbackLessons,
-        error: null,
-        isFallback: true,
-      };
-    }
-
-    chapterLessonsCache.set(cacheKey, lessons);
-    return {
-      data: lessons,
-      error: null,
-      isFallback: false,
-    };
+    const bundle = await getLessonContentBundle(context);
+    return { data: bundle.lesson, error: null, isFallback: false };
   } catch (err: any) {
-    console.error('Error fetching chapter lessons:', err);
-    const fallbackChapters = SUBJECTS_CURRICULUM_DATA[subjectKey] || [];
-    const fallbackChapter = fallbackChapters.find((c) => c.number === chapterNumber) || fallbackChapters[0];
-    const fallbackLessons = fallbackChapter ? fallbackChapter.lessons : [];
-    chapterLessonsCache.set(cacheKey, fallbackLessons);
-    return {
-      data: fallbackLessons,
-      error: err?.message || 'تعذر تحميل الدروس من قاعدة البيانات',
-      isFallback: true,
-    };
+    return { data: null, error: err?.message || 'تعذر تحميل الدرس', isFallback: true };
   }
 }
 
-/**
- * 3. Get Lesson JSON Details (Lazy Loading Step 3)
- * Retrieves and formats full EducationalLesson with videos and teachers.
- */
-export async function getLessonDetails(
-  subjectKey: string,
-  chapterFolderName: string,
-  lessonFolderName: string,
-  subjectName = 'المادة'
-): Promise<ServiceResponse<EducationalLesson>> {
-  const cacheKey = `lesson_json_${subjectKey}_${chapterFolderName}_${lessonFolderName}`;
-  if (lessonJsonCache.has(cacheKey)) {
-    return {
-      data: lessonJsonCache.get(cacheKey)!,
-      error: null,
-      isFallback: false,
-    };
-  }
-
-  // Look in chapter lessons cache first
-  const cachedLessons = chapterLessonsCache.get(`lessons_${subjectKey}_${chapterFolderName}`);
-  const matchingLesson = cachedLessons?.find(
-    (l) => l.title === lessonFolderName || l.id === lessonFolderName
-  );
-
-  if (matchingLesson && matchingLesson.lessonData) {
-    lessonJsonCache.set(cacheKey, matchingLesson.lessonData);
-    return {
-      data: matchingLesson.lessonData,
-      error: null,
-      isFallback: false,
-    };
-  }
-
-  const fallbackLesson = transformJsonToLesson(
-    {
-      lesson_id: `${subjectKey}-${lessonFolderName}`,
-      title: lessonFolderName,
-      subtitle: `${subjectName} - ${chapterFolderName}`,
-      description: 'شرح تفصيلي للدرس مع إمكانية مشاهدة الفيديو وحل الألعاب التعليمية.',
-    },
-    `${subjectKey}-${lessonFolderName}`,
-    subjectName
-  );
-
-  lessonJsonCache.set(cacheKey, fallbackLesson);
-  return {
-    data: fallbackLesson,
-    error: null,
-    isFallback: false,
-  };
-}
-
-/**
- * Creates a TeacherStory directly from an EducationalLesson.
- * If no valid video exists, returns null.
- */
-export function createTeacherStoryFromLesson(lesson: EducationalLesson): import('../types').TeacherStory | null {
+export function createTeacherStoryFromLesson(lesson: EducationalLesson): TeacherStory | null {
   const validYtId = extractYoutubeId(lesson.youtubeId);
-  if (!validYtId) return null; // No random video fallback
+  if (!validYtId) return null;
 
   const ytThumb = `https://img.youtube.com/vi/${validYtId}/hqdefault.jpg`;
-
   return {
     id: `story-${lesson.id}`,
     teacherName: cleanTeacherName(lesson.teacherName) || 'مدرس المادة',
@@ -1050,18 +1099,16 @@ export function createTeacherStoryFromLesson(lesson: EducationalLesson): import(
     videoUrl: `https://www.youtube.com/watch?v=${validYtId}`,
     duration: lesson.duration || '15:00',
     storyImage: ytThumb,
-    textNotes:
-      lesson.description ||
-      `شرح المدرس لدرس "${lesson.title}". اضغط لعرض وتغيير شاشة الفيديو فوراً.`,
+    textNotes: lesson.description || `شرح ${lesson.title}`,
     lessonData: lesson,
   };
 }
 
-/**
- * Clears the in-memory cache (e.g. for refresh/reload)
- */
 export function clearLessonsCache(): void {
+  subjectIndexCache.clear();
+  lessonBundleCache.clear();
   chaptersCache.clear();
   chapterLessonsCache.clear();
   lessonJsonCache.clear();
 }
+

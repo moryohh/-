@@ -1,5 +1,6 @@
 import { LessonBookletData, BookletItem } from '../data/lessonBooklet';
 import { fetchLessonCurriculum } from './curriculumService';
+import { OpenLessonContext } from '../types';
 
 export interface ExamBranch {
   id: string;
@@ -296,18 +297,30 @@ export function extractDailyExamFromCurriculum(
 
 /**
  * Loads the Daily Exam asynchronously on demand using the Curriculum JSON
+ * Accepts either OpenLessonContext or legacy arguments.
  */
 export async function fetchDailyExamForLesson(
-  subjectId: string,
-  lessonId: string,
+  contextOrSubjectId: OpenLessonContext | string,
+  lessonId?: string,
   lessonTitle: string = 'الدرس التعليمي',
   category: string = 'المادة التعليمية',
-  chapterIndex?: number,
-  lessonIndex?: number
+  chapterNumber?: number,
+  lessonNumber?: number
 ): Promise<DailyExamConfig> {
   try {
-    const res = await fetchLessonCurriculum(subjectId, lessonId, chapterIndex, lessonIndex);
-    return extractDailyExamFromCurriculum(res.data, lessonTitle, category);
+    let resolvedTitle = lessonTitle;
+    let resolvedCategory = category;
+
+    if (typeof contextOrSubjectId === 'object' && contextOrSubjectId !== null) {
+      const ctx = contextOrSubjectId as OpenLessonContext;
+      resolvedTitle = ctx.title || ctx.lessonTitle || `الدرس ${ctx.lessonNumber}`;
+      resolvedCategory = ctx.subjectId;
+      const res = await fetchLessonCurriculum(ctx);
+      return extractDailyExamFromCurriculum(res.data, resolvedTitle, resolvedCategory);
+    }
+
+    const res = await fetchLessonCurriculum(contextOrSubjectId, lessonId, chapterNumber, lessonNumber);
+    return extractDailyExamFromCurriculum(res.data, resolvedTitle, resolvedCategory);
   } catch (err) {
     console.error('Failed to load daily exam from curriculum:', err);
     return extractDailyExamFromCurriculum(null, lessonTitle, category);

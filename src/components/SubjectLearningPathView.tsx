@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { EducationalLesson, SubjectChapter, SubjectChapterLesson } from '../types';
+import React, { useState, useEffect, useRef } from 'react';
+import { EducationalLesson, SubjectChapter, SubjectChapterLesson, OpenLessonContext, LearningPosition } from '../types';
 import { getCurriculumForSubject } from '../data/mockCurriculums';
-import { getSubjectChapters, getChapterLessons, getLessonDetails, formatArabicLessonTitle } from '../services/lessonsService';
+import { getSubjectIndex, getSubjectChapters, getChapterLessons, getLessonDetails, formatArabicLessonTitle } from '../services/lessonsService';
 import { AdventureWorldMap } from './AdventureWorldMap';
 import { MapRewardsModal } from './MapRewardsModal';
 import { MapLeaderboardModal } from './MapLeaderboardModal';
@@ -50,23 +50,33 @@ interface SubjectLearningPathViewProps {
     lessonCountText?: string;
     lessonData?: EducationalLesson;
   };
-  onSelectLesson: (lesson: EducationalLesson) => void;
+  learningPosition?: LearningPosition | null;
+  onPositionChange?: (pos: LearningPosition) => void;
+  openLessonContext?: OpenLessonContext | null;
+  onSelectLesson: (lesson: EducationalLesson, context?: OpenLessonContext) => void;
   onBack: () => void;
   onOpenGames?: () => void;
 }
 
 export const SubjectLearningPathView: React.FC<SubjectLearningPathViewProps> = ({
   subject,
+  learningPosition,
+  onPositionChange,
+  openLessonContext,
   onSelectLesson,
   onBack,
   onOpenGames,
 }) => {
   const { theme } = useAppTheme();
   const [chapters, setChapters] = useState<SubjectChapter[]>([]);
-  const [selectedChapterIndex, setSelectedChapterIndex] = useState<number>(0);
+  const [selectedChapterNumber, setSelectedChapterNumber] = useState<number>(
+    () => (learningPosition?.subjectId === subject.id && learningPosition?.chapterNumber) || 1
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingLessons, setIsLoadingLessons] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const loadRequestIdRef = useRef<number>(0);
 
   // View state: 'map' (default island adventure map) or 'list' (detailed chapter list)
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
@@ -87,12 +97,19 @@ export const SubjectLearningPathView: React.FC<SubjectLearningPathViewProps> = (
   const [coinsCount, setCoinsCount] = useState(150);
   const [starsCount, setStarsCount] = useState(30);
 
-  // Function to load lessons for a specific chapter index
-  const loadLessonsForChapter = async (
-    chIndex: number,
+  // Sync selectedChapterNumber if learningPosition changes externally
+  useEffect(() => {
+    if (learningPosition && learningPosition.subjectId === subject.id && learningPosition.chapterNumber) {
+      setSelectedChapterNumber(learningPosition.chapterNumber);
+    }
+  }, [learningPosition, subject.id]);
+
+  // Function to load lessons for a specific chapter number
+  const loadLessonsForChapterNumber = async (
+    chNumber: number,
     chaptersList: SubjectChapter[] = chapters
   ) => {
-    const targetChapter = chaptersList[chIndex];
+    const targetChapter = chaptersList.find((c) => c.number === chNumber) || chaptersList[0];
     if (!targetChapter) return;
 
     // If already loaded lessons, skip network
@@ -103,14 +120,16 @@ export const SubjectLearningPathView: React.FC<SubjectLearningPathViewProps> = (
       const res = await getChapterLessons(
         subject.id,
         targetChapter.title,
-        chIndex + 1,
+        targetChapter.number || chNumber,
         subject.name
       );
 
       if (res.data && res.data.length > 0) {
         setChapters((prev) =>
-          prev.map((c, idx) =>
-            idx === chIndex ? { ...c, lessons: res.data, lessonsCount: res.data.length } : c
+          prev.map((c) =>
+            c.number === targetChapter.number
+              ? { ...c, lessons: res.data, lessonsCount: res.data.length }
+              : c
           )
         );
       }
@@ -121,50 +140,103 @@ export const SubjectLearningPathView: React.FC<SubjectLearningPathViewProps> = (
     }
   };
 
-  // Lazy Load Chapters from Supabase Storage (Section: 'دروس')
+  // 3-Stage Lazy Loading Architecture: Stage 1 Index Fetching
   useEffect(() => {
-    let isMounted = true;
+    const currentReqId = ++loadRequestIdRef.current;
     async function loadData() {
       setIsLoading(true);
       setErrorMessage(null);
       try {
-        const res = await getSubjectChapters(subject.id, subject.name);
-        if (!isMounted) return;
-        if (res.data && res.data.length > 0) {
-          setChapters(res.data);
-          // Auto-load lessons for the first/selected chapter
-          loadLessonsForChapter(0, res.data);
-        } else {
-          // Fallback only if no data returned
-          const fallbackData = getCurriculumForSubject(subject.id);
-          setChapters(fallbackData);
-          loadLessonsForChapter(0, fallbackData);
+        // 1. Try fast Stage 1 Subject Index first
+        const subjectIndex = await getSubjectIndex(subject.id, subject.name);
+        if (currentReqId !== loadRequestIdRef.current) return;
+
+        let loadedChapters: SubjectChapter[] = [];
+
+        if (subjectIndex && subjectIndex.chapters.length > 0) {
+          loadedChapters = subjectIndex.chapters.map((ch) => {
+            const lessons: SubjectChapterLesson[] = ch.lessons.map((l, lIdx) => ({
+              id: l.lessonId,
+              number: l.lessonNumber,
+              title: l.title,
+              duration: '20:00',
+              status: lIdx === 0 ? 'in_progress' : 'available',
+              progressPercentage: lIdx === 0 ? 25 : 0,
+            }));
+
+            return {
+              id: `ch-${subject.id}-${ch.chapterNumber}`,
+              number: ch.chapterNumber,
+              title: ch.title,
+              subtitle: `${subject.name} - السادس العلمي`,
+              description: `الفصل الدراسي مع شروحات وألعاب واختبارات المنهج.`,
+              lessonsCount: lessons.length,
+              completedLessonsCount: 0,
+              lessons,
+            };
+          });
         }
-        if (res.error) {
-          setErrorMessage(res.error);
+
+        // 2. If index returned no chapters, try getSubjectChapters
+        if (loadedChapters.length === 0) {
+          const res = await getSubjectChapters(subject.id, subject.name);
+          if (currentReqId !== loadRequestIdRef.current) return;
+          if (res.data && res.data.length > 0) {
+            loadedChapters = res.data;
+          } else {
+            loadedChapters = getCurriculumForSubject(subject.id);
+          }
+          if (res.error) {
+            setErrorMessage(res.error);
+          }
         }
+
+        setChapters(loadedChapters);
+
+        // Determine starting chapter from saved learning position or default to first
+        const initChNum =
+          (learningPosition?.subjectId === subject.id && learningPosition?.chapterNumber) ||
+          loadedChapters[0]?.number ||
+          1;
+
+        setSelectedChapterNumber(initChNum);
+        loadLessonsForChapterNumber(initChNum, loadedChapters);
       } catch (err: any) {
         console.error('Failed to load chapters:', err);
-        if (isMounted) {
+        if (currentReqId === loadRequestIdRef.current) {
           const fallbackData = getCurriculumForSubject(subject.id);
           setChapters(fallbackData);
-          loadLessonsForChapter(0, fallbackData);
+          const initChNum =
+            (learningPosition?.subjectId === subject.id && learningPosition?.chapterNumber) ||
+            fallbackData[0]?.number ||
+            1;
+          setSelectedChapterNumber(initChNum);
+          loadLessonsForChapterNumber(initChNum, fallbackData);
           setErrorMessage('تعذر الاتصال بـ Supabase لجلب الفصول');
         }
       } finally {
-        if (isMounted) setIsLoading(false);
+        if (currentReqId === loadRequestIdRef.current) {
+          setIsLoading(false);
+        }
       }
     }
 
     loadData();
-    return () => {
-      isMounted = false;
-    };
   }, [subject.id, subject.name]);
 
-  const handleSelectChapter = (chIndex: number) => {
-    setSelectedChapterIndex(chIndex);
-    loadLessonsForChapter(chIndex);
+  const handleSelectChapterNumber = (chNumber: number) => {
+    setSelectedChapterNumber(chNumber);
+    const targetChapter = chapters.find((c) => c.number === chNumber);
+    const firstLesson = targetChapter?.lessons[0];
+
+    onPositionChange?.({
+      subjectId: subject.id,
+      chapterNumber: chNumber,
+      lessonNumber: firstLesson?.number ?? 1,
+      lessonId: firstLesson?.id,
+    });
+
+    loadLessonsForChapterNumber(chNumber);
   };
 
   const toggleChapter = (chapterId: string) => {
@@ -196,26 +268,54 @@ export const SubjectLearningPathView: React.FC<SubjectLearningPathViewProps> = (
   // Lazy load specific lesson JSON when clicked by user
   const handleSelectLessonWithLazyLoad = async (lessonItem: SubjectChapterLesson) => {
     try {
-      const parentChapter = chapters.find((ch) =>
-        ch.lessons.some((l) => l.id === lessonItem.id)
-      );
+      const parentChapter =
+        chapters.find((ch) => ch.lessons.some((l) => l.id === lessonItem.id)) ||
+        chapters.find((ch) => ch.number === selectedChapterNumber) ||
+        chapters[0];
+
       const chapterTitle = parentChapter ? parentChapter.title : 'الفصل الأول';
+      const chapterNumber = parentChapter ? parentChapter.number : 1;
+
+      const lessonContext: OpenLessonContext = {
+        subjectId: subject.id,
+        chapterNumber,
+        lessonNumber: lessonItem.number,
+        lessonId: lessonItem.id,
+        lessonTitle: lessonItem.title,
+      };
+
+      onPositionChange?.({
+        subjectId: subject.id,
+        chapterNumber,
+        lessonNumber: lessonItem.number,
+        lessonId: lessonItem.id,
+      });
 
       const res = await getLessonDetails(
         subject.id,
         chapterTitle,
         lessonItem.title,
-        subject.name
+        subject.name,
+        chapterNumber,
+        lessonItem.number
       );
 
       if (res.data) {
-        onSelectLesson(res.data);
+        onSelectLesson(res.data, lessonContext);
       } else {
-        onSelectLesson(lessonItem.lessonData);
+        onSelectLesson(lessonItem.lessonData, lessonContext);
       }
     } catch (err) {
       console.error('Error in handleSelectLessonWithLazyLoad:', err);
-      onSelectLesson(lessonItem.lessonData);
+      const parentChapter = chapters.find((ch) => ch.number === selectedChapterNumber) || chapters[0];
+      const fallbackContext: OpenLessonContext = {
+        subjectId: subject.id,
+        chapterNumber: parentChapter ? parentChapter.number : 1,
+        lessonNumber: lessonItem.number,
+        lessonId: lessonItem.id,
+        lessonTitle: lessonItem.title,
+      };
+      onSelectLesson(lessonItem.lessonData, fallbackContext);
     }
   };
 
@@ -227,17 +327,19 @@ export const SubjectLearningPathView: React.FC<SubjectLearningPathViewProps> = (
   );
   const overallPercentage = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
 
-  // Find active/current lesson to resume quickly
+  // Find active/current lesson to resume quickly in the active chapter or based on learningPosition
+  const activeChapter = chapters.find((c) => c.number === selectedChapterNumber) || chapters[0];
   let currentResumeLesson: SubjectChapterLesson | null = null;
-  for (const ch of chapters) {
-    const found = ch.lessons.find((l) => l.status === 'in_progress');
-    if (found) {
-      currentResumeLesson = found;
-      break;
-    }
-  }
-  if (!currentResumeLesson && chapters.length > 0 && chapters[0].lessons.length > 0) {
-    currentResumeLesson = chapters[0].lessons[0];
+
+  if (activeChapter && activeChapter.lessons.length > 0) {
+    currentResumeLesson =
+      activeChapter.lessons.find(
+        (l) =>
+          l.id === learningPosition?.lessonId ||
+          l.number === learningPosition?.lessonNumber
+      ) ||
+      activeChapter.lessons.find((l) => l.status === 'in_progress') ||
+      activeChapter.lessons[0];
   }
 
   const handleStartNextChallenge = () => {
@@ -245,6 +347,8 @@ export const SubjectLearningPathView: React.FC<SubjectLearningPathViewProps> = (
       handleSelectLessonWithLazyLoad(currentResumeLesson);
     }
   };
+
+  const selectedChapterIndex = Math.max(0, chapters.findIndex((c) => c.number === selectedChapterNumber));
 
   return (
     <div className="min-h-full px-2 sm:px-3 pt-1 pb-6 text-right animate-in fade-in duration-300 select-none space-y-2">
@@ -327,8 +431,13 @@ export const SubjectLearningPathView: React.FC<SubjectLearningPathViewProps> = (
             onSelectLesson={handleSelectLessonWithLazyLoad}
             onOpenChest={handleOpenChest}
             openedChests={openedChests}
+            selectedChapterNumber={selectedChapterNumber}
+            onSelectChapterNumber={handleSelectChapterNumber}
             selectedChapterIndex={selectedChapterIndex}
-            onSelectChapter={handleSelectChapter}
+            onSelectChapter={(idx) => {
+              const ch = chapters[idx];
+              if (ch) handleSelectChapterNumber(ch.number);
+            }}
             isLoadingLessons={isLoadingLessons}
             isLoadingChapters={isLoading}
           />

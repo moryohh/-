@@ -21,6 +21,7 @@ import {
   ImageEvaluationResult,
 } from '../services/imageEvaluationService';
 import { useAppTheme } from '../services/themeService';
+import { OpenLessonContext } from '../types';
 
 interface DailyExamModalProps {
   isOpen: boolean;
@@ -29,6 +30,7 @@ interface DailyExamModalProps {
   lessonTitle: string;
   category?: string;
   customExam?: DailyExamConfig;
+  openLessonContext?: OpenLessonContext | null;
 }
 
 export const DailyExamModal: React.FC<DailyExamModalProps> = ({
@@ -38,6 +40,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
   lessonTitle,
   category = 'المادة التعليمية',
   customExam,
+  openLessonContext,
 }) => {
   const { theme } = useAppTheme();
   const [exam, setExam] = useState<DailyExamConfig | null>(customExam || null);
@@ -86,16 +89,33 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
 
     if (isOpen) {
       setIsLoading(true);
-      fetchDailyExamForLesson(category, lessonId, lessonTitle, category)
-        .then((res) => {
-          setExam(res);
-          setIsLoading(false);
-        })
-        .catch(() => {
-          setIsLoading(false);
-        });
+      if (openLessonContext) {
+        fetchDailyExamForLesson(openLessonContext)
+          .then((res) => {
+            setExam(res);
+            setIsLoading(false);
+          })
+          .catch(() => {
+            setIsLoading(false);
+          });
+      } else {
+        const subjectId = category;
+        fetchDailyExamForLesson(
+          subjectId,
+          lessonId,
+          lessonTitle,
+          subjectId
+        )
+          .then((res) => {
+            setExam(res);
+            setIsLoading(false);
+          })
+          .catch(() => {
+            setIsLoading(false);
+          });
+      }
     }
-  }, [isOpen, customExam, category, lessonId, lessonTitle]);
+  }, [isOpen, customExam, category, lessonId, lessonTitle, openLessonContext?.subjectId, openLessonContext?.chapterNumber, openLessonContext?.lessonNumber, openLessonContext?.lessonId]);
 
   // Countdown timer
   useEffect(() => {
