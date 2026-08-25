@@ -20,7 +20,6 @@ import {
   Layers,
   X,
   Loader2,
-  ArrowRight,
 } from 'lucide-react';
 
 interface AdventureWorldMapProps {
@@ -410,17 +409,6 @@ export const AdventureWorldMap: React.FC<AdventureWorldMapProps> = ({
             )}
           </div>
 
-          {/* Back button in the right side of the map toolbar */}
-          <button
-            type="button"
-            onClick={onBack}
-            className="flex items-center gap-1 px-3 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black text-[11px] hover:brightness-110 active:scale-95 transition-all shadow-[0_0_10px_rgba(251,191,36,0.6)] shrink-0 cursor-pointer"
-            title="العودة إلى الصفحة السابقة"
-            aria-label="العودة إلى الصفحة السابقة"
-          >
-            <ArrowRight className="w-3.5 h-3.5" />
-            <span>رجوع</span>
-          </button>
         </div>
       </div>
 
