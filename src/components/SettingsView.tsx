@@ -100,12 +100,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenProfile, onBac
     },
     {
       id: 'night',
-      title: 'النمط الليلي الهادئ (فاتح)',
-      description: 'ألوان غروب ليلية فاتحة وهادئة ومريحة للعين',
-      badge: 'ليلي هادئ',
+      title: 'النمط الليلي الأسود والأخضر',
+      description: 'خلفية سوداء هادئة مع أضواء خضراء خفيفة ومريحة للعين',
+      badge: 'أسود وأخضر',
       icon: Moon,
-      swatches: ['#E8EDF7', '#475569', '#FFFFFF', '#7C3AED'],
-      gradient: 'from-[#F7F8FC] via-[#F1F4FA] to-[#E8EDF7]',
+      swatches: ['#020403', '#22C55E', '#0B1510', '#4ADE80'],
+      gradient: 'from-[#06100A] via-[#030804] to-[#010201]',
     },
   ];
 

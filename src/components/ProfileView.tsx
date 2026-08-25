@@ -110,7 +110,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     { id: 'amber_work', label: 'كهربائي مزرق', colors: ['#FACC15', '#2563EB', '#0F172A'] },
     { id: 'sky_cyan', label: 'سماوي', colors: ['#F0FAFF', '#0891B2'] },
     { id: 'emerald_nature', label: 'زمردي', colors: ['#F0FDF4', '#059669'] },
-    { id: 'night', label: 'ليلي هادئ', colors: ['#E2E8F0', '#64748B', '#1E3A8A'] },
+    { id: 'night', label: 'ليلي أسود وأخضر', colors: ['#020403', '#22C55E', '#06100A'] },
   ];
 
   useEffect(() => {
