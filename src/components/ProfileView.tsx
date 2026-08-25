@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   Award,
   Flame,
@@ -21,7 +21,6 @@ import {
   Calendar,
   LockKeyhole,
   UserX,
-  Palette,
   Trophy,
   Gem,
 } from 'lucide-react';
@@ -55,6 +54,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 }) => {
   const { theme, currentThemeId, setThemeId } = useAppTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const themePickerRef = useRef<HTMLDivElement>(null);
 
   const [activeTab, setActiveTab] = useState<'posts' | 'achievements' | 'details'>('posts');
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
@@ -91,6 +91,19 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     { id: 'emerald_nature', label: 'زمردي', colors: ['#F0FDF4', '#059669'] },
     { id: 'night', label: 'ليلي', colors: ['#090E1F', '#00A3FF'] },
   ];
+
+  useEffect(() => {
+    if (!isSettingsOpen) return;
+
+    const handleOutsidePointer = (event: PointerEvent) => {
+      if (!themePickerRef.current?.contains(event.target as Node)) {
+        setIsSettingsOpen(false);
+      }
+    };
+
+    document.addEventListener('pointerdown', handleOutsidePointer);
+    return () => document.removeEventListener('pointerdown', handleOutsidePointer);
+  }, [isSettingsOpen]);
 
   // Filter posts created by this user
   const authoredPosts = userPosts.filter(
@@ -189,29 +202,76 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             <div />
           )}
 
-          <button
-            type="button"
-            onClick={() => setIsSettingsOpen((previous) => !previous)}
-            className="flex flex-col items-center gap-0.5 z-10 cursor-pointer transition-transform active:scale-95"
-            aria-label="تغيير اللون"
-            title="تغيير اللون"
-          >
-            <span
-              className={`w-10 h-10 rounded-full p-0.5 border-2 shadow-lg transition-transform ${isSettingsOpen ? 'rotate-12 scale-105' : ''}`}
-              style={{
-                borderColor: theme.colors.primary,
-                boxShadow: `0 0 14px ${theme.colors.glow}`,
-              }}
+          <div ref={themePickerRef} className="relative z-20">
+            <button
+              type="button"
+              onClick={() => setIsSettingsOpen((previous) => !previous)}
+              className="flex flex-col items-center gap-0.5 cursor-pointer transition-transform active:scale-95"
+              aria-expanded={isSettingsOpen}
+              aria-haspopup="menu"
+              aria-label="تغيير اللون"
+              title="تغيير اللون"
             >
               <span
-                className="block w-full h-full rounded-full"
+                className={`w-10 h-10 rounded-full p-0.5 border-2 shadow-lg transition-transform ${isSettingsOpen ? 'rotate-12 scale-105' : ''}`}
                 style={{
-                  background: 'conic-gradient(#ef4444 0deg 52deg, #f97316 52deg 104deg, #facc15 104deg 156deg, #22c55e 156deg 208deg, #06b6d4 208deg 260deg, #3b82f6 260deg 312deg, #a855f7 312deg 360deg)',
+                  borderColor: theme.colors.primary,
+                  boxShadow: `0 0 14px ${theme.colors.glow}`,
                 }}
-              />
-            </span>
-            <span className={`text-[9px] font-black ${theme.classes.textMain}`}>تغيير اللون</span>
-          </button>
+              >
+                <span
+                  className="block w-full h-full rounded-full"
+                  style={{
+                    background: 'conic-gradient(#ef4444 0deg 52deg, #f97316 52deg 104deg, #facc15 104deg 156deg, #22c55e 156deg 208deg, #06b6d4 208deg 260deg, #3b82f6 260deg 312deg, #a855f7 312deg 360deg)',
+                  }}
+                />
+              </span>
+              <span className={`text-[9px] font-black ${theme.classes.textMain}`}>تغيير اللون</span>
+            </button>
+
+            {isSettingsOpen && (
+              <div
+                role="menu"
+                aria-label="ألوان التطبيق المتاحة"
+                className={`absolute top-full right-0 mt-2 w-56 rounded-2xl border p-2.5 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-150 ${theme.classes.cardBg} ${theme.classes.cardBorder}`}
+              >
+                <div className="flex items-center justify-between gap-2 px-1 pb-2 mb-2 border-b border-white/10">
+                  <span className={`text-[11px] font-black ${theme.classes.textMain}`}>ألوان التطبيق</span>
+                  <span className={`text-[9px] ${theme.classes.textMuted}`}>اختر لونًا</span>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {profileThemeOptions.map((option) => {
+                    const selected = currentThemeId === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          gameAudio.playClick();
+                          setThemeId(option.id);
+                          setIsSettingsOpen(false);
+                        }}
+                        className={`flex items-center gap-2 rounded-xl border p-2 text-right transition-all active:scale-95 ${selected ? 'ring-2 ring-offset-1' : 'hover:-translate-y-0.5'}`}
+                        style={{
+                          borderColor: selected ? theme.colors.primary : `${theme.colors.primary}35`,
+                          backgroundColor: selected ? `${theme.colors.primary}18` : `${theme.colors.primary}08`,
+                          ['--tw-ring-color' as string]: theme.colors.primary,
+                        }}
+                      >
+                        <span
+                          className="h-7 w-7 shrink-0 rounded-full border shadow-sm"
+                          style={{ background: `linear-gradient(135deg, ${option.colors[0]}, ${option.colors[1]})` }}
+                        />
+                        <span className={`text-[10px] font-black ${theme.classes.textMain}`}>{option.label}</span>
+                        {selected && <Check className="ml-auto h-3.5 w-3.5 text-emerald-400" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="relative pt-4">
@@ -392,59 +452,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         </div>
       </div>
 
-      {isSettingsOpen && (
-        <section
-          className={`rounded-3xl border p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200 ${theme.classes.cardBg} ${theme.classes.cardBorder}`}
-          aria-label="إعدادات الصفحة الشخصية"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className={`text-sm font-black ${theme.classes.textMain}`}>إعدادات الصفحة الشخصية</h3>
-              <p className={`text-[10px] mt-0.5 ${theme.classes.textMuted}`}>غيّر لون ومظهر المنصة من داخل حسابك</p>
-            </div>
-            <Palette className="w-5 h-5" style={{ color: theme.colors.primary }} />
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {profileThemeOptions.map((option) => {
-              const selected = currentThemeId === option.id;
-              return (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => {
-                    gameAudio.playClick();
-                    setThemeId(option.id);
-                  }}
-                  className={`p-2.5 rounded-2xl border text-right transition-all active:scale-95 ${selected ? 'ring-2 ring-offset-1' : 'hover:-translate-y-0.5'}`}
-                  style={{
-                    borderColor: selected ? theme.colors.primary : `${theme.colors.primary}35`,
-                    backgroundColor: selected ? `${theme.colors.primary}18` : `${theme.colors.primary}08`,
-                    ['--tw-ring-color' as string]: theme.colors.primary,
-                  }}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="w-7 h-7 rounded-xl border shadow-sm" style={{ background: `linear-gradient(135deg, ${option.colors[0]}, ${option.colors[1]})` }} />
-                    <span className={`text-[11px] font-black ${theme.classes.textMain}`}>{option.label}</span>
-                  </div>
-                  <span className={`text-[9px] mt-1 block ${selected ? 'text-emerald-400' : theme.classes.textMuted}`}>
-                    {selected ? 'المظهر النشط' : 'اختيار المظهر'}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          {onSignOut && (
-            <button
-              type="button"
-              onClick={onSignOut}
-              className="w-full py-2.5 rounded-2xl border border-rose-500/30 bg-rose-500/10 text-rose-400 text-xs font-black flex items-center justify-center gap-2"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>تسجيل الخروج من الحساب</span>
-            </button>
-          )}
-        </section>
-      )}
 
       {/* ======================================================== */}
       {/* AVATAR SELECTOR MODAL / SHEET */}
