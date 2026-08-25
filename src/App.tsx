@@ -982,6 +982,7 @@ function AppContent() {
           openLessonContext={openLessonContext}
           onScoreUpdate={handleScoreUpdate}
           onAssessmentResult={handleAssessmentResult}
+          playerAvatarUrl={currentUser?.avatarUrl}
         />
       </React.Suspense>
     </div>

@@ -36,6 +36,7 @@ interface LessonGamesModalProps {
   openLessonContext?: OpenLessonContext | null;
   onScoreUpdate?: (points: number) => void;
   onAssessmentResult?: (correctPoints: number, totalPoints: number) => void;
+  playerAvatarUrl?: string;
 }
 
 export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
@@ -48,6 +49,7 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
   openLessonContext,
   onScoreUpdate,
   onAssessmentResult,
+  playerAvatarUrl,
 }) => {
   const { theme } = useAppTheme();
   // Mode: 'menu' | 'millionaire' | 'true_false' | 'gibha_sah' | 'daily_exam' | 'quick'
@@ -200,6 +202,7 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
         customConfig={gamesBundle?.gibhaSahConfig}
         onScoreUpdate={onScoreUpdate}
         onAssessmentResult={onAssessmentResult}
+        playerAvatarUrl={playerAvatarUrl}
       />
     );
   }

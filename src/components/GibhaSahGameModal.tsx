@@ -5,8 +5,6 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  Volume2,
-  VolumeX,
   Users,
   Crown,
   PartyPopper,
@@ -22,7 +20,6 @@ import {
   GibhaSahQuestion,
   getGibhaSahGameForLesson,
 } from '../data/mockGibhaSah';
-import { GibhaSahAuthenticIcon } from './GameIcons';
 import { gameAudio } from '../utils/gameAudio';
 import { getImageChoiceReward } from '../services/pointsService';
 
@@ -34,12 +31,11 @@ interface GibhaSahGameModalProps {
   category?: string;
   onScoreUpdate?: (points: number) => void;
   onAssessmentResult?: (correctPoints: number, totalPoints: number) => void;
+  playerAvatarUrl?: string;
   customConfig?: GibhaSahGameConfig;
 }
 
 // Utility to shuffle an array (Fisher-Yates)
-const CARD_SYMBOLS = ['🧬', '🍄', '⚡', '🥚', '🔬', '🌲', '🌿', '🪱', '☀️', '🧽', '🧫', '🧠'];
-
 function shuffleArray<T>(array: T[]): T[] {
   const arr = [...array];
   for (let i = arr.length - 1; i > 0; i--) {
@@ -57,6 +53,7 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
   category = 'المادة التعليمية',
   onScoreUpdate,
   onAssessmentResult,
+  playerAvatarUrl,
   customConfig,
 }) => {
   const [config, setConfig] = useState<GibhaSahGameConfig>(() =>
@@ -502,83 +499,49 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
           }}
         />
 
-        {/* 1. Brushed Metal Curved Header Plate (Matching Screenshot) */}
+        {/* 1. Compact Header: player avatar and essential controls only */}
         <div
-          id="brushed-metal-header"
+          id="gibha-sah-header"
           className="relative z-20 px-4 py-3 rounded-t-[30px] border-b-2 border-cyan-300/30 shadow-lg flex items-center justify-between overflow-hidden"
           style={{
             background: 'linear-gradient(135deg, #12356d 0%, #0b1f4b 52%, #071532 100%)',
             boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.16), 0 8px 22px rgba(2,8,23,0.45)'
           }}
         >
-          {/* Lightweight top sheen; it stays static to keep the game responsive. */}
           <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-300 via-cyan-300 to-amber-300 opacity-90 pointer-events-none" />
 
-          {/* Left: Action Control Buttons (Close, Restart, Audio) */}
+          {/* Essential controls: no sound toggle; close is deliberately large for touch. */}
           <div className="flex items-center gap-2 relative z-10">
-            {/* Close Button */}
             <button
               id="btn-close-gibha-sah"
               onClick={handleCloseGame}
-              className="w-8 h-8 rounded-full bg-gradient-to-b from-[#324554] to-[#1a2630] border border-slate-400/50 text-slate-200 hover:text-rose-400 shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_2px_4px_rgba(0,0,0,0.4)] flex items-center justify-center transition-transform active:scale-95 cursor-pointer"
+              className="w-12 h-12 rounded-full bg-gradient-to-b from-[#3b5264] to-[#172532] border-2 border-slate-300/60 text-slate-100 hover:text-rose-300 shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(0,0,0,0.45)] flex items-center justify-center transition-transform active:scale-95 cursor-pointer"
               title="إغلاق اللعبة"
+              aria-label="إغلاق اللعبة"
             >
-              <X className="w-4 h-4" />
+              <X className="w-6 h-6" strokeWidth={2.5} />
             </button>
-
-            {/* Restart Button */}
             <button
               id="btn-restart-game"
               onClick={handleRestart}
-              className="w-8 h-8 rounded-full bg-gradient-to-b from-[#324554] to-[#1a2630] border border-slate-400/50 text-slate-200 hover:text-cyan-300 shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_2px_4px_rgba(0,0,0,0.4)] flex items-center justify-center transition-transform active:scale-95 cursor-pointer"
+              className="w-10 h-10 rounded-full bg-gradient-to-b from-[#324554] to-[#1a2630] border border-slate-400/50 text-slate-200 hover:text-cyan-300 shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_2px_4px_rgba(0,0,0,0.4)] flex items-center justify-center transition-transform active:scale-95 cursor-pointer"
               title="إعادة خلط وتجديد التحدي"
+              aria-label="إعادة خلط وتجديد التحدي"
             >
-              <RotateCcw className="w-4 h-4" />
-            </button>
-
-            {/* Sound Toggle */}
-            <button
-              id="btn-toggle-audio"
-              onClick={() => setSoundEnabled(!soundEnabled)}
-              className="w-8 h-8 rounded-full bg-gradient-to-b from-[#324554] to-[#1a2630] border border-slate-400/50 text-slate-200 hover:text-cyan-300 shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_2px_4px_rgba(0,0,0,0.4)] flex items-center justify-center transition-transform active:scale-95 cursor-pointer"
-              title="كتم / تفعيل الصوت"
-            >
-              {soundEnabled ? (
-                <Volume2 className="w-4 h-4 text-cyan-300" />
-              ) : (
-                <VolumeX className="w-4 h-4 text-gray-400" />
-              )}
+              <RotateCcw className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Right: Title & Dartboard Target Emblem */}
-          <div className="flex items-center gap-2.5 relative z-10 text-right">
-            <div className="leading-tight">
-              <h3 className="text-sm sm:text-base font-black text-[#13222d] drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)] tracking-tight">
-                لعبة تجيبها صح
-              </h3>
-              <p className="text-[9px] font-bold text-[#3d5161]">
-                {config.subject || 'تحدي الأسئلة والبطاقات'}
-              </p>
+          {/* The selected profile avatar replaces the old teacher name and game emblem. */}
+          <div className="relative z-10 flex items-center gap-2.5">
+            <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border-2 border-cyan-300/70 bg-[#162738] shadow-[0_0_16px_rgba(34,211,238,0.28)]">
+              {playerAvatarUrl ? (
+                <img src={playerAvatarUrl} alt="صورة اللاعب" width={48} height={48} className="h-full w-full object-cover" />
+              ) : (
+                <User className="h-6 w-6 text-cyan-200" aria-hidden="true" />
+              )}
             </div>
-
-            {/* 3D Realistic Dartboard Target Icon matching screenshot */}
-            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full p-[2px] bg-gradient-to-b from-slate-200 to-slate-500 shadow-md flex items-center justify-center">
-              <svg className="w-full h-full" viewBox="0 0 100 100" fill="none">
-                {/* Outer Ring */}
-                <circle cx="50" cy="50" r="46" fill="#1c303f" stroke="#3b82f6" strokeWidth="4" />
-                <circle cx="50" cy="50" r="38" fill="#e2e8f0" stroke="#0ea5e9" strokeWidth="3" />
-                <circle cx="50" cy="50" r="28" fill="#0f172a" stroke="#06b6d4" strokeWidth="2.5" />
-                {/* Red Target Ring */}
-                <circle cx="50" cy="50" r="18" fill="#e11d48" stroke="#ffffff" strokeWidth="2" />
-                {/* Bullseye Yellow */}
-                <circle cx="50" cy="50" r="8" fill="#f59e0b" />
-                {/* Dart Arrow hitting bullseye */}
-                <path d="M78 22 L52 48" stroke="#f1f5f9" strokeWidth="4" strokeLinecap="round" />
-                <path d="M78 22 L86 14 M78 22 L70 14 M78 22 L86 30" stroke="#f97316" strokeWidth="3" strokeLinecap="round" />
-                <circle cx="50" cy="50" r="3" fill="#ffffff" />
-              </svg>
-            </div>
+            <span className="hidden text-[10px] font-black text-cyan-100/80 sm:inline">اللاعب</span>
           </div>
         </div>
 
@@ -715,37 +678,21 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
                   }}
                 >
                   <div className="flex items-center gap-2">
-                    {/* Doctor Avatar Photo */}
-                    <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden border border-cyan-400/50 bg-[#162738] shrink-0">
-                      <GibhaSahAuthenticIcon className="w-12 h-12 sm:w-14 sm:h-14" />
-                      {/* Active Blue dot */}
+                    {/* The active player's exact profile avatar */}
+                    <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden border border-cyan-400/60 bg-[#162738] shrink-0 shadow-[0_0_14px_rgba(34,211,238,0.24)]">
+                      {playerAvatarUrl ? (
+                        <img src={playerAvatarUrl} alt="صورة اللاعب" width={56} height={56} className="h-full w-full object-cover" />
+                      ) : (
+                        <User className="absolute inset-0 m-auto h-7 w-7 text-cyan-200" aria-hidden="true" />
+                      )}
                       <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-cyan-300 shadow-[0_0_8px_#67e8f9]" />
                     </div>
 
-                    {/* Name & Blue Hearts */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] sm:text-xs font-black text-cyan-300 line-clamp-1">
-                          {user1Name === 'المستخدم 1' ? 'د. سارة المنصوري' : user1Name}
-                        </span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleStartEditName('user1');
-                          }}
-                          className="text-gray-400 hover:text-cyan-300 p-0.5"
-                          title="تعديل الاسم"
-                        >
-                          <Edit2 className="w-2.5 h-2.5" />
-                        </button>
-                      </div>
-
+                      <div className="text-[10px] font-black text-cyan-200/80">اللاعب الحالي</div>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="text-xs font-mono font-black text-white">
-                          {team1Score} نقطة
-                        </span>
+                        <span className="text-xs font-mono font-black text-white">{team1Score} نقطة</span>
                       </div>
-
                       <div className="flex items-center gap-1 mt-1">
                         <span className="text-cyan-400 text-xs drop-shadow-[0_0_4px_rgba(6,182,212,0.6)]">💙</span>
                         <span className="text-cyan-400 text-xs drop-shadow-[0_0_4px_rgba(6,182,212,0.6)]">💙</span>
@@ -848,29 +795,23 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
                 </div>
               )}
 
-              {/* 4. Cards Section Header Row (Matching Screenshot) */}
-              <div className="flex items-center justify-between text-[11px] font-bold text-gray-300 px-1 pt-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-slate-300">البطاقات المتتالية في الساحة:</span>
-                  <span className="bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 px-2 py-0.5 rounded-md font-mono font-black text-[10px]">
-                    {remainingCardsCount}
-                  </span>
-                </div>
-                <span className="text-[10px] text-gray-400">
-                  اضغط على البطاقة المطابقة للحل
+              {/* 4. Minimal answer choices: only the answer and its number. */}
+              <div className="flex items-center justify-between px-1 pt-1 text-[11px] font-black text-amber-200">
+                <span>الاختيارات</span>
+                <span className="rounded-md border border-amber-300/50 bg-amber-400/10 px-2 py-0.5 font-mono text-[10px] text-amber-200">
+                  {remainingCardsCount} متبقية
                 </span>
               </div>
 
-              {/* 5. The 2-Column Sci-Fi Metallic Cards Grid (Matching Screenshot Layout) */}
+              {/* 5. Compact gold answer boxes */}
               <div
                 id="gibha-sah-cards-grid"
-                className={`grid grid-cols-2 gap-2.5 sm:gap-3.5 transition-all duration-300 pb-2 ${
+                className={`grid grid-cols-2 gap-2 sm:gap-2.5 transition-all duration-300 pb-2 ${
                   celebrationBurst === 'combo' ? 'scale-[1.01] drop-shadow-[0_0_18px_rgba(251,191,36,0.35)]' : ''
                 }`}
               >
                 {activeCards.map((card, cardIndex) => {
                   const isSelected = selectedCardId === card.number;
-                  const cardAccent = card.number % 3 === 0 ? 'from-fuchsia-400 to-rose-400' : card.number % 3 === 1 ? 'from-cyan-300 to-blue-500' : 'from-amber-300 to-emerald-400';
 
                   return (
                     <button
@@ -879,42 +820,16 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
                       disabled={feedbackStatus !== 'idle'}
                       onClick={() => handleCardClick(card.number)}
                       style={{ animationDelay: `${cardIndex * 35}ms` }}
-                      className={`relative p-3 sm:p-4 rounded-[22px] border-2 text-center transition-[transform,box-shadow,background-color,border-color,opacity] duration-200 flex flex-col items-center justify-center gap-2 group cursor-pointer active:scale-[0.97] animate-in fade-in zoom-in-95 min-h-[128px] sm:min-h-[142px] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-cyan-300/40 ${
+                      className={`min-h-0 rounded-xl border px-2.5 py-2.5 text-center transition-[transform,box-shadow,background-color,border-color,opacity] duration-150 flex items-center justify-between gap-2 cursor-pointer active:scale-[0.97] animate-in fade-in zoom-in-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/70 ${
                         isSelected
-                          ? 'bg-gradient-to-br from-[#1c5270] to-[#102c58] border-cyan-200 text-cyan-50 shadow-[0_0_28px_rgba(34,211,238,0.48)] ring-2 ring-cyan-300 scale-[1.02]'
-                          : 'bg-gradient-to-br from-[#173d68] via-[#102852] to-[#091936] border-cyan-300/25 hover:border-cyan-200/80 hover:-translate-y-1 hover:shadow-[0_12px_24px_rgba(8,47,73,0.45)] text-white'
+                          ? 'border-amber-200 bg-gradient-to-r from-amber-300 to-yellow-200 text-amber-950 shadow-[0_0_18px_rgba(251,191,36,0.5)] ring-2 ring-amber-200'
+                          : 'border-amber-300/65 bg-gradient-to-r from-amber-500/20 via-yellow-400/10 to-amber-500/20 text-amber-100 hover:border-amber-200 hover:bg-amber-400/25 hover:shadow-[0_6px_14px_rgba(251,191,36,0.22)]'
                       }`}
                     >
-                      {/* Bright card identity and category badge. */}
-                      <div className="flex items-center justify-between w-full gap-2">
-                        <span className={`relative w-11 h-11 rounded-2xl bg-gradient-to-br ${cardAccent} text-slate-950 flex items-center justify-center font-black text-lg shadow-[0_0_18px_rgba(56,189,248,0.25)] group-hover:scale-105 transition-transform`}>
-                          {card.image ? (
-                            <img src={card.image} alt="" width={44} height={44} loading="lazy" decoding="async" className="w-full h-full rounded-2xl object-cover" />
-                          ) : (
-                            CARD_SYMBOLS[(card.number - 1) % CARD_SYMBOLS.length]
-                          )}
-                          <span className="absolute -bottom-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-slate-950 text-[8px] text-cyan-100 border border-cyan-200/50 flex items-center justify-center">
-                            {card.number}
-                          </span>
-                        </span>
-                        {card.badge && (
-                          <span className="text-[9px] font-black text-cyan-100/80 bg-cyan-300/10 border border-cyan-200/20 rounded-full px-2 py-1 truncate max-w-[72%]">
-                            {card.badge}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Main Title */}
-                      <h5 className="text-[13px] sm:text-sm font-black text-white tracking-tight leading-[1.65] drop-shadow-sm">
-                        {card.label}
-                      </h5>
-
-                      {/* Subtitle / Description (e.g. كائنات حقيقية النواة بسيطة, فطريات وحيدة الخلية...) */}
-                      {card.sublabel && (
-                        <p className="text-[10px] sm:text-[11px] text-sky-100/70 leading-tight line-clamp-2">
-                          {card.sublabel}
-                        </p>
-                      )}
+                      <span className="min-w-0 truncate text-[12px] font-black leading-5 sm:text-[13px]">{card.label}</span>
+                      <span className={`flex h-6 min-w-6 shrink-0 items-center justify-center rounded-md border px-1 font-mono text-[10px] font-black ${isSelected ? 'border-amber-700/40 bg-amber-950/10 text-amber-950' : 'border-amber-200/70 bg-amber-300/20 text-amber-100'}`}>
+                        {card.number}
+                      </span>
                     </button>
                   );
                 })}
@@ -937,7 +852,7 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
                 <h3 className="text-lg sm:text-xl font-black text-white">
                   {gameMode === 'teams' ? (
                     team1Score > team2Score ? (
-                      <span className="text-cyan-400">🎉 مبروك لـ ({user1Name === 'المستخدم 1' ? 'د. سارة المنصوري' : user1Name}) الفوز بتحدي جيبها صح!</span>
+                      <span className="text-cyan-400">🎉 مبروك لـ ({user1Name === 'المستخدم 1' ? 'اللاعب الحالي' : user1Name}) الفوز بتحدي جيبها صح!</span>
                     ) : team2Score > team1Score ? (
                       <span className="text-emerald-400">🏆 مبروك لـ ({user2Name}) الفوز بتحدي جيبها صح!</span>
                     ) : (
@@ -956,7 +871,7 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
               {gameMode === 'teams' ? (
                 <div className="grid grid-cols-2 gap-3 max-w-sm mx-auto text-xs">
                   <div className="bg-[#0b1726] border border-cyan-500/40 p-3 rounded-2xl text-center">
-                    <span className="text-[10px] text-cyan-300 block font-bold">نقاط {user1Name === 'المستخدم 1' ? 'د. سارة المنصوري' : user1Name}</span>
+                    <span className="text-[10px] text-cyan-300 block font-bold">نقاط {user1Name === 'المستخدم 1' ? 'اللاعب الحالي' : user1Name}</span>
                     <span className="text-2xl font-black text-white mt-1 block font-mono">
                       {team1Score}
                     </span>
