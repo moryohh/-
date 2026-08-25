@@ -341,9 +341,15 @@ export function extractChapterAndSegment(input: string): { chapter?: number; seg
     input.match(/_(\d+)\.json$/i) ||
     input.match(/(\d+)/);
 
+  const parseNumber = (value: string): number | undefined => {
+    const ascii = value.replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)));
+    const parsed = Number(ascii);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+  };
+
   return {
-    chapter: chMatch ? parseInt(chMatch[1], 10) : undefined,
-    segment: segMatch ? parseInt(segMatch[1], 10) : undefined,
+    chapter: chMatch ? parseNumber(chMatch[1]) : undefined,
+    segment: segMatch ? parseNumber(segMatch[1]) : undefined,
   };
 }
 
@@ -488,14 +494,15 @@ export async function getSubjectIndex(
     rawRows.forEach((row) => {
       if (row.file_name?.includes('organized_tree')) return;
 
-      const chNum = Number(row.chapter_number) || 1;
-      const lesNum = Number(row.lesson_number) || 1;
+      const rawFileName = row.file_name || '';
+      const parsedPath = extractChapterAndSegment(rawFileName);
+      const chNum = Number(row.chapter_number) || parsedPath.chapter || 1;
+      const lesNum = Number(row.lesson_number) || parsedPath.segment || 1;
       const rawSection = row.section_id || '';
       const normalizedSection = normalizeSectionId(rawSection);
 
       const lessonKey = buildLessonKey(normKey, chNum, lesNum);
       const rawRecordId = row.record_id || row.id;
-      const rawFileName = row.file_name || '';
       const rawLessonId =
         row.lesson_id ||
         rawFileName.split('/').pop()?.replace('.json', '') ||
@@ -688,6 +695,15 @@ export async function getLessonContentBundle(
   signal?: AbortSignal
 ): Promise<LessonContentBundle> {
   const startTime = Date.now();
+  context = {
+    ...context,
+    lessonId: context.lessonId || `${context.subjectId}-ch${context.chapterNumber}-les${context.lessonNumber}`,
+    lessonKey:
+      context.lessonKey || buildLessonKey(context.subjectId, context.chapterNumber, context.lessonNumber),
+    title: context.title || context.lessonTitle || `الدرس ${context.lessonNumber}`,
+    lessonTitle: context.lessonTitle || context.title || `الدرس ${context.lessonNumber}`,
+  };
+
   const cacheKey = buildCacheKey(
     context.subjectId,
     context.chapterNumber,
@@ -994,10 +1010,14 @@ export async function getChapterLessons(
 ): Promise<ServiceResponse<SubjectChapterLesson[]>> {
   const normKey = (subjectKey || '').toLowerCase().trim();
   const subIndex = await getSubjectIndex(normKey, subjectName);
-  const targetChapter = subIndex.chapters.find((c) => c.chapterNumber === chapterNumber) || subIndex.chapters[0];
+  const targetChapter = subIndex.chapters.find((c) => c.chapterNumber === chapterNumber);
 
   if (!targetChapter) {
-    return { data: [], error: 'لم يتم العثور على الفصل', isFallback: true };
+    return {
+      data: [],
+      error: `لم يتم العثور على الفصل رقم ${chapterNumber} للمادة ${subjectName}`,
+      isFallback: true,
+    };
   }
 
   const lessons: SubjectChapterLesson[] = targetChapter.lessons.map((l) => ({

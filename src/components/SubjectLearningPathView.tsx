@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { EducationalLesson, SubjectChapter, SubjectChapterLesson, OpenLessonContext, LearningPosition } from '../types';
 import { getCurriculumForSubject } from '../data/mockCurriculums';
-import { getSubjectIndex, getSubjectChapters, getChapterLessons, getLessonDetails, formatArabicLessonTitle } from '../services/lessonsService';
+import { getSubjectIndex, getSubjectChapters, getChapterLessons, getLessonDetails, formatArabicLessonTitle, buildLessonKey } from '../services/lessonsService';
 import { AdventureWorldMap } from './AdventureWorldMap';
 import { MapRewardsModal } from './MapRewardsModal';
 import { MapLeaderboardModal } from './MapLeaderboardModal';
@@ -281,6 +281,8 @@ export const SubjectLearningPathView: React.FC<SubjectLearningPathViewProps> = (
         chapterNumber,
         lessonNumber: lessonItem.number,
         lessonId: lessonItem.id,
+        lessonKey: buildLessonKey(subject.id, chapterNumber, lessonItem.number),
+        title: lessonItem.title,
         lessonTitle: lessonItem.title,
       };
 
@@ -308,11 +310,14 @@ export const SubjectLearningPathView: React.FC<SubjectLearningPathViewProps> = (
     } catch (err) {
       console.error('Error in handleSelectLessonWithLazyLoad:', err);
       const parentChapter = chapters.find((ch) => ch.number === selectedChapterNumber) || chapters[0];
+      const fallbackChapterNumber = parentChapter ? parentChapter.number : 1;
       const fallbackContext: OpenLessonContext = {
         subjectId: subject.id,
-        chapterNumber: parentChapter ? parentChapter.number : 1,
+        chapterNumber: fallbackChapterNumber,
         lessonNumber: lessonItem.number,
         lessonId: lessonItem.id,
+        lessonKey: buildLessonKey(subject.id, fallbackChapterNumber, lessonItem.number),
+        title: lessonItem.title,
         lessonTitle: lessonItem.title,
       };
       onSelectLesson(lessonItem.lessonData, fallbackContext);

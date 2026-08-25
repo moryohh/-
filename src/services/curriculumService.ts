@@ -35,9 +35,15 @@ export function extractChapterAndSegment(input: string): { chapter?: number; seg
     input.match(/الدرس[\s_-]*(\d+|[٠-٩]+)/i) ||
     input.match(/(\d+)/);
 
+  const parseNumber = (value: string): number | undefined => {
+    const ascii = value.replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)));
+    const parsed = Number(ascii);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+  };
+
   return {
-    chapter: chMatch ? parseInt(chMatch[1], 10) : undefined,
-    segment: segMatch ? parseInt(segMatch[1], 10) : undefined,
+    chapter: chMatch ? parseNumber(chMatch[1]) : undefined,
+    segment: segMatch ? parseNumber(segMatch[1]) : undefined,
   };
 }
 

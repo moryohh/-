@@ -50,6 +50,7 @@ import {
   clearLessonsCache,
   getSubjectChapters,
   getChapterLessons,
+  buildLessonKey,
   extractYoutubeId,
 } from './services/lessonsService';
 import {
@@ -189,6 +190,8 @@ function AppContent() {
 
   const handleSelectSubject = (subject: (typeof GRADE_6_SUBJECTS)[0]) => {
     setSelectedSubject(subject);
+    setStories([]);
+    setOpenLessonContext(null);
     const existingPos = savedPositions[subject.id] || {
       subjectId: subject.id,
       chapterNumber: 1,
@@ -210,12 +213,21 @@ function AppContent() {
   ) => {
     setLesson(selectedLesson);
     if (context) {
-      setOpenLessonContext(context);
+      const resolvedContext: OpenLessonContext = {
+        ...context,
+        lessonKey:
+          context.lessonKey ||
+          buildLessonKey(context.subjectId, context.chapterNumber, context.lessonNumber),
+        title: context.title || context.lessonTitle || selectedLesson.title,
+        lessonTitle: context.lessonTitle || context.title || selectedLesson.title,
+      };
+      setOpenLessonContext(resolvedContext);
       const newPos: LearningPosition = {
-        subjectId: context.subjectId,
-        chapterNumber: context.chapterNumber,
-        lessonNumber: context.lessonNumber,
-        lessonId: context.lessonId,
+        subjectId: resolvedContext.subjectId,
+        chapterNumber: resolvedContext.chapterNumber,
+        lessonNumber: resolvedContext.lessonNumber,
+        lessonId: resolvedContext.lessonId,
+        lessonKey: resolvedContext.lessonKey,
       };
       handlePositionChange(newPos);
     } else if (selectedSubject) {
@@ -224,6 +236,12 @@ function AppContent() {
         chapterNumber: learningPosition?.chapterNumber || 1,
         lessonNumber: learningPosition?.lessonNumber || 1,
         lessonId: selectedLesson.id,
+        lessonKey: buildLessonKey(
+          selectedSubject.id,
+          learningPosition?.chapterNumber || 1,
+          learningPosition?.lessonNumber || 1
+        ),
+        title: selectedLesson.title,
         lessonTitle: selectedLesson.title,
       };
       setOpenLessonContext(defaultCtx);
@@ -240,8 +258,14 @@ function AppContent() {
     async function loadDynamicStories() {
       if (!selectedSubject) return;
 
-      // If the current lesson already has teachers for this subject, don't overwrite
-      if (lesson && (lesson as any).teacherStories && (lesson as any).teacherStories.length > 0) {
+      // Do not overwrite stories belonging to the exact lesson currently open.
+      // A lesson from another subject must not block loading the new subject's stories.
+      const lessonMatchesSubject =
+        lesson &&
+        [selectedSubject.id, selectedSubject.name, selectedSubject.enName].some(
+          (value) => Boolean(value) && (lesson.category === value || lesson.subtitle?.includes(value as string))
+        );
+      if (lessonMatchesSubject && (lesson as any).teacherStories && (lesson as any).teacherStories.length > 0) {
         return;
       }
 
@@ -323,7 +347,7 @@ function AppContent() {
     return () => {
       isMounted = false;
     };
-  }, [selectedSubject]);
+  }, [selectedSubject.id, selectedSubject.name, selectedSubject.enName, lesson?.id, lesson?.category, lesson?.subtitle, lesson?.teacherStories?.length]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
