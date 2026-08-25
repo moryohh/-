@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Users,
   Plus,
@@ -10,42 +10,32 @@ import {
   FileText,
   Sparkles,
   Flag,
-  Trash2,
   Paperclip,
   ArrowRight,
-  Pin,
-  Flame,
   Check,
   Eye,
   X,
-  ExternalLink,
 } from 'lucide-react';
-import { CommunityPost, CommunityStory } from '../types';
+import { CommunityPost } from '../types';
 import { useAppTheme } from '../services/themeService';
 
 interface CommunityViewProps {
   posts: CommunityPost[];
-  stories: CommunityStory[];
   onOpenCreatePost: () => void;
   onOpenComments: (post: CommunityPost) => void;
   onToggleLikePost: (postId: string) => void;
   onSharePost: (post: CommunityPost) => void;
-  onDeletePost: (postId: string) => void;
   onReportPost: (postId: string) => void;
-  onSelectCommunityStory: (story: CommunityStory) => void;
   onBack?: () => void;
 }
 
 export const CommunityView: React.FC<CommunityViewProps> = ({
   posts,
-  stories,
   onOpenCreatePost,
   onOpenComments,
   onToggleLikePost,
   onSharePost,
-  onDeletePost,
   onReportPost,
-  onSelectCommunityStory,
   onBack,
 }) => {
   const { theme } = useAppTheme();
@@ -53,6 +43,8 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
   const [activeFilter, setActiveFilter] = useState<'all' | 'questions' | 'summaries' | 'discussions'>('all');
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
   const [copiedPostId, setCopiedPostId] = useState<string | null>(null);
+  const [visiblePostCount, setVisiblePostCount] = useState(10);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const filteredPosts = posts.filter((post) => {
     if (activeFilter === 'questions') return post.type === 'question';
@@ -60,6 +52,28 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
     if (activeFilter === 'discussions') return post.type === 'discussion';
     return true;
   });
+
+  useEffect(() => {
+    setVisiblePostCount(10);
+  }, [activeFilter, posts.length]);
+
+  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (!sentinel || visiblePostCount >= filteredPosts.length) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisiblePostCount((count) => Math.min(count + 10, filteredPosts.length));
+        }
+      },
+      { rootMargin: '240px' }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [filteredPosts.length, visiblePostCount]);
+
+  const visiblePosts = filteredPosts.slice(0, visiblePostCount);
 
   const handleShare = (post: CommunityPost) => {
     onSharePost(post);
@@ -198,64 +212,6 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
         </div>
       </div>
 
-      {/* Community Stories Horizontal Section */}
-      <div className={`border rounded-3xl p-3.5 shadow-xl transition-all duration-300 ${theme.classes.cardBg} ${theme.classes.cardBorder}`}>
-        <div className="flex items-center justify-between px-1 mb-2.5">
-          <span className={`text-xs font-black flex items-center gap-1.5 ${theme.classes.textMain}`}>
-            <Sparkles className="w-3.5 h-3.5" style={{ color: theme.colors.primary }} />
-            <span>قصص وتجارب الطلاب (Stories)</span>
-          </span>
-          <span className={`text-[10px] ${theme.classes.textMuted}`}>اضغط للمشاهدة والتفاعل</span>
-        </div>
-
-        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-1 pr-1">
-          {/* Add story button */}
-          <button
-            onClick={onOpenCreatePost}
-            className="flex flex-col items-center gap-1 shrink-0 group cursor-pointer"
-          >
-            <div
-              className={`w-14 h-14 rounded-full border-2 border-dashed flex items-center justify-center group-hover:scale-105 transition-transform ${theme.classes.cardSubtleBg}`}
-              style={{
-                borderColor: theme.colors.primary,
-                color: theme.colors.primary,
-              }}
-            >
-              <Plus className="w-6 h-6" />
-            </div>
-            <span className={`text-[10px] font-bold ${theme.classes.textMuted}`}>أضف قصة</span>
-          </button>
-
-          {/* Student stories list */}
-          {stories.map((story) => (
-            <button
-              key={story.id}
-              onClick={() => onSelectCommunityStory(story)}
-              className="flex flex-col items-center gap-1 shrink-0 group cursor-pointer"
-            >
-              <div
-                className={`w-14 h-14 rounded-full p-0.5 border-2 transition-transform group-hover:scale-105 ${
-                  story.hasUnseen ? 'shadow-lg' : ''
-                }`}
-                style={{
-                  borderColor: story.hasUnseen ? theme.colors.primary : 'rgba(255,255,255,0.15)',
-                  boxShadow: story.hasUnseen ? `0 0 12px ${theme.colors.glow}` : undefined,
-                }}
-              >
-                <img
-                  src={story.userAvatar}
-                  alt={story.userName}
-                  className="w-full h-full rounded-full object-cover bg-slate-800"
-                />
-              </div>
-              <span className={`text-[10px] font-bold max-w-[65px] truncate text-center ${theme.classes.textMain}`}>
-                {story.userName.split(' ')[0]}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Community Feed Posts */}
       <div className="space-y-3.5">
         {filteredPosts.length === 0 ? (
@@ -265,38 +221,18 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
             <p className={`text-xs ${theme.classes.textMuted}`}>كن أول من يشارك بسؤال أو ملخص دراسي في المجتمع الطلابي!</p>
           </div>
         ) : (
-          filteredPosts.map((post) => {
+          visiblePosts.map((post) => {
             const isMenuOpen = activeMenuPostId === post.id;
             const postImages: string[] = post.images && post.images.length > 0 
               ? post.images 
               : (post.image ? [post.image] : []);
             
-            const isHighlyEngaged = (post.engagementScore ?? (post.likesCount * 2 + post.commentsCount * 3)) >= 10;
-            const isPinned = post.isPinned || isHighlyEngaged;
-
             return (
               <div
                 key={post.id}
-                className={`border rounded-3xl p-4 sm:p-5 shadow-xl space-y-3 text-right relative transition-all duration-300 ${
-                  isPinned ? 'border-sky-500/40' : theme.classes.cardBorder
-                } ${theme.classes.cardBg}`}
-                style={{
-                  boxShadow: isPinned ? `0 6px 25px ${theme.colors.glow}` : `0 4px 20px rgba(0,0,0,0.15)`,
-                }}
+                className={`border rounded-3xl p-4 sm:p-5 shadow-xl space-y-3 text-right relative transition-all duration-300 ${theme.classes.cardBorder} ${theme.classes.cardBg}`}
+                style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}
               >
-                {/* Pinned / Top Highlight Header */}
-                {isPinned && (
-                  <div className="flex items-center justify-between pb-2 border-b border-sky-500/20 text-sky-400 text-[11px] font-black">
-                    <div className="flex items-center gap-1.5">
-                      <Pin className="w-3.5 h-3.5 rotate-45" />
-                      <span>منشور مميز ونشط في مجتمع الطلاب</span>
-                    </div>
-                    <span className="flex items-center gap-1 text-amber-400">
-                      <Flame className="w-3 h-3 fill-amber-400" />
-                      <span>تفاعل عالي</span>
-                    </span>
-                  </div>
-                )}
 
                 {/* Post Header */}
                 <div className="flex items-center justify-between">
@@ -376,18 +312,7 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
                           <span>الإبلاغ عن المنشور</span>
                         </button>
 
-                        {post.isOwnPost && (
-                          <button
-                            onClick={() => {
-                              onDeletePost(post.id);
-                              setActiveMenuPostId(null);
-                            }}
-                            className={`w-full px-3.5 py-2 text-right hover:opacity-80 flex items-center gap-2 text-rose-500 font-medium border-t cursor-pointer ${theme.classes.cardBorder}`}
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            <span>حذف المنشور</span>
-                          </button>
-                        )}
+
                       </div>
                     )}
                   </div>
@@ -420,6 +345,7 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
                         <img
                           src={imgUrl}
                           alt={`مرفق منشور ${idx + 1}`}
+                          loading="lazy"
                           className="w-full h-full object-cover transition-transform group-hover:scale-105"
                         />
                         <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
@@ -525,6 +451,11 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
               </div>
             );
           })
+        )}
+        {visiblePostCount < filteredPosts.length && (
+          <div ref={loadMoreRef} className={`py-3 text-center text-[11px] ${theme.classes.textMuted}`}>
+            مرّر للأسفل لعرض منشورات أقدم…
+          </div>
         )}
       </div>
     </div>

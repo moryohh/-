@@ -3,8 +3,6 @@ import {
   INITIAL_STORIES,
   FEATURED_LESSON,
   NOTIFICATIONS_DATA,
-  INITIAL_COMMUNITY_POSTS,
-  COMMUNITY_STORIES,
 } from './data/mockData';
 import { getGamesForLesson } from './data/mockGames';
 import {
@@ -14,7 +12,6 @@ import {
   AppNotification,
   CommentItem,
   CommunityPost,
-  CommunityStory,
   CommunityComment,
   OpenLessonContext,
   LearningPosition,
@@ -62,9 +59,7 @@ import {
   createCommunityPost,
   toggleLikeCommunityPost,
   addCommunityComment,
-  deleteCommunityComment,
-  deleteCommunityPost,
-  fetchCommunityStories,
+  reportCommunityPost,
 } from './services/communityService';
 
 const LEARNING_POSITIONS_STORAGE_KEY = 'nahnu_maek_learning_positions_v2';
@@ -114,8 +109,7 @@ function AppContent() {
   const [openLessonContext, setOpenLessonContext] = useState<OpenLessonContext | null>(null);
 
   // Community state
-  const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>(INITIAL_COMMUNITY_POSTS);
-  const [communityStories, setCommunityStories] = useState<CommunityStory[]>(COMMUNITY_STORIES);
+  const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>([]);
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
   const [activeCommunityPostForComments, setActiveCommunityPostForComments] = useState<CommunityPost | null>(null);
 
@@ -124,17 +118,9 @@ function AppContent() {
     let isMounted = true;
     async function loadCommunity() {
       try {
-        const [loadedPosts, loadedStories] = await Promise.all([
-          fetchCommunityPosts(currentUser?.id),
-          fetchCommunityStories(),
-        ]);
+        const loadedPosts = await fetchCommunityPosts(currentUser?.id);
         if (isMounted) {
-          if (loadedPosts && loadedPosts.length > 0) {
-            setCommunityPosts(loadedPosts);
-          }
-          if (loadedStories && loadedStories.length > 0) {
-            setCommunityStories(loadedStories);
-          }
+          setCommunityPosts(loadedPosts || []);
         }
       } catch (err) {
         console.debug('Error loading community data:', err);
@@ -501,43 +487,25 @@ function AppContent() {
     try {
       const createdPost = await createCommunityPost(newPostData, currentUser?.id);
       setCommunityPosts((prev) => [createdPost, ...prev]);
-      showToast('تم نشر منشورك في المجتمع الطلابي بنجاح! 🎉');
-    } catch (err) {
+      setIsCreatePostOpen(false);
+      showToast('تم نشر منشورك في المجتمع الطلابي بنجاح!');
+    } catch (err: any) {
       console.error('Failed to create post:', err);
-      const fallbackPost: CommunityPost = {
-        ...newPostData,
-        id: `post-${Date.now()}`,
-        likesCount: 0,
-        commentsCount: 0,
-        isLiked: false,
-        comments: [],
-      };
-      setCommunityPosts((prev) => [fallbackPost, ...prev]);
-      showToast('تم نشر منشورك محلياً! 🎉');
+      showToast(err?.message || 'تعذر نشر المنشور حالياً');
     }
   };
 
   const handleToggleLikeCommunityPost = async (postId: string) => {
-    // Optimistic update
-    setCommunityPosts((prev) =>
-      prev.map((p) => {
-        if (p.id === postId) {
-          const nextLiked = !p.isLiked;
-          return {
-            ...p,
-            isLiked: nextLiked,
-            likesCount: nextLiked ? p.likesCount + 1 : Math.max(0, p.likesCount - 1),
-          };
-        }
-        return p;
-      })
-    );
-
-    // Sync to Supabase
     try {
-      await toggleLikeCommunityPost(postId, currentUser?.id);
-    } catch (e) {
-      console.debug('Error toggling like:', e);
+      const result = await toggleLikeCommunityPost(postId, currentUser?.id);
+      setCommunityPosts((prev) => prev.map((post) => post.id === postId ? {
+        ...post,
+        isLiked: result.isLiked,
+        likesCount: result.likesCount,
+      } : post));
+    } catch (err: any) {
+      console.error('Error toggling like:', err);
+      showToast(err?.message || 'تعذر تسجيل الإعجاب حالياً');
     }
   };
 
@@ -548,18 +516,13 @@ function AppContent() {
     showToast(`تم نسخ رابط منشور ${post.userName}! 🔗`);
   };
 
-  const handleDeleteCommunityPost = async (postId: string) => {
-    setCommunityPosts((prev) => prev.filter((p) => p.id !== postId));
-    showToast('تم حذف المنشور بنجاح');
+  const handleReportCommunityPost = async (postId: string) => {
     try {
-      await deleteCommunityPost(postId);
-    } catch (e) {
-      console.debug('Error deleting post:', e);
+      await reportCommunityPost(postId);
+      showToast('تم إرسال البلاغ إلى الإدارة');
+    } catch (err: any) {
+      showToast(err?.message || 'تعذر إرسال البلاغ حالياً');
     }
-  };
-
-  const handleReportCommunityPost = (postId: string) => {
-    showToast('تم إرسال البلاغ للإدارة للتأكد من السلامة. شكراً لك! 🛡️');
   };
 
   const handleAddCommunityComment = async (postId: string, text: string) => {
@@ -583,80 +546,11 @@ function AppContent() {
         })
       );
       showToast('تم إضافة تعليقك على المنشور! 💬');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error adding comment:', err);
+      showToast(err?.message || 'تعذر إضافة التعليق حالياً');
+      throw err;
     }
-  };
-
-  const handleLikeCommunityComment = (postId: string, commentId: string) => {
-    setCommunityPosts((prev) =>
-      prev.map((p) => {
-        if (p.id === postId) {
-          const updatedComments = p.comments.map((c) => {
-            if (c.id === commentId) {
-              const nextLiked = !c.isLiked;
-              return {
-                ...c,
-                isLiked: nextLiked,
-                likes: nextLiked ? c.likes + 1 : Math.max(0, c.likes - 1),
-              };
-            }
-            return c;
-          });
-          const updatedPost = { ...p, comments: updatedComments };
-          if (activeCommunityPostForComments?.id === postId) {
-            setActiveCommunityPostForComments(updatedPost);
-          }
-          return updatedPost;
-        }
-        return p;
-      })
-    );
-  };
-
-  const handleDeleteCommunityComment = async (postId: string, commentId: string) => {
-    setCommunityPosts((prev) =>
-      prev.map((p) => {
-        if (p.id === postId) {
-          const updatedComments = p.comments.filter((c) => c.id !== commentId);
-          const updatedPost = {
-            ...p,
-            comments: updatedComments,
-            commentsCount: updatedComments.length,
-          };
-          if (activeCommunityPostForComments?.id === postId) {
-            setActiveCommunityPostForComments(updatedPost);
-          }
-          return updatedPost;
-        }
-        return p;
-      })
-    );
-    showToast('تم حذف التعليق');
-    try {
-      await deleteCommunityComment(postId, commentId);
-    } catch (e) {
-      console.debug('Error deleting comment:', e);
-    }
-  };
-
-  const handleSelectCommunityStory = (story: CommunityStory) => {
-    // Transform community story to teacher story structure to reuse the viewer modal smoothly
-    const storyToView: TeacherStory = {
-      id: story.id,
-      teacherName: story.userName,
-      avatar: story.userAvatar,
-      subject: 'قصة طلابية',
-      title: story.title,
-      hasUnseen: false,
-      textNotes: story.textNotes,
-      storyImage: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=800&q=80',
-    };
-
-    setCommunityStories((prev) =>
-      prev.map((s) => (s.id === story.id ? { ...s, hasUnseen: false } : s))
-    );
-    setSelectedStory(storyToView);
   };
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
@@ -816,14 +710,11 @@ function AppContent() {
           {activeTab === 'community' && (
             <CommunityView
               posts={communityPosts}
-              stories={communityStories}
               onOpenCreatePost={() => setIsCreatePostOpen(true)}
               onOpenComments={(post) => setActiveCommunityPostForComments(post)}
               onToggleLikePost={handleToggleLikeCommunityPost}
               onSharePost={handleShareCommunityPost}
-              onDeletePost={handleDeleteCommunityPost}
               onReportPost={handleReportCommunityPost}
-              onSelectCommunityStory={handleSelectCommunityStory}
               onBack={() => {
                 setActiveTab('home');
                 setHomeSubView('main_home');
@@ -845,9 +736,8 @@ function AppContent() {
           {activeTab === 'profile' && (
             <ProfileView
               user={currentUser}
-              userPosts={communityPosts}
+              userPosts={communityPosts.filter((post) => post.isOwnPost)}
               onUpdateUser={(updated) => setCurrentUser(updated)}
-              onDeletePost={handleDeleteCommunityPost}
               onOpenComments={(post) => setActiveCommunityPostForComments(post)}
               onBack={() => {
                 setActiveTab('home');
@@ -908,9 +798,6 @@ function AppContent() {
         isOpen={!!activeCommunityPostForComments}
         onClose={() => setActiveCommunityPostForComments(null)}
         onAddComment={handleAddCommunityComment}
-        onLikeComment={handleLikeCommunityComment}
-        onDeleteComment={handleDeleteCommunityComment}
-        onReportComment={(id) => showToast('تم إرسال البلاغ للإدارة')}
       />
 
       <NotificationsModal

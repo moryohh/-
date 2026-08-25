@@ -1,15 +1,12 @@
 import React, { useState } from 'react';
-import { X, Send, ThumbsUp, MessageSquare, MoreHorizontal, Flag, Trash2, ShieldCheck } from 'lucide-react';
+import { X, Send, MessageSquare } from 'lucide-react';
 import { CommunityComment, CommunityPost } from '../types';
 
 interface CommunityCommentsModalProps {
   post: CommunityPost | null;
   isOpen: boolean;
   onClose: () => void;
-  onAddComment: (postId: string, text: string) => void;
-  onLikeComment: (postId: string, commentId: string) => void;
-  onDeleteComment?: (postId: string, commentId: string) => void;
-  onReportComment?: (commentId: string) => void;
+  onAddComment: (postId: string, text: string) => void | Promise<void>;
 }
 
 export const CommunityCommentsModal: React.FC<CommunityCommentsModalProps> = ({
@@ -17,20 +14,23 @@ export const CommunityCommentsModal: React.FC<CommunityCommentsModalProps> = ({
   isOpen,
   onClose,
   onAddComment,
-  onLikeComment,
-  onDeleteComment,
-  onReportComment,
 }) => {
   const [newText, setNewText] = useState('');
-  const [activeMenuCommentId, setActiveMenuCommentId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen || !post) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newText.trim()) return;
-    onAddComment(post.id, newText.trim());
-    setNewText('');
+    const text = newText.trim();
+    if (!text || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await onAddComment(post.id, text);
+      setNewText('');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -76,64 +76,18 @@ export const CommunityCommentsModal: React.FC<CommunityCommentsModalProps> = ({
                   className="w-9 h-9 rounded-full object-cover shrink-0 border border-white/10"
                 />
                 <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold text-white">
-                      {comment.userName}
-                    </h4>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-white">
+                        {comment.userName}
+                      </h4>
                       <span className="text-[10px] text-gray-500">{comment.timeAgo}</span>
-                      <button
-                        onClick={() => setActiveMenuCommentId(activeMenuCommentId === comment.id ? null : comment.id)}
-                        className="text-gray-400 hover:text-white p-1"
-                      >
-                        <MoreHorizontal className="w-3.5 h-3.5" />
-                      </button>
                     </div>
-                  </div>
 
                   <p className="text-xs text-gray-300 leading-relaxed mt-1">
                     {comment.text}
                   </p>
 
-                  <div className="flex items-center gap-4 mt-2.5 text-[11px] text-gray-400">
-                    <button
-                      onClick={() => onLikeComment(post.id, comment.id)}
-                      className={`flex items-center gap-1 transition-colors ${
-                        comment.isLiked ? 'text-[#00A3FF] font-bold' : 'hover:text-[#00A3FF]'
-                      }`}
-                    >
-                      <ThumbsUp className={`w-3.5 h-3.5 ${comment.isLiked ? 'fill-[#00A3FF]' : ''}`} />
-                      <span>{comment.likes} إعجاب</span>
-                    </button>
-                  </div>
 
-                  {/* Comment options dropdown */}
-                  {activeMenuCommentId === comment.id && (
-                    <div className="absolute top-8 left-3 bg-[#1E1E2C] border border-white/10 rounded-xl shadow-xl z-20 py-1 text-xs w-36 animate-in fade-in">
-                      <button
-                        onClick={() => {
-                          onReportComment?.(comment.id);
-                          setActiveMenuCommentId(null);
-                        }}
-                        className="w-full px-3 py-2 text-right hover:bg-white/5 flex items-center gap-2 text-amber-400"
-                      >
-                        <Flag className="w-3.5 h-3.5" />
-                        <span>إبلاغ عن تعليق</span>
-                      </button>
-                      {onDeleteComment && (
-                        <button
-                          onClick={() => {
-                            onDeleteComment(post.id, comment.id);
-                            setActiveMenuCommentId(null);
-                          }}
-                          className="w-full px-3 py-2 text-right hover:bg-white/5 flex items-center gap-2 text-rose-400 border-t border-white/5"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>حذف التعليق</span>
-                        </button>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
             ))
@@ -151,7 +105,7 @@ export const CommunityCommentsModal: React.FC<CommunityCommentsModalProps> = ({
           />
           <button
             type="submit"
-            disabled={!newText.trim()}
+            disabled={!newText.trim() || isSubmitting}
             className="bg-[#00A3FF] disabled:opacity-50 hover:bg-[#0092E6] text-white font-bold px-4 rounded-xl flex items-center justify-center transition-all active:scale-95"
           >
             <Send className="w-4 h-4 rotate-180" />

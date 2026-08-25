@@ -364,6 +364,19 @@ export async function getInitialAuthState(): Promise<UserProfile | null> {
 /**
  * 6. Listen strictly to Supabase Auth State Changes
  */
+export async function getSupabaseAccessToken(): Promise<string | null> {
+  const client = getSupabaseClient();
+  if (!client) return null;
+  try {
+    const { data, error } = await client.auth.getSession();
+    if (error) return null;
+    return data.session?.access_token || null;
+  } catch (err) {
+    console.debug('Could not read Supabase access token:', err);
+    return null;
+  }
+}
+
 export function onAuthStateChange(callback: (user: UserProfile | null) => void) {
   const client = getSupabaseClient();
   if (!client) return () => {};
