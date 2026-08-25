@@ -62,6 +62,7 @@ const LADDER_LEVELS = [
 ];
 
 const MILLIONAIRE_WRONG_AUDIO_URL = `${import.meta.env.BASE_URL}audio/millionaire-wrong.mp3`;
+const MILLIONAIRE_CORRECT_AUDIO_URL = `${import.meta.env.BASE_URL}audio/millionaire-correct.mp3`;
 
 export interface OpponentProfile {
   id: string;
@@ -912,7 +913,7 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
       setAnsweredHistory((prev) => [...prev, newHistoryItem]);
 
       if (isCorrect) {
-        gameAudio.playMillionaireCorrect();
+        gameAudio.playExternal('millionaire-correct', MILLIONAIRE_CORRECT_AUDIO_URL);
         const pointsForThisLevel = currentLadder.points;
         setAccumulatedPoints(pointsForThisLevel);
         setCorrectAnswersCount((prev) => prev + 1);
