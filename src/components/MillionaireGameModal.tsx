@@ -63,6 +63,7 @@ const LADDER_LEVELS = [
 
 const MILLIONAIRE_WRONG_AUDIO_URL = `${import.meta.env.BASE_URL}audio/millionaire-wrong.mp3`;
 const MILLIONAIRE_CORRECT_AUDIO_URL = `${import.meta.env.BASE_URL}audio/millionaire-correct.mp3`;
+const MILLIONAIRE_THINKING_AUDIO_URL = `${import.meta.env.BASE_URL}audio/millionaire-thinking.mp3`;
 
 export interface OpponentProfile {
   id: string;
@@ -768,6 +769,24 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
       gameAudio.stopAllExternal();
     }
   }, [isOpen, gameState]);
+
+  // Play the thinking music on a loop only while the user's question is active.
+  // It stops immediately when the user selects an answer, the question changes,
+  // a prize/result screen appears, or the game is closed/reset.
+  useEffect(() => {
+    const shouldPlayThinkingAudio =
+      isOpen && gameState === 'playing' && isYourTurn && !showPrizeProgressionModal;
+
+    if (shouldPlayThinkingAudio) {
+      gameAudio.playExternal('millionaire-thinking', MILLIONAIRE_THINKING_AUDIO_URL, 0.65, true);
+    } else {
+      gameAudio.stopExternal('millionaire-thinking');
+    }
+
+    return () => {
+      gameAudio.stopExternal('millionaire-thinking');
+    };
+  }, [isOpen, gameState, currentQuestionIndex, isYourTurn, showPrizeProgressionModal]);
 
   // Update Game config whenever lessonId changes
   useEffect(() => {

@@ -36,8 +36,8 @@ class GameAudioEngine {
     }
   }
 
-  /** Play a provided audio asset once, restarting it cleanly if triggered again. */
-  public playExternal(key: string, url: string, volume = 0.9) {
+  /** Play a provided audio asset, optionally looping it, restarting it cleanly if triggered again. */
+  public playExternal(key: string, url: string, volume = 0.9, loop = false) {
     if (this.isMuted || typeof window === 'undefined') return;
     try {
       let player = this.externalPlayers.get(key);
@@ -46,7 +46,7 @@ class GameAudioEngine {
         player.preload = 'auto';
         this.externalPlayers.set(key, player);
       }
-      player.loop = false;
+      player.loop = loop;
       player.volume = volume;
       player.currentTime = 0;
       void player.play().catch(() => {});
