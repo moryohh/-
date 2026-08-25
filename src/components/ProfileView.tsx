@@ -246,7 +246,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               <div
                 role="menu"
                 aria-label="ألوان التطبيق المتاحة"
-                className={`absolute left-1/2 top-full z-[60] mt-2 w-72 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-2xl border p-2.5 text-right shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-150 ${theme.classes.cardBg} ${theme.classes.cardBorder}`}
+                className={`fixed left-1/2 top-1/2 z-[60] w-[calc(100vw-1.5rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl border p-2.5 text-right shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 ${theme.classes.cardBg} ${theme.classes.cardBorder}`}
               >
                 <div className="flex items-center justify-between gap-2 px-1 pb-2 mb-2 border-b border-white/10">
                   <span className={`text-[11px] font-black ${theme.classes.textMain}`}>ألوان التطبيق</span>

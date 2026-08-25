@@ -292,8 +292,8 @@ interface ThemeContextType {
 }
 
 export const ThemeContext = createContext<ThemeContextType>({
-  currentThemeId: 'solar_light',
-  theme: APP_THEMES.solar_light,
+  currentThemeId: 'night',
+  theme: APP_THEMES.night,
   setThemeId: () => {},
 });
 
@@ -307,7 +307,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch {
       // fallback
     }
-    return 'solar_light'; // Default is now Solar Light (White)
+    return 'night'; // Default is now the quiet black and green night theme
   });
 
   const setThemeId = (id: AppThemeId) => {
@@ -322,7 +322,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const theme = APP_THEMES[currentThemeId] || APP_THEMES.solar_light;
+  const theme = APP_THEMES[currentThemeId] || APP_THEMES.night;
 
   return (
     <ThemeContext.Provider value={{ currentThemeId, theme, setThemeId }}>
