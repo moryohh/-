@@ -226,6 +226,9 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
             const postImages: string[] = post.images && post.images.length > 0 
               ? post.images 
               : (post.image ? [post.image] : []);
+            const publicComments = post.comments
+              .filter((comment) => comment.text.trim().length > 0)
+              .slice(0, 2);
             
             return (
               <div
@@ -410,6 +413,34 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
                     {post.commentsCount} تعليق
                   </button>
                 </div>
+
+                {/* Public text comment preview: maximum two comments per post */}
+                {publicComments.length > 0 && (
+                  <div className={`space-y-2 rounded-2xl border p-3 ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder}`}>
+                    <div className={`flex items-center justify-between text-[10px] font-bold ${theme.classes.textMuted}`}>
+                      <span>أبرز التعليقات</span>
+                      <button
+                        onClick={() => onOpenComments(post)}
+                        className="cursor-pointer hover:opacity-80"
+                      >
+                        عرض الكل ({post.commentsCount})
+                      </button>
+                    </div>
+                    {publicComments.map((comment) => (
+                      <div key={comment.id} className="flex items-start gap-2 text-right">
+                        <img
+                          src={comment.userAvatar}
+                          alt={comment.userName}
+                          loading="lazy"
+                          className="w-6 h-6 rounded-full object-cover shrink-0 border border-white/10"
+                        />
+                        <p className={`text-[11px] leading-relaxed ${theme.classes.textMain}`}>
+                          <strong className="font-bold">{comment.userName}:</strong> {comment.text}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {/* Interaction Action Buttons */}
                 <div className={`grid grid-cols-3 gap-1 pt-1 border-t text-xs font-bold ${theme.classes.cardBorder}`}>
