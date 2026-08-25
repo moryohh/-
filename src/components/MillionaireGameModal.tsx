@@ -64,6 +64,7 @@ const LADDER_LEVELS = [
 const MILLIONAIRE_WRONG_AUDIO_URL = `${import.meta.env.BASE_URL}audio/millionaire-wrong.mp3`;
 const MILLIONAIRE_CORRECT_AUDIO_URL = `${import.meta.env.BASE_URL}audio/millionaire-correct.mp3`;
 const MILLIONAIRE_THINKING_AUDIO_URL = `${import.meta.env.BASE_URL}audio/millionaire-thinking.mp3`;
+const MILLIONAIRE_PRIZE_AUDIO_URL = `${import.meta.env.BASE_URL}audio/millionaire-prize.mp3`;
 
 export interface OpponentProfile {
   id: string;
@@ -743,7 +744,6 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
     setShowPrizeProgressionModal(true);
     setAnimatedPrizeValue(0);
     setProgressionTimer(5);
-    if (!isSoundMuted) gameAudio.playPrizeClimb();
 
     const startTime = performance.now();
     const duration = 1200;
@@ -787,6 +787,20 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
       gameAudio.stopExternal('millionaire-thinking');
     };
   }, [isOpen, gameState, currentQuestionIndex, isYourTurn, showPrizeProgressionModal]);
+
+  // Play the provided prize/progression sound only while the prize map is visible.
+  // It is stopped before the next question or any other game screen appears.
+  useEffect(() => {
+    if (isOpen && showPrizeProgressionModal) {
+      gameAudio.playExternal('millionaire-prize', MILLIONAIRE_PRIZE_AUDIO_URL, 0.8);
+    } else {
+      gameAudio.stopExternal('millionaire-prize');
+    }
+
+    return () => {
+      gameAudio.stopExternal('millionaire-prize');
+    };
+  }, [isOpen, showPrizeProgressionModal]);
 
   // Update Game config whenever lessonId changes
   useEffect(() => {
