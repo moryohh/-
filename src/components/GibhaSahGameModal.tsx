@@ -77,6 +77,7 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
   // Turn status: 'idle' | 'correct' | 'wrong'
   const [feedbackStatus, setFeedbackStatus] = useState<'idle' | 'correct' | 'wrong'>('idle');
   const [feedbackMessage, setFeedbackMessage] = useState<string>('');
+  const [celebrationBurst, setCelebrationBurst] = useState<'correct' | 'combo' | 'wrong' | null>(null);
 
   // Scores
   const [team1Score, setTeam1Score] = useState(0);
@@ -141,7 +142,7 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
   };
 
   // Sound FX helper
-  const playAudio = (type: 'correct' | 'wrong' | 'click' | 'win' | 'select' | 'pass' | 'turn') => {
+  const playAudio = (type: 'correct' | 'wrong' | 'click' | 'win' | 'select' | 'pass' | 'turn' | 'combo') => {
     if (!soundEnabled) return;
     switch (type) {
       case 'correct':
@@ -158,6 +159,9 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
         break;
       case 'turn':
         gameAudio.playTurnSwitch();
+        break;
+      case 'combo':
+        gameAudio.playCardCombo();
         break;
       case 'win':
         gameAudio.playVictoryFanfare();
@@ -224,6 +228,7 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
     if (solvedCardNumbers.includes(cardNum) || feedbackStatus !== 'idle') return;
     playAudio('select');
     setSelectedCardId(cardNum);
+    if (soundEnabled) gameAudio.playRadarSonar();
   };
 
   // Manual Skip question to back of queue
@@ -248,7 +253,12 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
 
     if (isCorrect) {
       // CORRECT ANSWER:
+      const solvedCountAfterAnswer = solvedCardNumbers.length + 1;
+      const isCombo = solvedCountAfterAnswer % 3 === 0;
+      setCelebrationBurst(isCombo ? 'combo' : 'correct');
+      window.setTimeout(() => setCelebrationBurst(null), isCombo ? 900 : 650);
       playAudio('correct');
+      if (isCombo) playAudio('combo');
       setFeedbackStatus('correct');
       setFeedbackMessage(
         gameMode === 'teams'
@@ -292,6 +302,8 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
     } else {
       // WRONG ANSWER:
       // Informs user it's wrong, does NOT reveal solution, and pushes question to back of queue!
+      setCelebrationBurst('wrong');
+      window.setTimeout(() => setCelebrationBurst(null), 650);
       playAudio('wrong');
       setFeedbackStatus('wrong');
       setFeedbackMessage('إجابة خاطئة! تم نقل السؤال لآخر السلسلة والانتقال للسؤال التالي.');
@@ -386,6 +398,7 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
     setActiveTurn('user1');
     setTimeLeft(25);
     setIsFinished(false);
+    setCelebrationBurst(null);
     setHistory([]);
   };
 
@@ -424,8 +437,39 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
         className="bg-gradient-to-b from-[#0e212f] via-[#091722] to-[#040c13] border border-cyan-500/30 w-full max-w-xl sm:max-w-2xl rounded-[32px] shadow-[0_0_80px_rgba(0,255,255,0.15)] text-right relative max-h-[96vh] flex flex-col text-white overflow-hidden"
       >
         {/* Futuristic Background Ambient Glows & Grid Pattern */}
-        <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none animate-pulse" />
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none animate-pulse" />
+
+        {/* Playful success overlay: feedback only, with no effect on the question data. */}
+        {celebrationBurst && (
+          <div className="absolute inset-0 z-30 pointer-events-none overflow-hidden" aria-hidden="true">
+            <div
+              className={`absolute left-1/2 top-24 -translate-x-1/2 rounded-full px-4 py-2 text-xs sm:text-sm font-black shadow-2xl animate-in zoom-in-95 fade-in duration-200 ${
+                celebrationBurst === 'wrong'
+                  ? 'bg-rose-500/90 text-white shadow-rose-500/30'
+                  : celebrationBurst === 'combo'
+                  ? 'bg-amber-300/95 text-amber-950 shadow-amber-300/40'
+                  : 'bg-emerald-400/95 text-emerald-950 shadow-emerald-400/30'
+              }`}
+            >
+              {celebrationBurst === 'wrong' ? 'جرّب البطاقة التالية' : celebrationBurst === 'combo' ? 'سلسلة ثلاثية!' : 'بطاقة صحيحة!'}
+            </div>
+            {celebrationBurst !== 'wrong' &&
+              Array.from({ length: 12 }).map((_, index) => (
+                <span
+                  key={`card-burst-${index}`}
+                  className={`absolute top-28 h-3 w-1.5 rounded-full animate-bounce ${
+                    index % 3 === 0 ? 'bg-amber-300' : index % 3 === 1 ? 'bg-cyan-300' : 'bg-emerald-300'
+                  }`}
+                  style={{
+                    left: `${8 + index * 7.5}%`,
+                    transform: `rotate(${index * 15 - 85}deg)`,
+                    animationDelay: `${index * 30}ms`,
+                  }}
+                />
+              ))}
+          </div>
+        )}
         <div 
           className="absolute inset-0 opacity-[0.03] pointer-events-none"
           style={{
@@ -801,7 +845,9 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
               {/* 5. The 2-Column Sci-Fi Metallic Cards Grid (Matching Screenshot Layout) */}
               <div
                 id="gibha-sah-cards-grid"
-                className="grid grid-cols-2 gap-2.5 sm:gap-3.5 transition-all duration-300 pb-2"
+                className={`grid grid-cols-2 gap-2.5 sm:gap-3.5 transition-all duration-300 pb-2 ${
+                  celebrationBurst === 'combo' ? 'scale-[1.01] drop-shadow-[0_0_18px_rgba(251,191,36,0.35)]' : ''
+                }`}
               >
                 {activeCards.map((card) => {
                   const isSelected = selectedCardId === card.number;
@@ -814,8 +860,8 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
                       onClick={() => handleCardClick(card.number)}
                       className={`relative p-3 sm:p-3.5 rounded-2xl border text-center transition-all duration-200 flex flex-col items-center justify-center gap-1 group cursor-pointer active:scale-98 animate-in fade-in zoom-in-95 min-h-[90px] sm:min-h-[96px] ${
                         isSelected
-                          ? 'bg-gradient-to-b from-[#163a4d] to-[#0d2432] border-cyan-400 text-cyan-100 shadow-[0_0_20px_rgba(6,182,212,0.45)] ring-2 ring-cyan-400 scale-[1.02]'
-                          : 'bg-gradient-to-b from-[#132837] via-[#0d1e2b] to-[#07131d] border-slate-700/70 hover:border-cyan-400/60 hover:bg-[#152e40] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.08),0_4px_10px_rgba(0,0,0,0.5)]'
+                          ? 'bg-gradient-to-b from-[#163a4d] to-[#0d2432] border-cyan-400 text-cyan-100 shadow-[0_0_20px_rgba(6,182,212,0.45)] ring-2 ring-cyan-400 scale-[1.02] animate-pulse'
+                          : 'bg-gradient-to-b from-[#132837] via-[#0d1e2b] to-[#07131d] border-slate-700/70 hover:border-cyan-400/60 hover:bg-[#152e40] hover:-translate-y-1 hover:scale-[1.02] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.08),0_4px_10px_rgba(0,0,0,0.5)]'
                       }`}
                     >
                       {/* Top: Card Number with dot (.1, .2, .3, .4, etc.) */}

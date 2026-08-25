@@ -51,6 +51,7 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
   const [maxStreak, setMaxStreak] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [feedbackBurst, setFeedbackBurst] = useState<'correct' | 'wrong' | 'streak' | null>(null);
   const [timeLeft, setTimeLeft] = useState(20);
   const [timerActive, setTimerActive] = useState(true);
 
@@ -73,13 +74,13 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
     if (!soundEnabled) return;
     switch (type) {
       case 'correct':
-        gameAudio.playMillionaireCorrect();
+        gameAudio.playTrueFalseCorrect();
         break;
       case 'wrong':
-        gameAudio.playMillionaireWrong();
+        gameAudio.playTrueFalseWrong();
         break;
       case 'streak':
-        gameAudio.playLifelineMagic();
+        gameAudio.playTrueFalseStreak();
         break;
       case 'win':
         gameAudio.playVictoryFanfare();
@@ -129,6 +130,9 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
 
     const isCorrect = !isTimeout && choice === currentQ.isCorrect;
 
+    setFeedbackBurst(isCorrect ? 'correct' : 'wrong');
+    window.setTimeout(() => setFeedbackBurst(null), 700);
+
     if (isCorrect) {
       playAudio('correct');
       const timeBonus = Math.floor(timeLeft * 2);
@@ -139,7 +143,11 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
         const next = prev + 1;
         if (next > maxStreak) setMaxStreak(next);
         if (next >= 3 && next % 2 === 1) {
-          setTimeout(() => playAudio('streak'), 300);
+          setTimeout(() => {
+            setFeedbackBurst('streak');
+            playAudio('streak');
+            window.setTimeout(() => setFeedbackBurst(null), 700);
+          }, 300);
         }
         return next;
       });
@@ -166,6 +174,7 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
       setCurrentIndex((prev) => prev + 1);
       setSelectedChoice(null);
       setIsAnswered(false);
+      setFeedbackBurst(null);
       setTimeLeft(20);
     } else {
       setIsCompleted(true);
@@ -183,6 +192,7 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
     setStreak(0);
     setMaxStreak(0);
     setIsCompleted(false);
+    setFeedbackBurst(null);
     setTimeLeft(20);
     setHistory([]);
   };
@@ -193,8 +203,37 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
     <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-end sm:items-center justify-center p-3 animate-in fade-in duration-200 font-cairo select-none">
       <div className="bg-gradient-to-b from-[#131b2e] via-[#0d1322] to-[#070b14] border border-cyan-500/30 w-full max-w-md rounded-3xl p-4 sm:p-5 shadow-[0_0_50px_rgba(6,182,212,0.15)] text-right relative max-h-[92vh] flex flex-col text-white overflow-hidden">
         {/* Background Ambient Glows */}
-        <div className="absolute top-0 right-0 w-44 h-44 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-44 h-44 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-0 w-44 h-44 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none animate-pulse" />
+        <div className="absolute bottom-0 left-0 w-44 h-44 bg-rose-500/10 rounded-full blur-3xl pointer-events-none animate-pulse" />
+
+        {/* Lightweight answer celebration: visual feedback only, never changes the lesson content. */}
+        {feedbackBurst && (
+          <div className="absolute inset-0 z-30 pointer-events-none overflow-hidden" aria-hidden="true">
+            <div
+              className={`absolute left-1/2 top-20 -translate-x-1/2 rounded-full px-4 py-2 text-sm font-black shadow-2xl animate-in zoom-in-95 fade-in duration-200 ${
+                feedbackBurst === 'wrong'
+                  ? 'bg-rose-500/90 text-white shadow-rose-500/30'
+                  : 'bg-emerald-400/95 text-emerald-950 shadow-emerald-400/30'
+              }`}
+            >
+              {feedbackBurst === 'wrong' ? 'حاول مرة أخرى' : feedbackBurst === 'streak' ? 'سلسلة رائعة!' : 'أحسنت!'}
+            </div>
+            {feedbackBurst !== 'wrong' &&
+              Array.from({ length: 10 }).map((_, index) => (
+                <span
+                  key={`burst-${index}`}
+                  className={`absolute top-24 h-3 w-1.5 rounded-full animate-bounce ${
+                    index % 2 === 0 ? 'bg-amber-300' : 'bg-cyan-300'
+                  }`}
+                  style={{
+                    left: `${12 + index * 8}%`,
+                    transform: `rotate(${index * 18 - 80}deg)`,
+                    animationDelay: `${index * 35}ms`,
+                  }}
+                />
+              ))}
+          </div>
+        )}
 
         {/* Top Header */}
         <div className="flex items-center justify-between border-b border-white/10 pb-3 z-10">
@@ -245,7 +284,7 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
           {!isCompleted ? (
             <>
               {/* Status Bar: Progress, Points, Streak, Timer */}
-              <div className="flex items-center justify-between bg-[#080d18] border border-white/10 px-3 py-2 rounded-2xl text-xs">
+              <div className="flex items-center justify-between bg-[#080d18] border border-white/10 px-3 py-2 rounded-2xl text-xs shadow-[0_8px_24px_rgba(0,0,0,0.2)]">
                 {/* Question index */}
                 <div className="flex items-center gap-1.5">
                   <span className="text-cyan-400 font-black">السؤال {currentIndex + 1}</span>
@@ -324,7 +363,7 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
                         : selectedChoice === true
                         ? 'bg-rose-500/25 border-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.3)] text-rose-300 opacity-80'
                         : 'bg-white/5 border-white/10 text-gray-500 opacity-40'
-                      : 'bg-gradient-to-b from-emerald-950/40 to-[#0c1c18] border-emerald-500/40 hover:border-emerald-400 hover:bg-emerald-900/30 text-white shadow-[0_4px_20px_rgba(16,185,129,0.15)] group'
+                      : 'bg-gradient-to-b from-emerald-950/40 to-[#0c1c18] border-emerald-500/40 hover:border-emerald-400 hover:bg-emerald-900/30 hover:-translate-y-1 hover:scale-[1.02] text-white shadow-[0_4px_20px_rgba(16,185,129,0.15)] group'
                   }`}
                 >
                   <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
@@ -349,7 +388,7 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
                         : selectedChoice === false
                         ? 'bg-rose-500/25 border-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.3)] text-rose-300 opacity-80'
                         : 'bg-white/5 border-white/10 text-gray-500 opacity-40'
-                      : 'bg-gradient-to-b from-rose-950/40 to-[#1c0c12] border-rose-500/40 hover:border-rose-400 hover:bg-rose-900/30 text-white shadow-[0_4px_20px_rgba(244,63,94,0.15)] group'
+                      : 'bg-gradient-to-b from-rose-950/40 to-[#1c0c12] border-rose-500/40 hover:border-rose-400 hover:bg-rose-900/30 hover:-translate-y-1 hover:scale-[1.02] text-white shadow-[0_4px_20px_rgba(244,63,94,0.15)] group'
                   }`}
                 >
                   <div className="w-12 h-12 rounded-2xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">

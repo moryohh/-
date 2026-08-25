@@ -378,6 +378,99 @@ class GameAudioEngine {
     } catch {}
   }
 
+  // --- TRUE / FALSE GAME SOUNDS ---
+
+  // Bright answer confirmation for the True/False challenge.
+  public playTrueFalseCorrect() {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    try {
+      const now = ctx.currentTime;
+      [523.25, 659.25, 783.99, 1046.5].forEach((freq, index) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const time = now + index * 0.08;
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, time);
+        gain.gain.setValueAtTime(0, time);
+        gain.gain.linearRampToValueAtTime(0.16, time + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.34);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(time);
+        osc.stop(time + 0.38);
+      });
+    } catch {}
+  }
+
+  // Gentle descending buzzer for an incorrect True/False answer.
+  public playTrueFalseWrong() {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    try {
+      const now = ctx.currentTime;
+      [220, 164.81].forEach((freq, index) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const time = now + index * 0.12;
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, time);
+        gain.gain.setValueAtTime(0.14, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.25);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(time);
+        osc.stop(time + 0.28);
+      });
+    } catch {}
+  }
+
+  // Short sparkle for a growing True/False streak.
+  public playTrueFalseStreak() {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    try {
+      const now = ctx.currentTime;
+      [659.25, 783.99, 987.77, 1318.51].forEach((freq, index) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const time = now + index * 0.06;
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, time);
+        gain.gain.setValueAtTime(0, time);
+        gain.gain.linearRampToValueAtTime(0.12, time + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(time);
+        osc.stop(time + 0.24);
+      });
+    } catch {}
+  }
+
+  // Extra combo flourish for every few solved cards in Gibha Sah.
+  public playCardCombo() {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    try {
+      const now = ctx.currentTime;
+      [392, 523.25, 659.25, 783.99, 1046.5].forEach((freq, index) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const time = now + index * 0.07;
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, time);
+        gain.gain.setValueAtTime(0, time);
+        gain.gain.linearRampToValueAtTime(0.13, time + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.28);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(time);
+        osc.stop(time + 0.32);
+      });
+    } catch {}
+  }
+
   // --- GIBHA SAH (جيبها صح) SOUNDS ---
 
   // Card select / target lock
