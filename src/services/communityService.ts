@@ -96,7 +96,11 @@ export function rankCommunityPosts(posts: CommunityPost[]): CommunityPost[] {
       isPinned: false,
       engagementScore: (post.likesCount || 0) * 2 + (post.commentsCount || 0) * 3,
     }))
-    .sort((a, b) => parsePostTime(b) - parsePostTime(a));
+    .sort((a, b) => {
+      const reportDifference = (a.reportsCount || 0) - (b.reportsCount || 0);
+      if (reportDifference !== 0) return reportDifference;
+      return parsePostTime(b) - parsePostTime(a);
+    });
 }
 
 function mapCommunityApiComment(row: any): CommunityComment {
@@ -140,8 +144,9 @@ function mapCommunityApiPost(row: any, currentUserId?: string, likedSet?: Set<st
     type: (row?.post_type || 'general') as CommunityPost['type'],
     image: rawMedia[0] || undefined,
     images: rawMedia,
-    likesCount: Number(row?.likes_count || 0),
+    likesCount: Number(row?.likes_count ?? 0),
     commentsCount: Number(row?.comments_count ?? comments.length ?? 0),
+    reportsCount: Number(row?.reports_count ?? 0),
     isLiked: Boolean(likedSet?.has(postId)),
     isOwnPost: currentUserId ? row?.user_id === currentUserId : false,
     createdAt: row?.created_at,

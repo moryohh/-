@@ -72,6 +72,7 @@ export interface CommunityPost {
   attachmentName?: string;
   likesCount: number;
   commentsCount: number;
+  reportsCount?: number;
   isLiked: boolean;
   isOwnPost?: boolean;
   isPinned?: boolean; // Highlighted / pinned engaged post
