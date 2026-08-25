@@ -33,6 +33,7 @@ interface DailyExamModalProps {
   customExam?: DailyExamConfig;
   openLessonContext?: OpenLessonContext | null;
   onScoreUpdate?: (points: number) => void;
+  onAssessmentResult?: (correctPoints: number, totalPoints: number) => void;
 }
 
 export const DailyExamModal: React.FC<DailyExamModalProps> = ({
@@ -44,6 +45,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
   customExam,
   openLessonContext,
   onScoreUpdate,
+  onAssessmentResult,
 }) => {
   const { theme } = useAppTheme();
   const [exam, setExam] = useState<DailyExamConfig | null>(customExam || null);
@@ -83,6 +85,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
   const [isTimerRunning, setIsTimerRunning] = useState(true);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const rewardIssuedRef = useRef(false);
+  const assessmentReportedRef = useRef(false);
 
   // Load exam data on mount / open
   useEffect(() => {
@@ -258,6 +261,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
   const handleRestartExam = () => {
     gameAudio.playClick();
     rewardIssuedRef.current = false;
+    assessmentReportedRef.current = false;
     setTimeLeft(900);
     setIsTimerRunning(true);
     setIsSubmitted(false);
@@ -282,8 +286,13 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
   const awardDailyExamReward = () => {
     if (rewardIssuedRef.current || !exam || totalEvaluatedCount < 2) return;
     rewardIssuedRef.current = true;
-    const percentage = (totalEarnedPoints / (Number(exam.totalPoints) || 1)) * 100;
+    const totalExamPoints = Number(exam.totalPoints) || 1;
+    const percentage = (totalEarnedPoints / totalExamPoints) * 100;
     onScoreUpdate?.(getDailyExamReward(percentage));
+    if (!assessmentReportedRef.current) {
+      assessmentReportedRef.current = true;
+      onAssessmentResult?.(totalEarnedPoints, totalExamPoints);
+    }
   };
 
   return (

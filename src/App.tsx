@@ -15,6 +15,7 @@ import {
   CommunityComment,
   OpenLessonContext,
   LearningPosition,
+  CompetitionSnapshot,
 } from './types';
 import { Header } from './components/Header';
 import { StoriesSection } from './components/StoriesSection';
@@ -61,6 +62,11 @@ import {
   updateUserProfileData,
 } from './services/communityService';
 import { getLevelSnapshot } from './services/pointsService';
+import {
+  fetchCompetitionSnapshot,
+  recordActivityBlock,
+  recordAssessmentResult,
+} from './services/competitionService';
 
 const LessonGamesModal = React.lazy(() =>
   import('./components/LessonGamesModal').then(({ LessonGamesModal: LazyLessonGamesModal }) => ({
@@ -104,6 +110,10 @@ function AppContent() {
   const [stories, setStories] = useState<TeacherStory[]>(INITIAL_STORIES);
   const [lesson, setLesson] = useState<EducationalLesson>(FEATURED_LESSON);
   const [notifications, setNotifications] = useState<AppNotification[]>(NOTIFICATIONS_DATA);
+  const [competitionSnapshot, setCompetitionSnapshot] = useState<CompetitionSnapshot | null>(null);
+  const lastActivityPointsRef = React.useRef<number | null>(null);
+  const activityBlockStartedAtRef = React.useRef<number | null>(null);
+  const activityRecordingRef = React.useRef(false);
 
   // Learning Position & Context Management
   const [savedPositions, setSavedPositions] = useState<Record<string, LearningPosition>>(loadStoredPositions);
@@ -360,6 +370,85 @@ function AppContent() {
     setToastMessage(msg);
   };
 
+  const applyCompetitionSnapshot = (snapshot: CompetitionSnapshot, showActivityToast = false) => {
+    setCompetitionSnapshot(snapshot);
+    setCurrentUser((previous) => {
+      if (!previous) return previous;
+      if ((previous.points ?? 0) === snapshot.points && (previous.level ?? 1) === snapshot.level) return previous;
+      return { ...previous, points: snapshot.points, level: snapshot.level };
+    });
+
+    const previousActivityPoints = lastActivityPointsRef.current;
+    if (showActivityToast && previousActivityPoints !== null && snapshot.activityPointsToday > previousActivityPoints) {
+      showToast(`+${snapshot.activityPointsToday - previousActivityPoints} نقطة نشاط`);
+    }
+    lastActivityPointsRef.current = snapshot.activityPointsToday;
+  };
+
+  const handleAssessmentResult = async (correctPoints: number, totalPoints: number) => {
+    const snapshot = await recordAssessmentResult(correctPoints, totalPoints);
+    if (snapshot) applyCompetitionSnapshot(snapshot);
+  };
+
+  // Count only visible, recently active time. The database function enforces the 5-point daily cap.
+  React.useEffect(() => {
+    if (!currentUser?.id) {
+      setCompetitionSnapshot(null);
+      lastActivityPointsRef.current = null;
+      activityBlockStartedAtRef.current = null;
+      return;
+    }
+
+    let isMounted = true;
+    let lastInteractionAt = Date.now();
+    const activityEvents = ['pointerdown', 'keydown', 'touchstart', 'scroll'];
+    const markInteraction = () => {
+      const now = Date.now();
+      if (now - lastInteractionAt > 90_000) activityBlockStartedAtRef.current = now;
+      lastInteractionAt = now;
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        lastInteractionAt = Date.now();
+        activityBlockStartedAtRef.current = Date.now();
+      }
+    };
+
+    activityEvents.forEach((eventName) => window.addEventListener(eventName, markInteraction, { passive: true }));
+    document.addEventListener('visibilitychange', handleVisibility);
+    activityBlockStartedAtRef.current = Date.now();
+
+    fetchCompetitionSnapshot().then((snapshot) => {
+      if (isMounted && snapshot) applyCompetitionSnapshot(snapshot);
+    });
+
+    const intervalId = window.setInterval(async () => {
+      const now = Date.now();
+      const isVisible = document.visibilityState === 'visible';
+      const isRecentlyActive = now - lastInteractionAt <= 90_000;
+      const startedAt = activityBlockStartedAtRef.current ?? now;
+      if (!isVisible || !isRecentlyActive) {
+        activityBlockStartedAtRef.current = now;
+        return;
+      }
+      if (now - startedAt < 5 * 60_000 || activityRecordingRef.current) return;
+
+      activityBlockStartedAtRef.current = now;
+      activityRecordingRef.current = true;
+      const snapshot = await recordActivityBlock();
+      activityRecordingRef.current = false;
+      if (isMounted && snapshot) applyCompetitionSnapshot(snapshot, true);
+    }, 30_000);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+      activityEvents.forEach((eventName) => window.removeEventListener(eventName, markInteraction));
+      document.removeEventListener('visibilitychange', handleVisibility);
+      activityRecordingRef.current = false;
+    };
+  }, [currentUser?.id]);
+
   const handleScoreUpdate = async (points: number) => {
     if (!currentUser || points <= 0) return;
 
@@ -372,6 +461,7 @@ function AppContent() {
     };
 
     setCurrentUser(optimisticUser);
+    setCompetitionSnapshot((previous) => previous ? { ...previous, points: nextTotalPoints, level: levelSnapshot.level } : previous);
     showToast(`أضيفت ${points} ${points === 1 ? 'نقطة' : 'نقاط'} إلى مستواك`);
 
     const savedUser = await updateUserProfileData(currentUser.id, {
@@ -773,6 +863,7 @@ function AppContent() {
               user={currentUser}
               userPosts={communityPosts.filter((post) => post.isOwnPost)}
               onUpdateUser={(updated) => setCurrentUser(updated)}
+              competitionSnapshot={competitionSnapshot}
               onOpenComments={(post) => setActiveCommunityPostForComments(post)}
               onBack={() => {
                 setActiveTab('home');
@@ -861,6 +952,7 @@ function AppContent() {
           category={lesson.category}
           openLessonContext={openLessonContext}
           onScoreUpdate={handleScoreUpdate}
+          onAssessmentResult={handleAssessmentResult}
         />
       </React.Suspense>
     </div>

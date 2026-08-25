@@ -237,6 +237,39 @@ export interface SubjectChapter {
   lessons: SubjectChapterLesson[];
 }
 
+export type RatingTier = 'diamond' | 'gold' | 'silver' | 'bronze';
+
+export interface CompetitionSnapshot {
+  userId: string;
+  level: number;
+  points: number;
+  activityMinutesToday: number;
+  activityPointsToday: number;
+  periodCorrect: number;
+  periodAnswered: number;
+  accuracyPercent: number;
+  ratingTier: RatingTier;
+  ratingLabel: string;
+  ratingVisible: boolean;
+  periodStart: string;
+  periodEnd: string;
+  rank: number | null;
+  participants: number;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  userId: string;
+  name: string;
+  avatarUrl?: string;
+  level: number;
+  points: number;
+  ratingTier: RatingTier;
+  ratingLabel: string;
+  accuracyPercent: number;
+  isCurrentUser: boolean;
+}
+
 export interface UserProfile {
   id: string;
   email?: string;

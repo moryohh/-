@@ -33,6 +33,7 @@ interface GibhaSahGameModalProps {
   lessonTitle: string;
   category?: string;
   onScoreUpdate?: (points: number) => void;
+  onAssessmentResult?: (correctPoints: number, totalPoints: number) => void;
   customConfig?: GibhaSahGameConfig;
 }
 
@@ -55,6 +56,7 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
   lessonTitle,
   category = 'المادة التعليمية',
   onScoreUpdate,
+  onAssessmentResult,
   customConfig,
 }) => {
   const [config, setConfig] = useState<GibhaSahGameConfig>(() =>
@@ -262,6 +264,7 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
     if (selectedCardId === null || !currentQ || feedbackStatus !== 'idle') return;
 
     const isCorrect = selectedCardId === currentQ.correctCardNumber;
+    onAssessmentResult?.(isCorrect ? 1 : 0, 1);
     const currentUser = activeTurn === 'user1' ? user1Name : user2Name;
 
     if (isCorrect) {
@@ -340,6 +343,7 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
     if (!currentQ || feedbackStatus !== 'idle') return;
 
     const currentUser = activeTurn === 'user1' ? user1Name : user2Name;
+    onAssessmentResult?.(isCorrect ? 1 : 0, 1);
 
     if (isCorrect) {
       playAudio('correct');

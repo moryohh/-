@@ -27,6 +27,7 @@ interface TrueFalseGameModalProps {
   lessonTitle: string;
   category?: string;
   onScoreUpdate?: (points: number) => void;
+  onAssessmentResult?: (correctPoints: number, totalPoints: number) => void;
   customConfig?: TrueFalseGameConfig;
 }
 
@@ -37,6 +38,7 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
   lessonTitle,
   category = 'المادة التعليمية',
   onScoreUpdate,
+  onAssessmentResult,
   customConfig,
 }) => {
   const [config, setConfig] = useState<TrueFalseGameConfig>(() =>
@@ -144,6 +146,7 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
     setSelectedChoice(choice);
 
     const isCorrect = !isTimeout && choice === currentQ.isCorrect;
+    onAssessmentResult?.(isCorrect ? 1 : 0, 1);
 
     setFeedbackBurst(isCorrect ? 'correct' : 'wrong');
     window.setTimeout(() => setFeedbackBurst(null), 700);

@@ -42,6 +42,7 @@ interface MillionaireGameModalProps {
   lessonTitle: string;
   category?: string;
   onScoreUpdate?: (points: number) => void;
+  onAssessmentResult?: (correctPoints: number, totalPoints: number) => void;
   customConfig?: MillionaireGameConfig;
 }
 
@@ -261,6 +262,7 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
   lessonTitle,
   category = 'المادة التعليمية',
   onScoreUpdate,
+  onAssessmentResult,
   customConfig,
 }) => {
   // Game Configuration & Load (13 questions standardized)
@@ -938,6 +940,7 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
 
     setTimeout(() => {
       const isCorrect = optionIndex === currentQuestion.correctAnswer;
+      onAssessmentResult?.(isCorrect ? 1 : 0, 1);
       setGameState('answered');
 
       const newHistoryItem = {

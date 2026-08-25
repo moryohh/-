@@ -23,13 +23,17 @@ import {
   UserX,
   Settings2,
   Palette,
+  Trophy,
+  Gem,
 } from 'lucide-react';
 import { useAppTheme, AppThemeId } from '../services/themeService';
 import { gameAudio } from '../utils/gameAudio';
-import { UserProfile, CommunityPost } from '../types';
+import { UserProfile, CommunityPost, CompetitionSnapshot } from '../types';
 import { DEFAULT_CARTOON_AVATARS, CartoonAvatarOption } from '../data/cartoonAvatars';
 import { updateUserProfileData } from '../services/communityService';
 import { getLevelSnapshot } from '../services/pointsService';
+import { RATING_META } from '../services/competitionService';
+import { MapLeaderboardModal } from './MapLeaderboardModal';
 
 interface ProfileViewProps {
   user?: UserProfile | null;
@@ -39,6 +43,7 @@ interface ProfileViewProps {
   onOpenComments?: (post: CommunityPost) => void;
   onBack?: () => void;
   onSignOut?: () => void;
+  competitionSnapshot?: CompetitionSnapshot | null;
 }
 
 export const ProfileView: React.FC<ProfileViewProps> = ({
@@ -49,6 +54,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onOpenComments,
   onBack,
   onSignOut,
+  competitionSnapshot,
 }) => {
   const { theme, currentThemeId, setThemeId } = useAppTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -59,6 +65,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isBlockedUsersOpen, setIsBlockedUsersOpen] = useState(false);
+  const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [avatarLoadIndex, setAvatarLoadIndex] = useState(0);
 
   const userName = user?.name || 'طالب منصة نحن معك';
@@ -72,6 +79,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const totalPoints = user?.points ?? 0;
   const levelSnapshot = getLevelSnapshot(totalPoints);
   const userLevel = levelSnapshot.level;
+  const ratingTier = competitionSnapshot?.ratingTier || 'bronze';
+  const ratingMeta = RATING_META[ratingTier];
+  const ratingVisible = userLevel >= 6;
   const profileThemeOptions: { id: AppThemeId; label: string; colors: string[] }[] = [
     { id: 'solar_light', label: 'شمسي', colors: ['#FFFFFF', '#0284C7'] },
     { id: 'golden_navy', label: 'ذهبي', colors: ['#FFFDF5', '#D97706'] },
@@ -302,6 +312,50 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             <div className={`mt-1 text-[10px] ${theme.classes.textMuted}`}>
               {levelSnapshot.pointsIntoLevel} من {levelSnapshot.pointsForNextLevel} نقطة للمستوى التالي
             </div>
+          </div>
+
+          <div className="mt-3 grid grid-cols-[1fr_auto] gap-2 text-right">
+            <div
+              className="rounded-2xl border p-3"
+              style={{
+                borderColor: ratingVisible ? `${ratingMeta.color}70` : `${theme.colors.primary}30`,
+                background: ratingVisible
+                  ? `linear-gradient(135deg, ${ratingMeta.color}18, transparent)`
+                  : `${theme.colors.primary}08`,
+              }}
+            >
+              <div className={`text-[10px] font-black ${theme.classes.textMuted}`}>التقييم الدوري كل أسبوعين</div>
+              {ratingVisible ? (
+                <div className="flex items-center gap-2 mt-1">
+                  <span
+                    className="w-9 h-9 rounded-xl flex items-center justify-center text-lg font-black border"
+                    style={{ color: ratingMeta.color, borderColor: `${ratingMeta.color}80`, backgroundColor: `${ratingMeta.color}18` }}
+                  >
+                    <Gem className="w-5 h-5" />
+                  </span>
+                  <div>
+                    <div className="text-sm font-black" style={{ color: ratingMeta.color }}>{ratingMeta.label}</div>
+                    <div className={`text-[10px] ${theme.classes.textMuted}`}>
+                      دقة {competitionSnapshot?.accuracyPercent ?? 0}% • {competitionSnapshot?.periodAnswered ?? 0} إجابة
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className={`text-[11px] font-bold mt-1 ${theme.classes.textMuted}`}>
+                  تُفتح الشارات بعد تجاوز المستوى 5
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsLeaderboardOpen(true)}
+              className="min-w-[104px] rounded-2xl border p-2.5 flex flex-col items-center justify-center gap-1.5 text-center transition-all active:scale-95 hover:-translate-y-0.5"
+              style={{ borderColor: `${theme.colors.primary}55`, backgroundColor: `${theme.colors.primary}12`, color: theme.colors.primary }}
+            >
+              <Trophy className="w-6 h-6 text-amber-400" />
+              <span className="text-[10px] font-black">قائمة الصدارة</span>
+              <span className={`text-[9px] ${theme.classes.textMuted}`}>تنافس مع زملائك</span>
+            </button>
           </div>
         </div>
       </div>
@@ -811,6 +865,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </div>
         )}
       </section>
+
+      <MapLeaderboardModal
+        isOpen={isLeaderboardOpen}
+        onClose={() => setIsLeaderboardOpen(false)}
+        currentUser={user}
+      />
     </div>
   );
 };

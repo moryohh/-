@@ -565,6 +565,7 @@ export const SubjectLearningPathView: React.FC<SubjectLearningPathViewProps> = (
       <MapLeaderboardModal
         isOpen={isLeaderboardOpen}
         onClose={() => setIsLeaderboardOpen(false)}
+        currentUser={user}
       />
     </div>
   );
