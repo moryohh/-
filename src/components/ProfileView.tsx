@@ -20,8 +20,12 @@ import {
   Share2,
   Calendar,
   LockKeyhole,
+  UserX,
+  Settings2,
+  Palette,
 } from 'lucide-react';
-import { useAppTheme } from '../services/themeService';
+import { useAppTheme, AppThemeId } from '../services/themeService';
+import { gameAudio } from '../utils/gameAudio';
 import { UserProfile, CommunityPost } from '../types';
 import { DEFAULT_CARTOON_AVATARS, CartoonAvatarOption } from '../data/cartoonAvatars';
 import { updateUserProfileData } from '../services/communityService';
@@ -46,13 +50,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onBack,
   onSignOut,
 }) => {
-  const { theme } = useAppTheme();
+  const { theme, currentThemeId, setThemeId } = useAppTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [activeTab, setActiveTab] = useState<'posts' | 'achievements' | 'details'>('posts');
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isBlockedUsersOpen, setIsBlockedUsersOpen] = useState(false);
 
   const userName = user?.name || 'طالب منصة نحن معك';
   const userGrade = user?.grade || 'السادس الإعدادي';
@@ -63,7 +69,16 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const studyHours = user?.studyHours ?? 0;
   const streakDays = user?.streakDays ?? 0;
   const totalPoints = user?.points ?? 0;
-  const userLevel = getLevelSnapshot(totalPoints).level;
+  const levelSnapshot = getLevelSnapshot(totalPoints);
+  const userLevel = levelSnapshot.level;
+  const profileThemeOptions: { id: AppThemeId; label: string; colors: string[] }[] = [
+    { id: 'solar_light', label: 'شمسي', colors: ['#FFFFFF', '#0284C7'] },
+    { id: 'golden_navy', label: 'ذهبي', colors: ['#FFFDF5', '#D97706'] },
+    { id: 'amber_work', label: 'كهرماني', colors: ['#FFFFF0', '#CA8A04'] },
+    { id: 'sky_cyan', label: 'سماوي', colors: ['#F0FAFF', '#0891B2'] },
+    { id: 'emerald_nature', label: 'زمردي', colors: ['#F0FDF4', '#059669'] },
+    { id: 'night', label: 'ليلي', colors: ['#090E1F', '#00A3FF'] },
+  ];
 
   // Filter posts created by this user
   const authoredPosts = userPosts.filter(
@@ -160,16 +175,28 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             <div />
           )}
 
-          {onBack && (
+          <div className="flex items-center gap-2 z-10">
             <button
-              onClick={onBack}
-              className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 z-10 transition-all cursor-pointer ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder}`}
+              type="button"
+              onClick={() => setIsSettingsOpen((previous) => !previous)}
+              className={`p-2 rounded-xl border transition-all active:scale-95 cursor-pointer ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder}`}
               style={{ color: theme.colors.primary }}
+              aria-label="إعدادات الصفحة الشخصية"
+              title="إعدادات الصفحة الشخصية"
             >
-              <ArrowRight className="w-4 h-4" />
-              <span>رجوع</span>
+              <Settings2 className={`w-4 h-4 transition-transform ${isSettingsOpen ? 'rotate-90' : ''}`} />
             </button>
-          )}
+            {onBack && (
+              <button
+                onClick={onBack}
+                className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder}`}
+                style={{ color: theme.colors.primary }}
+              >
+                <ArrowRight className="w-4 h-4" />
+                <span>رجوع</span>
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="relative pt-4">
@@ -260,8 +287,74 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               </span>
             </div>
           </div>
+          <div className="mt-3 rounded-2xl border p-3 text-right" style={{ borderColor: `${theme.colors.primary}30`, backgroundColor: `${theme.colors.primary}08` }}>
+            <div className="flex items-center justify-between text-[10px] font-black">
+              <span className={theme.classes.textMain}>التقدم نحو المستوى {userLevel + 1}</span>
+              <span style={{ color: theme.colors.primary }}>{levelSnapshot.progressPercent}%</span>
+            </div>
+            <div className="mt-2 h-2 rounded-full bg-black/10 overflow-hidden border border-white/10">
+              <div className="h-full rounded-full transition-all duration-700" style={{ width: `${levelSnapshot.progressPercent}%`, backgroundColor: theme.colors.primary }} />
+            </div>
+            <div className={`mt-1 text-[10px] ${theme.classes.textMuted}`}>
+              {levelSnapshot.pointsIntoLevel} من {levelSnapshot.pointsForNextLevel} نقطة للمستوى التالي
+            </div>
+          </div>
         </div>
       </div>
+
+      {isSettingsOpen && (
+        <section
+          className={`rounded-3xl border p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200 ${theme.classes.cardBg} ${theme.classes.cardBorder}`}
+          aria-label="إعدادات الصفحة الشخصية"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className={`text-sm font-black ${theme.classes.textMain}`}>إعدادات الصفحة الشخصية</h3>
+              <p className={`text-[10px] mt-0.5 ${theme.classes.textMuted}`}>غيّر لون ومظهر المنصة من داخل حسابك</p>
+            </div>
+            <Palette className="w-5 h-5" style={{ color: theme.colors.primary }} />
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {profileThemeOptions.map((option) => {
+              const selected = currentThemeId === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => {
+                    gameAudio.playClick();
+                    setThemeId(option.id);
+                  }}
+                  className={`p-2.5 rounded-2xl border text-right transition-all active:scale-95 ${selected ? 'ring-2 ring-offset-1' : 'hover:-translate-y-0.5'}`}
+                  style={{
+                    borderColor: selected ? theme.colors.primary : `${theme.colors.primary}35`,
+                    backgroundColor: selected ? `${theme.colors.primary}18` : `${theme.colors.primary}08`,
+                    ['--tw-ring-color' as string]: theme.colors.primary,
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="w-7 h-7 rounded-xl border shadow-sm" style={{ background: `linear-gradient(135deg, ${option.colors[0]}, ${option.colors[1]})` }} />
+                    <span className={`text-[11px] font-black ${theme.classes.textMain}`}>{option.label}</span>
+                  </div>
+                  <span className={`text-[9px] mt-1 block ${selected ? 'text-emerald-400' : theme.classes.textMuted}`}>
+                    {selected ? 'المظهر النشط' : 'اختيار المظهر'}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {onSignOut && (
+            <button
+              type="button"
+              onClick={onSignOut}
+              className="w-full py-2.5 rounded-2xl border border-rose-500/30 bg-rose-500/10 text-rose-400 text-xs font-black flex items-center justify-center gap-2"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>تسجيل الخروج من الحساب</span>
+            </button>
+          )}
+        </section>
+      )}
 
       {/* ======================================================== */}
       {/* AVATAR SELECTOR MODAL / SHEET */}
@@ -676,6 +769,28 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </div>
         </div>
       )}
+
+      <section className={`rounded-3xl border p-3 ${theme.classes.cardBg} ${theme.classes.cardBorder}`}>
+        <button
+          type="button"
+          onClick={() => setIsBlockedUsersOpen((previous) => !previous)}
+          className="w-full flex items-center justify-between text-right"
+        >
+          <span className="flex items-center gap-2">
+            <span className="w-8 h-8 rounded-xl flex items-center justify-center bg-rose-500/10 text-rose-400 border border-rose-500/20"><UserX className="w-4 h-4" /></span>
+            <span>
+              <span className={`block text-xs font-black ${theme.classes.textMain}`}>الأشخاص المحظورون</span>
+              <span className={`block text-[10px] mt-0.5 ${theme.classes.textMuted}`}>إدارة الحسابات التي لن تظهر لك</span>
+            </span>
+          </span>
+          <span className={`text-[10px] font-bold ${theme.classes.textMuted}`}>{isBlockedUsersOpen ? 'إخفاء' : 'عرض'}</span>
+        </button>
+        {isBlockedUsersOpen && (
+          <div className={`mt-3 rounded-2xl border p-3 text-center text-[11px] ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder} ${theme.classes.textMuted}`}>
+            لا توجد حسابات محظورة حالياً.
+          </div>
+        )}
+      </section>
     </div>
   );
 };
