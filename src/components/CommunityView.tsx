@@ -243,6 +243,10 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
                     <img
                       src={post.userAvatar}
                       alt={post.userName}
+                      width={40}
+                      height={40}
+                      decoding="async"
+                      loading="lazy"
                       className="w-10 h-10 rounded-full border-2 object-cover bg-slate-800"
                       style={{ borderColor: theme.colors.primary }}
                     />
@@ -349,6 +353,7 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
                           src={imgUrl}
                           alt={`مرفق منشور ${idx + 1}`}
                           loading="lazy"
+                          decoding="async"
                           className={`w-full ${postImages.length === 1 ? 'h-auto max-h-[620px] object-contain' : 'h-full object-cover'} transition-transform group-hover:scale-[1.02]`}
                         />
                         <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
@@ -431,7 +436,10 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
                         <img
                           src={comment.userAvatar}
                           alt={comment.userName}
+                          width={24}
+                          height={24}
                           loading="lazy"
+                          decoding="async"
                           className="w-6 h-6 rounded-full object-cover shrink-0 border border-white/10"
                         />
                         <p className={`text-[13px] leading-7 ${theme.classes.textMain}`}>

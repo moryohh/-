@@ -27,3 +27,35 @@
 .story-border-gradient {
   background: linear-gradient(135deg, #00A3FF, #38bdf8, #7dd3fc);
 }
+
+/* Mobile interaction performance: avoid delayed tap activation and keep nested scrollers responsive. */
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  overscroll-behavior-y: none;
+}
+
+button,
+a,
+[role='button'] {
+  touch-action: manipulation;
+}
+
+.no-scrollbar,
+.custom-scrollbar {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

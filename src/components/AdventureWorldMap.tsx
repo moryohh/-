@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import spaceBiomeImg from '../assets/images/space_minimal_void_1786901269341.jpg';
-import deepSeaBiomeImg from '../assets/images/ocean_clean_biome_1786901297268.jpg';
-import biome1Img from '../assets/images/biome1_snow_mountain_1786898662715.jpg';
-import biome2Img from '../assets/images/biome2_green_farm_1786898677268.jpg';
-import biome3Img from '../assets/images/biome3_harbor_refinery_1786898690005.jpg';
-import biome4Img from '../assets/images/biome4_night_realm_1786898703967.jpg';
+import spaceBiomeImg from '../assets/images/space_minimal_void_1786901269341.webp';
+import deepSeaBiomeImg from '../assets/images/ocean_clean_biome_1786901297268.webp';
+import biome1Img from '../assets/images/biome1_snow_mountain_1786898662715.webp';
+import biome2Img from '../assets/images/biome2_green_farm_1786898677268.webp';
+import biome3Img from '../assets/images/biome3_harbor_refinery_1786898690005.webp';
+import biome4Img from '../assets/images/biome4_night_realm_1786898703967.webp';
 import { SubjectChapter, SubjectChapterLesson } from '../types';
 import { useAppTheme } from '../services/themeService';
 import { formatArabicLessonTitle } from '../services/lessonsService';

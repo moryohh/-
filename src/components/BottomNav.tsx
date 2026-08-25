@@ -63,6 +63,9 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                   <img
                     src={avatarUrl || FALLBACK_DEFAULT_AVATAR}
                     alt="حسابي"
+                    width={24}
+                    height={24}
+                    decoding="async"
                     className={`w-6 h-6 rounded-full object-cover border-2 transition-transform ${isActive ? 'scale-110' : ''} ${avatarUrl?.includes('/avatars/') ? 'scale-[1.3]' : ''}`}
                     style={{ borderColor: isActive ? theme.colors.primary : `${theme.colors.primary}70` }}
                   />

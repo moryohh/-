@@ -11,7 +11,7 @@ export interface CartoonAvatarOption {
   isFree: boolean;
 }
 
-const avatarUrl = (fileName: string) => `${import.meta.env.BASE_URL}avatars/${fileName}.png`;
+const avatarUrl = (fileName: string) => `${import.meta.env.BASE_URL}avatars/${fileName}.jpg`;
 
 /**
  * Local avatar catalogue. Level 1 contains the fruit mascots, while level 3

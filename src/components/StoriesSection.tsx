@@ -63,7 +63,7 @@ export const StoriesSection: React.FC<StoriesSectionProps> = ({
         {/* Teacher Channels Stories List - Clean circular images without bottom bars */}
         {stories
           .filter((story) => Boolean(extractYoutubeId(story.youtubeId, story.title, story.teacherName, story.textNotes)))
-          .map((story) => {
+          .map((story, index) => {
             const rawTeacherName = story.teacherName || story.channelName || '';
             const cleanedName = cleanTeacherName(rawTeacherName) || 'مدرس المادة';
             const cleanedChannel = cleanTeacherName(story.channelName) || cleanedName;
@@ -103,7 +103,11 @@ export const StoriesSection: React.FC<StoriesSectionProps> = ({
                       src={story.avatar}
                       alt={cleanedName}
                       className="w-full h-full object-cover"
-                      loading="lazy"
+                      width={74}
+                      height={74}
+                      loading={index < 2 ? 'eager' : 'lazy'}
+                      decoding="async"
+                      fetchPriority={index === 0 ? 'high' : 'low'}
                     />
 
                     {/* Active playing pulse dot */}

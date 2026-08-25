@@ -59,6 +59,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isBlockedUsersOpen, setIsBlockedUsersOpen] = useState(false);
+  const [avatarLoadIndex, setAvatarLoadIndex] = useState(0);
 
   const userName = user?.name || 'طالب منصة نحن معك';
   const userGrade = user?.grade || 'السادس الإعدادي';
@@ -213,6 +214,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               <img
                 src={userAvatar}
                 alt={userName}
+                width={96}
+                height={96}
+                decoding="async"
                 className={`w-full h-full object-cover rounded-full bg-slate-800 ${userAvatar.includes('/avatars/') ? 'scale-[1.18]' : ''}`}
               />
             </div>
@@ -409,7 +413,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                {DEFAULT_CARTOON_AVATARS.map((avatar) => {
+                {DEFAULT_CARTOON_AVATARS.map((avatar, index) => {
                   const isSelected = userAvatar === avatar.url;
                   const isUnlocked = userLevel >= avatar.unlockLevel;
                   return (
@@ -439,13 +443,25 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                       )}
 
                       <div
-                        className="w-16 h-16 rounded-2xl p-1 shadow-md border transition-transform duration-200"
+                        className="w-16 h-16 rounded-2xl p-1 shadow-md border transition-transform duration-200 overflow-hidden"
                         style={{
                           backgroundColor: avatar.bgColor,
                           borderColor: avatar.borderColor,
                         }}
                       >
-                        <img src={avatar.url} alt={avatar.name} className="w-full h-full object-cover scale-[1.12]" loading="lazy" />
+                        {index <= avatarLoadIndex ? (
+                          <img
+                            src={avatar.url}
+                            alt={avatar.name}
+                            className="w-full h-full object-cover scale-[1.12]"
+                            loading={index === 0 ? 'eager' : 'lazy'}
+                            decoding="async"
+                            onLoad={() => setAvatarLoadIndex((previous) => Math.max(previous, index + 1))}
+                            onError={() => setAvatarLoadIndex((previous) => Math.max(previous, index + 1))}
+                          />
+                        ) : (
+                          <div className="w-full h-full rounded-xl animate-pulse bg-white/20" aria-label="جارٍ تحميل الصورة" />
+                        )}
                       </div>
 
                       <div className="text-center w-full">
@@ -569,6 +585,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     <img
                       src={post.userAvatar || userAvatar}
                       alt={post.userName}
+                      width={32}
+                      height={32}
+                      decoding="async"
+                      loading="lazy"
                       className={`w-8 h-8 rounded-full object-cover border ${(post.userAvatar || userAvatar).includes('/avatars/') ? 'scale-[1.12]' : ''}`}
                       style={{ borderColor: theme.colors.primary }}
                     />
