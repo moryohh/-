@@ -4,6 +4,7 @@
 class GameAudioEngine {
   private ctx: AudioContext | null = null;
   private isMuted: boolean = false;
+  private externalPlayers = new Map<string, HTMLAudioElement>();
 
   private getContext(): AudioContext | null {
     if (this.isMuted) return null;
@@ -30,6 +31,40 @@ class GameAudioEngine {
     if (muted && this.ctx && this.ctx.state === 'running') {
       this.ctx.suspend().catch(() => {});
     }
+    if (muted) {
+      this.stopAllExternal();
+    }
+  }
+
+  /** Play a provided audio asset once, restarting it cleanly if triggered again. */
+  public playExternal(key: string, url: string, volume = 0.9) {
+    if (this.isMuted || typeof window === 'undefined') return;
+    try {
+      let player = this.externalPlayers.get(key);
+      if (!player) {
+        player = new Audio(url);
+        player.preload = 'auto';
+        this.externalPlayers.set(key, player);
+      }
+      player.loop = false;
+      player.volume = volume;
+      player.currentTime = 0;
+      void player.play().catch(() => {});
+    } catch {}
+  }
+
+  public stopExternal(key: string) {
+    const player = this.externalPlayers.get(key);
+    if (!player) return;
+    player.pause();
+    player.currentTime = 0;
+  }
+
+  public stopAllExternal() {
+    this.externalPlayers.forEach((player) => {
+      player.pause();
+      player.currentTime = 0;
+    });
   }
 
   public getMuted(): boolean {

@@ -61,6 +61,8 @@ const LADDER_LEVELS = [
   { level: 13, points: 1000000, label: '1 000 000 د.ع', isSafety: true }, // سؤال المليون دينار 🏆
 ];
 
+const MILLIONAIRE_WRONG_AUDIO_URL = `${import.meta.env.BASE_URL}audio/millionaire-wrong.mp3`;
+
 export interface OpponentProfile {
   id: string;
   name: string;
@@ -759,6 +761,13 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
     requestAnimationFrame(updateCounter);
   };
 
+  // Stop provided audio whenever the game closes or returns to its start screen.
+  useEffect(() => {
+    if (!isOpen || gameState === 'start') {
+      gameAudio.stopAllExternal();
+    }
+  }, [isOpen, gameState]);
+
   // Update Game config whenever lessonId changes
   useEffect(() => {
     const config = getMillionaireGameForLesson(lessonId, lessonTitle, category);
@@ -778,6 +787,7 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
 
   // Restart / Reset game state
   const resetGame = () => {
+    gameAudio.stopAllExternal();
     setGameState('start');
     setCurrentQuestionIndex(0);
     setSelectedOption(null);
@@ -937,7 +947,7 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
           triggerPrizeClimbAnimation(pointsForThisLevel, currentQuestionIndex);
         }, 600);
       } else {
-        gameAudio.playMillionaireWrong();
+        gameAudio.playExternal('millionaire-wrong', MILLIONAIRE_WRONG_AUDIO_URL);
         setWrongAnswersCount((prev) => prev + 1);
 
         if (gameMode === 'multiplayer') {
@@ -1009,7 +1019,6 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
         // If both players are eliminated, then it's game over
         if (isUserEliminated && isOpponentEliminated) {
           saveGameResult();
-          gameAudio.playMillionaireWrong();
           setGameState('gameover');
           isAdvancingQuestionRef.current = false;
           return;
