@@ -74,7 +74,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const profileThemeOptions: { id: AppThemeId; label: string; colors: string[] }[] = [
     { id: 'solar_light', label: 'شمسي', colors: ['#FFFFFF', '#0284C7'] },
     { id: 'golden_navy', label: 'ذهبي', colors: ['#FFFDF5', '#D97706'] },
-    { id: 'amber_work', label: 'كهرماني', colors: ['#FFFFF0', '#CA8A04'] },
+    { id: 'amber_work', label: 'كهربائي مزرق', colors: ['#FACC15', '#2563EB', '#0F172A'] },
     { id: 'sky_cyan', label: 'سماوي', colors: ['#F0FAFF', '#0891B2'] },
     { id: 'emerald_nature', label: 'زمردي', colors: ['#F0FDF4', '#059669'] },
     { id: 'night', label: 'ليلي', colors: ['#090E1F', '#00A3FF'] },
@@ -213,7 +213,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               <img
                 src={userAvatar}
                 alt={userName}
-                className="w-full h-full object-cover rounded-full bg-slate-800"
+                className={`w-full h-full object-cover rounded-full bg-slate-800 ${userAvatar.includes('/avatars/') ? 'scale-[1.18]' : ''}`}
               />
             </div>
 
@@ -445,7 +445,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                           borderColor: avatar.borderColor,
                         }}
                       >
-                        <img src={avatar.url} alt={avatar.name} className="w-full h-full object-contain" loading="lazy" />
+                        <img src={avatar.url} alt={avatar.name} className="w-full h-full object-cover scale-[1.12]" loading="lazy" />
                       </div>
 
                       <div className="text-center w-full">
@@ -569,7 +569,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     <img
                       src={post.userAvatar || userAvatar}
                       alt={post.userName}
-                      className="w-8 h-8 rounded-full object-cover border"
+                      className={`w-8 h-8 rounded-full object-cover border ${(post.userAvatar || userAvatar).includes('/avatars/') ? 'scale-[1.12]' : ''}`}
                       style={{ borderColor: theme.colors.primary }}
                     />
                     <div>

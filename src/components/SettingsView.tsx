@@ -73,12 +73,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenProfile, onBac
     },
     {
       id: 'amber_work',
-      title: 'نمط العمل والتركيز الكهرماني (فاتح)',
-      description: 'أصفر مكثف وعنبري دافئ بخلفية فاتحة مشجعة للنشاط والتركيز',
-      badge: 'أصفر فاتح',
+      title: 'النمط الكهربائي الكهرماني الأزرق',
+      description: 'أصفر كهربائي مع أزرق داكن وأزرق متوسط واضح القراءة',
+      badge: 'أصفر وأزرق',
       icon: Zap,
-      swatches: ['#FFFFF0', '#CA8A04', '#EAB308', '#FEF9C3'],
-      gradient: 'from-[#FFFFF0] via-[#FEFCE8] to-[#FEF9C3]',
+      swatches: ['#FACC15', '#F59E0B', '#2563EB', '#0F172A'],
+      gradient: 'from-[#FFFFFF] via-[#EFF6FF] to-[#DBEAFE]',
     },
     {
       id: 'sky_cyan',
@@ -172,7 +172,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenProfile, onBac
                 <img
                   src={settingsAvatar}
                   alt={user?.name || 'الصورة الشخصية'}
-                  className="w-full h-full object-cover rounded-[14px]"
+                  className={`w-full h-full object-cover rounded-[14px] ${settingsAvatar.includes('/avatars/') ? 'scale-[1.18]' : ''}`}
                 />
               </div>
               <div className="absolute -bottom-1 -left-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center" />
