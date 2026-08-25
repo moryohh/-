@@ -33,7 +33,6 @@ import { CreatePostModal } from './components/CreatePostModal';
 import { CommunityCommentsModal } from './components/CommunityCommentsModal';
 import { MainHomeView } from './components/MainHomeView';
 import { SubjectLearningPathView } from './components/SubjectLearningPathView';
-import { LessonGamesModal } from './components/LessonGamesModal';
 import { GRADE_6_SUBJECTS } from './data/mockSubjects';
 import { Toast } from './components/Toast';
 import { cleanTeacherName } from './utils/cleanTeacherName';
@@ -62,6 +61,12 @@ import {
   updateUserProfileData,
 } from './services/communityService';
 import { getLevelSnapshot } from './services/pointsService';
+
+const LessonGamesModal = React.lazy(() =>
+  import('./components/LessonGamesModal').then(({ LessonGamesModal: LazyLessonGamesModal }) => ({
+    default: LazyLessonGamesModal,
+  }))
+);
 
 const LEARNING_POSITIONS_STORAGE_KEY = 'nahnu_maek_learning_positions_v2';
 
@@ -846,16 +851,18 @@ function AppContent() {
         teacherRole={lesson.teacherRole}
       />
 
-      <LessonGamesModal
-        isOpen={isGamesOpen}
-        onClose={() => setIsGamesOpen(false)}
-        games={getGamesForLesson(lesson.id)}
-        lessonTitle={lesson.title}
-        lessonId={lesson.id}
-        category={lesson.category}
-        openLessonContext={openLessonContext}
-        onScoreUpdate={handleScoreUpdate}
-      />
+      <React.Suspense fallback={null}>
+        <LessonGamesModal
+          isOpen={isGamesOpen}
+          onClose={() => setIsGamesOpen(false)}
+          games={getGamesForLesson(lesson.id)}
+          lessonTitle={lesson.title}
+          lessonId={lesson.id}
+          category={lesson.category}
+          openLessonContext={openLessonContext}
+          onScoreUpdate={handleScoreUpdate}
+        />
+      </React.Suspense>
     </div>
   );
 }
