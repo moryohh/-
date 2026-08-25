@@ -854,10 +854,6 @@ function AppContent() {
               onToggleLikePost={handleToggleLikeCommunityPost}
               onSharePost={handleShareCommunityPost}
               onReportPost={handleReportCommunityPost}
-              onBack={() => {
-                setActiveTab('home');
-                setHomeSubView('main_home');
-              }}
             />
           )}
 

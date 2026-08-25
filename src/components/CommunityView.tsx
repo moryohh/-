@@ -11,7 +11,6 @@ import {
   Sparkles,
   Flag,
   Paperclip,
-  ArrowRight,
   Check,
   Eye,
   X,
@@ -26,7 +25,6 @@ interface CommunityViewProps {
   onToggleLikePost: (postId: string) => void;
   onSharePost: (post: CommunityPost) => void;
   onReportPost: (postId: string) => void;
-  onBack?: () => void;
 }
 
 export const CommunityView: React.FC<CommunityViewProps> = ({
@@ -36,26 +34,19 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
   onToggleLikePost,
   onSharePost,
   onReportPost,
-  onBack,
 }) => {
   const { theme } = useAppTheme();
   const [activeMenuPostId, setActiveMenuPostId] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'questions' | 'summaries' | 'discussions'>('all');
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
   const [copiedPostId, setCopiedPostId] = useState<string | null>(null);
   const [visiblePostCount, setVisiblePostCount] = useState(10);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-  const filteredPosts = posts.filter((post) => {
-    if (activeFilter === 'questions') return post.type === 'question';
-    if (activeFilter === 'summaries') return post.type === 'summary';
-    if (activeFilter === 'discussions') return post.type === 'discussion';
-    return true;
-  });
+  const filteredPosts = posts;
 
   useEffect(() => {
     setVisiblePostCount(10);
-  }, [activeFilter, posts.length]);
+  }, [posts.length]);
 
   useEffect(() => {
     const sentinel = loadMoreRef.current;
@@ -103,113 +94,20 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
         </div>
       )}
 
-      {/* Header Banner Section */}
-      <div
-        className={`border-b sm:border rounded-none sm:rounded-3xl p-4 sm:p-5 shadow-sm sm:shadow-2xl relative overflow-hidden transition-all duration-300 ${theme.classes.cardBg} ${theme.classes.cardBorder}`}
-        style={{
-          boxShadow: `0 8px 30px ${theme.colors.glow}`,
-        }}
-      >
-        <div
-          className="absolute top-0 inset-x-0 h-1.5 transition-colors"
+      {/* Compact community actions: the global Header already provides back and notifications. */}
+      <div className={`flex justify-end px-3 pt-2 pb-1 ${theme.classes.cardBg}`}>
+        <button
+          type="button"
+          onClick={onOpenCreatePost}
+          className="text-white font-black py-2.5 px-4 rounded-2xl text-xs flex items-center gap-1.5 shadow-lg active:scale-95 transition-all cursor-pointer"
           style={{
-            background: `linear-gradient(to right, ${theme.colors.primary}, ${theme.colors.secondary}, ${theme.colors.primary})`,
+            backgroundColor: theme.colors.primary,
+            boxShadow: `0 4px 15px ${theme.colors.glow}`,
           }}
-        />
-
-        <div className="flex items-start justify-between gap-3 relative pt-1">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <div
-                className="w-9 h-9 rounded-2xl border flex items-center justify-center shadow-sm"
-                style={{
-                  backgroundColor: `${theme.colors.primary}20`,
-                  borderColor: `${theme.colors.primary}40`,
-                  color: theme.colors.primary,
-                }}
-              >
-                <Users className="w-5 h-5" />
-              </div>
-              <h1 className={`text-2xl sm:text-3xl font-black tracking-tight ${theme.classes.textMain}`}>المجتمع الطلابي</h1>
-            </div>
-            <p className={`text-sm sm:text-base ${theme.classes.textMuted} leading-8 max-w-xl mt-2`}>
-              مساحة تفاعلية للطلاب لمناقشة الأسئلة الوزارية، تبادل الملخصات، ومشاركة المعرفة.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            {onBack && (
-              <button
-                onClick={onBack}
-                className={`border font-bold py-2 px-3 rounded-2xl text-xs flex items-center gap-1 transition-all active:scale-95 cursor-pointer ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder} ${theme.classes.textMain}`}
-                aria-label="رجوع"
-              >
-                <ArrowRight className="w-4 h-4" style={{ color: theme.colors.primary }} />
-                <span>رجوع</span>
-              </button>
-            )}
-
-            <button
-              onClick={onOpenCreatePost}
-              className="text-white font-black py-2.5 px-4 rounded-2xl text-xs flex items-center gap-1.5 shadow-lg active:scale-95 transition-all cursor-pointer"
-              style={{
-                backgroundColor: theme.colors.primary,
-                boxShadow: `0 4px 15px ${theme.colors.glow}`,
-              }}
-            >
-              <Plus className="w-4 h-4" />
-              <span>إنشاء منشور</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Filter Pills */}
-        <div className={`flex items-center gap-2 mt-4 pt-3 border-t overflow-x-auto no-scrollbar text-xs ${theme.classes.cardBorder}`}>
-          <button
-            onClick={() => setActiveFilter('all')}
-            className={`px-3 py-1.5 rounded-xl border text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer ${
-              activeFilter === 'all'
-                ? 'text-white shadow-md'
-                : `${theme.classes.cardSubtleBg} ${theme.classes.cardBorder} ${theme.classes.textMuted}`
-            }`}
-            style={activeFilter === 'all' ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary } : {}}
-          >
-            الكل ({posts.length})
-          </button>
-          <button
-            onClick={() => setActiveFilter('questions')}
-            className={`px-3 py-1.5 rounded-xl border text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer ${
-              activeFilter === 'questions'
-                ? 'text-white shadow-md'
-                : `${theme.classes.cardSubtleBg} ${theme.classes.cardBorder} ${theme.classes.textMuted}`
-            }`}
-            style={activeFilter === 'questions' ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary } : {}}
-          >
-            ❓ أسئلة وزارية
-          </button>
-          <button
-            onClick={() => setActiveFilter('summaries')}
-            className={`px-3 py-1.5 rounded-xl border text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer ${
-              activeFilter === 'summaries'
-                ? 'text-white shadow-md'
-                : `${theme.classes.cardSubtleBg} ${theme.classes.cardBorder} ${theme.classes.textMuted}`
-            }`}
-            style={activeFilter === 'summaries' ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary } : {}}
-          >
-            📚 ملخصات وملازم
-          </button>
-          <button
-            onClick={() => setActiveFilter('discussions')}
-            className={`px-3 py-1.5 rounded-xl border text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer ${
-              activeFilter === 'discussions'
-                ? 'text-white shadow-md'
-                : `${theme.classes.cardSubtleBg} ${theme.classes.cardBorder} ${theme.classes.textMuted}`
-            }`}
-            style={activeFilter === 'discussions' ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary } : {}}
-          >
-            💬 نقاشات دراسية
-          </button>
-        </div>
+        >
+          <Plus className="w-4 h-4" />
+          <span>إنشاء منشور</span>
+        </button>
       </div>
 
       {/* Community Feed Posts */}
