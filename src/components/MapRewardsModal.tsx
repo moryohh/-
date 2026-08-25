@@ -20,8 +20,8 @@ export const MapRewardsModal: React.FC<MapRewardsModalProps> = ({
 
   const badges = [
     { id: '1', title: 'مستكشف الغابة', desc: 'أكمل جميع دروس غابة الأساسيات', icon: '🌲', unlocked: true, reward: '+50 كوينز' },
-    { id: '2', title: 'متسلق الجبال', desc: 'حل 10 مسائل وزارية بدون خطأ', icon: '⛰️', unlocked: true, reward: '+100 EXP' },
-    { id: '3', title: 'قبطان البحار', desc: 'أنهِ اختبار بحر الاستكشاف', icon: '⛵', unlocked: false, reward: '+150 EXP' },
+    { id: '2', title: 'متسلق الجبال', desc: 'حل 10 مسائل وزارية بدون خطأ', icon: '⛰️', unlocked: true, reward: '+100 نقطة مستوى' },
+    { id: '3', title: 'قبطان البحار', desc: 'أنهِ اختبار بحر الاستكشاف', icon: '⛵', unlocked: false, reward: '+150 نقطة مستوى' },
     { id: '4', title: 'حكيم القلعة', desc: 'وصل إلى قمة التميز بمعدل 100%', icon: '👑', unlocked: false, reward: '+300 كوينز' },
   ];
 
@@ -45,7 +45,7 @@ export const MapRewardsModal: React.FC<MapRewardsModalProps> = ({
         {/* Player Stats Overview */}
         <div className="grid grid-cols-3 gap-2.5 mb-5 text-center">
           <div className="bg-black/40 border border-sky-500/30 p-2.5 rounded-2xl">
-            <div className="text-xs text-sky-300 font-bold mb-0.5">نقاط الخبرة</div>
+            <div className="text-xs text-sky-300 font-bold mb-0.5">نقاط المستوى</div>
             <div className="text-base font-black text-white flex items-center justify-center gap-1">
               <Zap className="w-4 h-4 text-sky-400 fill-sky-400" />
               <span>{expCount}</span>

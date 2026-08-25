@@ -24,6 +24,7 @@ import {
 } from '../data/mockGibhaSah';
 import { GibhaSahAuthenticIcon } from './GameIcons';
 import { gameAudio } from '../utils/gameAudio';
+import { getImageChoiceReward } from '../services/pointsService';
 
 interface GibhaSahGameModalProps {
   isOpen: boolean;
@@ -101,6 +102,7 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
   >([]);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const rewardIssuedRef = useRef(false);
 
   // Initialize or re-sync config & shuffle questions
   useEffect(() => {
@@ -127,6 +129,10 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
     if (solvedCardNumbers.length === totalCardsCount && totalCardsCount > 0) {
       setIsFinished(true);
       if (soundEnabled) gameAudio.playVictoryFanfare();
+      if (!rewardIssuedRef.current) {
+        rewardIssuedRef.current = true;
+        onScoreUpdate?.(getImageChoiceReward(totalCardsCount, totalCardsCount));
+      }
     }
   }, [solvedCardNumbers.length, totalCardsCount, soundEnabled]);
 
@@ -276,7 +282,7 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
       } else {
         setSoloScore((prev) => prev + currentQ.points);
       }
-      if (onScoreUpdate) onScoreUpdate(currentQ.points);
+      // Platform reward is calculated once when the attempt ends.
 
       // Record in history
       setHistory((prev) => [
@@ -346,8 +352,6 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
       } else {
         setSoloScore((prev) => prev + currentQ.points);
       }
-      if (onScoreUpdate) onScoreUpdate(currentQ.points);
-
       setHistory((prev) => [
         ...prev,
         {
@@ -385,8 +389,17 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
     }
   };
 
+  const handleCloseGame = () => {
+    if (!rewardIssuedRef.current) {
+      rewardIssuedRef.current = true;
+      onScoreUpdate?.(getImageChoiceReward(solvedCardNumbers.length, totalCardsCount));
+    }
+    onClose();
+  };
+
   // Internal restart helper with shuffled questions
   const handleRestartInternal = (qs: GibhaSahQuestion[]) => {
+    rewardIssuedRef.current = false;
     setShuffledQuestions(shuffleArray(qs));
     setSolvedCardNumbers([]);
     setSelectedCardId(null);
@@ -495,7 +508,7 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
             {/* Close Button */}
             <button
               id="btn-close-gibha-sah"
-              onClick={onClose}
+              onClick={handleCloseGame}
               className="w-8 h-8 rounded-full bg-gradient-to-b from-[#324554] to-[#1a2630] border border-slate-400/50 text-slate-200 hover:text-rose-400 shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_2px_4px_rgba(0,0,0,0.4)] flex items-center justify-center transition-transform active:scale-95 cursor-pointer"
               title="إغلاق اللعبة"
             >
@@ -975,7 +988,7 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
                 </button>
                 <button
                   id="btn-finished-close"
-                  onClick={onClose}
+                  onClick={handleCloseGame}
                   className="flex-1 py-3 bg-gradient-to-r from-cyan-500 to-emerald-400 hover:from-cyan-400 hover:to-emerald-300 text-black font-black rounded-2xl shadow-lg text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
                 >
                   <span>العودة للدرس</span>

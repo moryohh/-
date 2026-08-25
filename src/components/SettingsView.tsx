@@ -25,15 +25,21 @@ import {
 import { useAppTheme, AppThemeId } from '../services/themeService';
 import { gameAudio } from '../utils/gameAudio';
 import { getSupabaseClient } from '../lib/supabase';
+import { UserProfile } from '../types';
+import { FALLBACK_DEFAULT_AVATAR } from '../data/cartoonAvatars';
+import { getLevelSnapshot } from '../services/pointsService';
 
 interface SettingsViewProps {
   onOpenProfile?: () => void;
   onBack?: () => void;
   onSignOut?: () => void;
+  user?: UserProfile | null;
 }
 
-export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenProfile, onBack, onSignOut }) => {
+export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenProfile, onBack, onSignOut, user }) => {
   const { currentThemeId, theme, setThemeId } = useAppTheme();
+  const userLevelSnapshot = getLevelSnapshot(user?.points ?? 0);
+  const settingsAvatar = user?.avatarUrl || FALLBACK_DEFAULT_AVATAR;
   const [isThemePickerOpen, setIsThemePickerOpen] = useState(false);
   const [dbTestLoading, setDbTestLoading] = useState(false);
   const [dbTestResult, setDbTestResult] = useState<any>(null);
@@ -164,8 +170,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenProfile, onBac
                 }}
               >
                 <img
-                  src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80"
-                  alt="الصورة الشخصية"
+                  src={settingsAvatar}
+                  alt={user?.name || 'الصورة الشخصية'}
                   className="w-full h-full object-cover rounded-[14px]"
                 />
               </div>
@@ -175,7 +181,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenProfile, onBac
             <div className="space-y-0.5">
               <div className="flex items-center gap-2">
                 <h3 className={`text-sm font-black group-hover:opacity-80 transition-opacity ${theme.classes.textMain}`}>
-                  أحمد حيدر
+                  {user?.name || 'الطالب'}
                 </h3>
                 <span
                   className="text-[9px] font-black px-2 py-0.5 rounded-full border"
@@ -185,16 +191,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenProfile, onBac
                     color: theme.colors.primary,
                   }}
                 >
-                  السادس الإعدادي
+                  {user?.grade || 'السادس الإعدادي'}
                 </span>
               </div>
-              <p className={`text-xs ${theme.classes.textMuted}`}>الفرع العلمي • العراق</p>
+              <p className={`text-xs ${theme.classes.textMuted}`}>{user?.branch || 'الفرع العلمي'} • العراق</p>
               <div className="flex items-center gap-2 pt-0.5">
                 <span className="text-[10px] text-amber-500 font-bold flex items-center gap-1">
                   <Flame className="w-3 h-3 fill-amber-500" />
-                  مستوى 22
+                  مستوى {userLevelSnapshot.level}
                 </span>
-                <span className={`text-[10px] ${theme.classes.textMuted}`}>• 2,250 نقطة</span>
+                <span className={`text-[10px] ${theme.classes.textMuted}`}>• {userLevelSnapshot.totalPoints.toLocaleString('ar-IQ')} نقطة</span>
               </div>
             </div>
           </div>

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { TrueFalseGameConfig, TrueFalseQuestion, getTrueFalseGameForLesson } from '../data/mockTrueFalse';
 import { gameAudio } from '../utils/gameAudio';
+import { getTrueFalseReward } from '../services/pointsService';
 
 interface TrueFalseGameModalProps {
   isOpen: boolean;
@@ -61,6 +62,7 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
   >([]);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const rewardIssuedRef = useRef(false);
 
   // Reload config if lessonId or customConfig changes
   useEffect(() => {
@@ -68,6 +70,13 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
     setConfig(loadedConfig);
     resetGame();
   }, [customConfig, lessonId, lessonTitle, category]);
+
+  useEffect(() => {
+    if (isCompleted && !rewardIssuedRef.current) {
+      rewardIssuedRef.current = true;
+      onScoreUpdate?.(getTrueFalseReward(correctCount, config.questions.length));
+    }
+  }, [isCompleted, correctCount, config.questions.length, onScoreUpdate]);
 
   // Audio effects using GameAudioEngine
   const playAudio = (type: 'correct' | 'wrong' | 'win' | 'click' | 'streak') => {
@@ -151,7 +160,6 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
         }
         return next;
       });
-      if (onScoreUpdate) onScoreUpdate(earned);
     } else {
       playAudio('wrong');
       setWrongCount((prev) => prev + 1);
@@ -183,6 +191,7 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
   };
 
   const resetGame = () => {
+    rewardIssuedRef.current = false;
     setCurrentIndex(0);
     setSelectedChoice(null);
     setIsAnswered(false);

@@ -1,5 +1,6 @@
 import { getSupabaseClient } from '../lib/supabase';
 import { UserProfile } from '../types';
+import { FALLBACK_DEFAULT_AVATAR } from '../data/cartoonAvatars';
 
 /**
  * Strict email validation:
@@ -80,7 +81,7 @@ export async function syncUserProfile(supabaseUser: any): Promise<UserProfile> {
   const avatarUrl =
     meta.avatar_url ||
     meta.picture ||
-    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80';
+    FALLBACK_DEFAULT_AVATAR;
 
   const baseProfile: UserProfile = {
     id: userId,
@@ -90,9 +91,9 @@ export async function syncUserProfile(supabaseUser: any): Promise<UserProfile> {
     grade: meta.grade || 'السادس الإعدادي',
     branch: meta.branch || 'الفرع العلمي',
     level: 1,
-    points: 100,
-    studyHours: 0.5,
-    streakDays: 1,
+    points: 0,
+    studyHours: 0,
+    streakDays: 0,
   };
 
   if (!client) {
@@ -115,10 +116,10 @@ export async function syncUserProfile(supabaseUser: any): Promise<UserProfile> {
         avatarUrl: existingProfile.avatar_url || avatarUrl,
         grade: existingProfile.grade || 'السادس الإعدادي',
         branch: existingProfile.branch || 'الفرع العلمي',
-        level: existingProfile.level || 1,
-        points: existingProfile.points || 100,
-        studyHours: existingProfile.study_hours || 0.5,
-        streakDays: existingProfile.streak_days || 1,
+        level: existingProfile.level ?? 1,
+        points: existingProfile.points ?? 0,
+        studyHours: existingProfile.study_hours ?? 0,
+        streakDays: existingProfile.streak_days ?? 0,
       };
     }
 

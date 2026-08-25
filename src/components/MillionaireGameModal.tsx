@@ -33,6 +33,7 @@ import {
 import { MillionaireGameConfig, MillionaireQuestion, StudentGameResult } from '../types';
 import { getMillionaireGameForLesson } from '../data/mockMillionaire';
 import { gameAudio } from '../utils/gameAudio';
+import { getMillionaireReward } from '../services/pointsService';
 
 interface MillionaireGameModalProps {
   isOpen: boolean;
@@ -44,21 +45,21 @@ interface MillionaireGameModalProps {
   customConfig?: MillionaireGameConfig;
 }
 
-// Exact 13 Prize Ladder Levels for 1,000,000 Iraqi Dinars
+// 13-level Iraqi dinar prize ladder shown inside the game.
 const LADDER_LEVELS = [
-  { level: 1, points: 5000, label: '5 000 د.ع', isSafety: false },
-  { level: 2, points: 10000, label: '10 000 د.ع', isSafety: false },
-  { level: 3, points: 25000, label: '25 000 د.ع', isSafety: false },
-  { level: 4, points: 50000, label: '50 000 د.ع', isSafety: false },
-  { level: 5, points: 100000, label: '100 000 د.ع', isSafety: true }, // محطة الأمان الأولى (100 ألف)
-  { level: 6, points: 150000, label: '150 000 د.ع', isSafety: false },
-  { level: 7, points: 250000, label: '250 000 د.ع', isSafety: false },
-  { level: 8, points: 400000, label: '400 000 د.ع', isSafety: false },
-  { level: 9, points: 500000, label: '500 000 د.ع', isSafety: true }, // محطة الأمان الثانية (500 ألف)
-  { level: 10, points: 650000, label: '650 000 د.ع', isSafety: false },
-  { level: 11, points: 800000, label: '800 000 د.ع', isSafety: false },
-  { level: 12, points: 900000, label: '900 000 د.ع', isSafety: false },
-  { level: 13, points: 1000000, label: '1 000 000 د.ع', isSafety: true }, // سؤال المليون دينار 🏆
+  { level: 1, points: 250, label: '250 د.ع', isSafety: false },
+  { level: 2, points: 500, label: '500 د.ع', isSafety: false },
+  { level: 3, points: 1000, label: '1 000 د.ع', isSafety: false },
+  { level: 4, points: 5000, label: '5 000 د.ع', isSafety: false },
+  { level: 5, points: 10000, label: '10 000 د.ع', isSafety: true },
+  { level: 6, points: 25000, label: '25 000 د.ع', isSafety: false },
+  { level: 7, points: 50000, label: '50 000 د.ع', isSafety: false },
+  { level: 8, points: 100000, label: '100 000 د.ع', isSafety: false },
+  { level: 9, points: 250000, label: '250 000 د.ع', isSafety: true },
+  { level: 10, points: 500000, label: '500 000 د.ع', isSafety: false },
+  { level: 11, points: 1000000, label: '1 000 000 د.ع', isSafety: true },
+  { level: 12, points: 2000000, label: '2 000 000 د.ع', isSafety: false },
+  { level: 13, points: 5000000, label: '5 000 000 د.ع', isSafety: true },
 ];
 
 const MILLIONAIRE_WRONG_AUDIO_URL = `${import.meta.env.BASE_URL}audio/millionaire-wrong.mp3`;
@@ -310,6 +311,7 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
   const [isUserEliminated, setIsUserEliminated] = useState(false);
   const [isOpponentEliminated, setIsOpponentEliminated] = useState(false);
   const isAdvancingQuestionRef = useRef(false);
+  const rewardIssuedRef = useRef(false);
   const [handoverBanner, setHandoverBanner] = useState<{
     show: boolean;
     title: string;
@@ -822,6 +824,7 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
   // Restart / Reset game state
   const resetGame = () => {
     gameAudio.stopAllExternal();
+    rewardIssuedRef.current = false;
     setGameState('start');
     setCurrentQuestionIndex(0);
     setSelectedOption(null);
@@ -950,10 +953,6 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
         const pointsForThisLevel = currentLadder.points;
         setAccumulatedPoints(pointsForThisLevel);
         setCorrectAnswersCount((prev) => prev + 1);
-
-        if (onScoreUpdate) {
-          onScoreUpdate(pointsForThisLevel);
-        }
 
         if (pointsForThisLevel > highScore) {
           setHighScore(pointsForThisLevel);
@@ -1092,6 +1091,16 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
 
   // Save student result
   const saveGameResult = () => {
+    const reachedQuestionCount = Math.min(currentQuestionIndex + 1, LADDER_LEVELS.length);
+    const lastAnswer = answeredHistory[answeredHistory.length - 1];
+    const completed = reachedQuestionCount >= LADDER_LEVELS.length && Boolean(lastAnswer?.isCorrect);
+    const platformReward = getMillionaireReward(reachedQuestionCount, LADDER_LEVELS.length, completed);
+
+    if (!rewardIssuedRef.current) {
+      rewardIssuedRef.current = true;
+      onScoreUpdate?.(platformReward);
+    }
+
     const result: StudentGameResult = {
       studentId: 'student-current',
       lessonId,
@@ -1100,8 +1109,8 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
       correctAnswers: correctAnswersCount,
       wrongAnswers: wrongAnswersCount,
       completedAt: new Date().toISOString(),
-      pointsEarned: accumulatedPoints,
-      maxLevelReached: currentQuestionIndex + 1,
+      pointsEarned: platformReward,
+      maxLevelReached: reachedQuestionCount,
     };
 
     try {

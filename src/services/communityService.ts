@@ -320,6 +320,7 @@ export async function updateUserProfileData(
     if (updates.grade) payload.grade = updates.grade;
     if (updates.branch) payload.branch = updates.branch;
     if (updates.points !== undefined) payload.points = updates.points;
+    if (updates.level !== undefined) payload.level = updates.level;
     if (updates.studyHours !== undefined) payload.study_hours = updates.studyHours;
     if (updates.streakDays !== undefined) payload.streak_days = updates.streakDays;
 
@@ -338,10 +339,10 @@ export async function updateUserProfileData(
         avatarUrl: data.avatar_url || updates.avatarUrl,
         grade: data.grade || updates.grade,
         branch: data.branch || updates.branch,
-        level: data.level || updates.level || 1,
-        points: data.points ?? updates.points ?? 100,
-        studyHours: data.study_hours ?? updates.studyHours ?? 0.5,
-        streakDays: data.streak_days ?? updates.streakDays ?? 1,
+        level: data.level ?? updates.level ?? 1,
+        points: data.points ?? updates.points ?? 0,
+        studyHours: data.study_hours ?? updates.studyHours ?? 0,
+        streakDays: data.streak_days ?? updates.streakDays ?? 0,
       };
     }
   } catch (err) {

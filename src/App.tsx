@@ -59,7 +59,9 @@ import {
   toggleLikeCommunityPost,
   addCommunityComment,
   reportCommunityPost,
+  updateUserProfileData,
 } from './services/communityService';
+import { getLevelSnapshot } from './services/pointsService';
 
 const LEARNING_POSITIONS_STORAGE_KEY = 'nahnu_maek_learning_positions_v2';
 
@@ -351,6 +353,34 @@ function AppContent() {
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
+  };
+
+  const handleScoreUpdate = async (points: number) => {
+    if (!currentUser || points <= 0) return;
+
+    const nextTotalPoints = (currentUser.points ?? 0) + points;
+    const levelSnapshot = getLevelSnapshot(nextTotalPoints);
+    const optimisticUser: UserProfile = {
+      ...currentUser,
+      points: nextTotalPoints,
+      level: levelSnapshot.level,
+    };
+
+    setCurrentUser(optimisticUser);
+    showToast(`أضيفت ${points} ${points === 1 ? 'نقطة' : 'نقاط'} إلى مستواك`);
+
+    const savedUser = await updateUserProfileData(currentUser.id, {
+      points: nextTotalPoints,
+      level: levelSnapshot.level,
+    });
+    if (savedUser) {
+      setCurrentUser((previous) => ({
+        ...(previous || optimisticUser),
+        ...savedUser,
+        points: savedUser.points ?? nextTotalPoints,
+        level: savedUser.level ?? levelSnapshot.level,
+      }));
+    }
   };
 
   // Handlers - Direct Teacher Switching without Story Modals
@@ -657,6 +687,7 @@ function AppContent() {
               learningPosition={learningPosition}
               onPositionChange={handlePositionChange}
               openLessonContext={openLessonContext}
+              user={currentUser}
               onSelectLesson={handleSelectLessonWithContext}
               onBack={() => {
                 setHomeSubView('main_home');
@@ -728,6 +759,7 @@ function AppContent() {
                 setHomeSubView('main_home');
               }}
               onSignOut={handleSignOut}
+              user={currentUser}
             />
           )}
 
@@ -821,6 +853,7 @@ function AppContent() {
         lessonId={lesson.id}
         category={lesson.category}
         openLessonContext={openLessonContext}
+        onScoreUpdate={handleScoreUpdate}
       />
     </div>
   );

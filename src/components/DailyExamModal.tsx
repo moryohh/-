@@ -22,6 +22,7 @@ import {
 } from '../services/imageEvaluationService';
 import { useAppTheme } from '../services/themeService';
 import { OpenLessonContext } from '../types';
+import { getDailyExamReward } from '../services/pointsService';
 
 interface DailyExamModalProps {
   isOpen: boolean;
@@ -31,6 +32,7 @@ interface DailyExamModalProps {
   category?: string;
   customExam?: DailyExamConfig;
   openLessonContext?: OpenLessonContext | null;
+  onScoreUpdate?: (points: number) => void;
 }
 
 export const DailyExamModal: React.FC<DailyExamModalProps> = ({
@@ -41,6 +43,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
   category = 'المادة التعليمية',
   customExam,
   openLessonContext,
+  onScoreUpdate,
 }) => {
   const { theme } = useAppTheme();
   const [exam, setExam] = useState<DailyExamConfig | null>(customExam || null);
@@ -79,6 +82,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
   const [timeLeft, setTimeLeft] = useState(900);
   const [isTimerRunning, setIsTimerRunning] = useState(true);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const rewardIssuedRef = useRef(false);
 
   // Load exam data on mount / open
   useEffect(() => {
@@ -125,6 +129,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
+          awardDailyExamReward();
           setIsSubmitted(true);
           gameAudio.playVictoryFanfare();
           return 0;
@@ -244,6 +249,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
   };
 
   const handleSubmitExam = () => {
+    awardDailyExamReward();
     gameAudio.playVictoryFanfare();
     setIsSubmitted(true);
     setIsTimerRunning(false);
@@ -251,6 +257,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
 
   const handleRestartExam = () => {
     gameAudio.playClick();
+    rewardIssuedRef.current = false;
     setTimeLeft(900);
     setIsTimerRunning(true);
     setIsSubmitted(false);
@@ -271,6 +278,13 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
   );
   const totalEarnedPoints = validEvaluations.reduce((sum, res) => sum + (res.score || 0), 0);
   const totalEvaluatedCount = validEvaluations.length;
+
+  const awardDailyExamReward = () => {
+    if (rewardIssuedRef.current || !exam || totalEvaluatedCount < 2) return;
+    rewardIssuedRef.current = true;
+    const percentage = (totalEarnedPoints / (Number(exam.totalPoints) || 1)) * 100;
+    onScoreUpdate?.(getDailyExamReward(percentage));
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-end sm:items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200 font-cairo select-none">

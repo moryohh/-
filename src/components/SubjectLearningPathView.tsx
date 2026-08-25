@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { EducationalLesson, SubjectChapter, SubjectChapterLesson, OpenLessonContext, LearningPosition } from '../types';
+import { EducationalLesson, SubjectChapter, SubjectChapterLesson, OpenLessonContext, LearningPosition, UserProfile } from '../types';
 import { getCurriculumForSubject } from '../data/mockCurriculums';
+import { getLevelSnapshot } from '../services/pointsService';
 import { getSubjectIndex, getSubjectChapters, getChapterLessons, getLessonDetails, formatArabicLessonTitle, buildLessonKey } from '../services/lessonsService';
 import { AdventureWorldMap } from './AdventureWorldMap';
 import { MapRewardsModal } from './MapRewardsModal';
@@ -53,6 +54,7 @@ interface SubjectLearningPathViewProps {
   learningPosition?: LearningPosition | null;
   onPositionChange?: (pos: LearningPosition) => void;
   openLessonContext?: OpenLessonContext | null;
+  user?: UserProfile | null;
   onSelectLesson: (lesson: EducationalLesson, context?: OpenLessonContext) => void;
   onBack: () => void;
   onOpenGames?: () => void;
@@ -63,6 +65,7 @@ export const SubjectLearningPathView: React.FC<SubjectLearningPathViewProps> = (
   learningPosition,
   onPositionChange,
   openLessonContext,
+  user,
   onSelectLesson,
   onBack,
   onOpenGames,
@@ -92,10 +95,11 @@ export const SubjectLearningPathView: React.FC<SubjectLearningPathViewProps> = (
   const [openedChests, setOpenedChests] = useState<string[]>([]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Player stats
-  const [expCount, setExpCount] = useState(2250);
-  const [coinsCount, setCoinsCount] = useState(150);
-  const [starsCount, setStarsCount] = useState(30);
+  // Player stats: level progress is driven by the persisted user points.
+  const levelSnapshot = getLevelSnapshot(user?.points ?? 0);
+  const expCount = levelSnapshot.totalPoints;
+  const [coinsCount, setCoinsCount] = useState(0);
+  const [starsCount, setStarsCount] = useState(0);
 
   // Sync selectedChapterNumber if learningPosition changes externally
   useEffect(() => {
@@ -252,10 +256,9 @@ export const SubjectLearningPathView: React.FC<SubjectLearningPathViewProps> = (
       return;
     }
     setOpenedChests((prev) => [...prev, chestId]);
-    setExpCount((prev) => prev + 100);
     setCoinsCount((prev) => prev + 50);
     setStarsCount((prev) => prev + 1);
-    showToast('✨ مبروك! حصلت على +100 EXP و +50 كوينز ونجمة ذهبية! ⭐');
+    showToast('✨ مبروك! فُتح صندوق المكافأة وحصلت على +50 كوينز ونجمة ذهبية! ⭐');
   };
 
   const showToast = (msg: string) => {
@@ -399,26 +402,26 @@ export const SubjectLearningPathView: React.FC<SubjectLearningPathViewProps> = (
             className="w-10 h-10 rounded-full border-2 overflow-hidden shrink-0 shadow"
             style={{ borderColor: theme.colors.primary }}
           >
-            <img
-              src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80"
-              alt="المغامر"
+              <img
+              src={user?.avatarUrl || subject.teacherAvatar}
+              alt={user?.name || 'صورة المستخدم'}
               className="w-full h-full object-cover"
             />
           </div>
           <div className="min-w-0">
-            <div className={`text-xs font-black truncate ${theme.classes.textMain}`}>اسم المغامر: أحمد</div>
+            <div className={`text-xs font-black truncate ${theme.classes.textMain}`}>اسم المغامر: {user?.name || 'الطالب'}</div>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="text-[10px] font-bold" style={{ color: theme.colors.primary }}>
-                مستوى 22
+                مستوى {levelSnapshot.level}
               </span>
               {/* Level Progress */}
               <div className="w-16 h-2 bg-black/40 rounded-full overflow-hidden border border-white/20">
                 <div
-                  className="h-full rounded-full"
-                  style={{ width: '45%', backgroundColor: theme.colors.primary }}
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{ width: `${levelSnapshot.progressPercent}%`, backgroundColor: theme.colors.primary }}
                 />
               </div>
-              <span className={`text-[9px] font-bold ${theme.classes.textMuted}`}>45%</span>
+              <span className={`text-[9px] font-bold ${theme.classes.textMuted}`}>{levelSnapshot.progressPercent}%</span>
             </div>
           </div>
         </div>

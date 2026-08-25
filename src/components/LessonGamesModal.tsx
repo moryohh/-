@@ -34,6 +34,7 @@ interface LessonGamesModalProps {
   lessonId?: string;
   category?: string;
   openLessonContext?: OpenLessonContext | null;
+  onScoreUpdate?: (points: number) => void;
 }
 
 export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
@@ -44,6 +45,7 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
   lessonId = 'lesson-bio-ch3',
   category = 'المادة التعليمية',
   openLessonContext,
+  onScoreUpdate,
 }) => {
   const { theme } = useAppTheme();
   // Mode: 'menu' | 'millionaire' | 'true_false' | 'gibha_sah' | 'daily_exam' | 'quick'
@@ -162,6 +164,7 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
         lessonTitle={openLessonContext?.lessonTitle || lessonTitle}
         category={openLessonContext?.subjectId || category}
         customConfig={gamesBundle?.mcqConfig}
+        onScoreUpdate={onScoreUpdate}
       />
     );
   }
@@ -176,6 +179,7 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
         lessonTitle={openLessonContext?.lessonTitle || lessonTitle}
         category={openLessonContext?.subjectId || category}
         customConfig={gamesBundle?.trueFalseConfig}
+        onScoreUpdate={onScoreUpdate}
       />
     );
   }
@@ -190,6 +194,7 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
         lessonTitle={openLessonContext?.lessonTitle || lessonTitle}
         category={openLessonContext?.subjectId || category}
         customConfig={gamesBundle?.gibhaSahConfig}
+        onScoreUpdate={onScoreUpdate}
       />
     );
   }
@@ -204,6 +209,7 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
         lessonTitle={openLessonContext?.lessonTitle || lessonTitle}
         category={openLessonContext?.subjectId || category}
         openLessonContext={openLessonContext}
+        onScoreUpdate={onScoreUpdate}
       />
     );
   }

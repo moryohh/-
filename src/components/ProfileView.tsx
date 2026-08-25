@@ -19,11 +19,13 @@ import {
   Trash2,
   Share2,
   Calendar,
+  LockKeyhole,
 } from 'lucide-react';
 import { useAppTheme } from '../services/themeService';
 import { UserProfile, CommunityPost } from '../types';
 import { DEFAULT_CARTOON_AVATARS, CartoonAvatarOption } from '../data/cartoonAvatars';
 import { updateUserProfileData } from '../services/communityService';
+import { getLevelSnapshot } from '../services/pointsService';
 
 interface ProfileViewProps {
   user?: UserProfile | null;
@@ -58,19 +60,23 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const userAvatar =
     user?.avatarUrl ||
     DEFAULT_CARTOON_AVATARS[0].url;
-  const studyHours = user?.studyHours ?? 14.2;
-  const streakDays = user?.streakDays ?? 12;
-  const totalPoints = user?.points ?? 2250;
-  const userLevel = user?.level ?? 22;
+  const studyHours = user?.studyHours ?? 0;
+  const streakDays = user?.streakDays ?? 0;
+  const totalPoints = user?.points ?? 0;
+  const userLevel = getLevelSnapshot(totalPoints).level;
 
   // Filter posts created by this user
   const authoredPosts = userPosts.filter(
     (p) => p.isOwnPost || (user?.id && p.userId === user.id) || p.userName === userName
   );
 
-  // Handle choosing one of the 4 default cartoon avatars
+  // Handle choosing one of the free avatars, respecting the user's current level.
   const handleSelectCartoonAvatar = async (avatarOption: CartoonAvatarOption) => {
     if (!user) return;
+    if (userLevel < avatarOption.unlockLevel) {
+      showTempMsg(`تُفتح هذه الشخصية عند الوصول إلى المستوى ${avatarOption.unlockLevel}`);
+      return;
+    }
     const updated: UserProfile = {
       ...user,
       avatarUrl: avatarOption.url,
@@ -299,42 +305,59 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             {/* 4 Default Cartoon Avatars (Duolingo-style fruits & mascots) */}
             <div className="space-y-2.5 pt-2">
               <label className={`text-xs font-black block ${theme.classes.textMain}`}>
-                2. أو اختر شخصية كرتونية مبهجة (فواكه ومساعدين):
+                2. اختر شخصية مجانية من مكتبة الأفاتارات:
               </label>
+              <div className="flex items-center justify-between gap-2 rounded-xl border border-sky-500/20 bg-sky-500/5 px-3 py-2 text-[10px]">
+                <span className={theme.classes.textMuted}>مستواك الحالي: <strong className="text-sky-400">{userLevel}</strong></span>
+                <span className="text-emerald-400 font-bold">الفواكه من المستوى 1</span>
+                <span className="text-amber-400 font-bold">رفاق الدراسة من المستوى 3</span>
+              </div>
 
               <div className="grid grid-cols-2 gap-3">
                 {DEFAULT_CARTOON_AVATARS.map((avatar) => {
                   const isSelected = userAvatar === avatar.url;
+                  const isUnlocked = userLevel >= avatar.unlockLevel;
                   return (
                     <button
                       key={avatar.id}
                       type="button"
                       onClick={() => handleSelectCartoonAvatar(avatar)}
-                      className={`p-3 rounded-2xl border text-right transition-all flex flex-col items-center gap-2 cursor-pointer relative overflow-hidden ${
+                      disabled={!isUnlocked}
+                      aria-label={isUnlocked ? `اختيار ${avatar.name}` : `${avatar.name} مقفلة حتى المستوى ${avatar.unlockLevel}`}
+                      className={`p-3 rounded-2xl border text-right transition-all flex flex-col items-center gap-2 relative overflow-hidden ${
                         isSelected
-                          ? 'border-sky-400 bg-sky-500/20 shadow-lg'
-                          : `${theme.classes.cardSubtleBg} ${theme.classes.cardBorder} hover:border-white/20`
+                          ? 'border-sky-400 bg-sky-500/20 shadow-lg shadow-sky-500/15'
+                          : isUnlocked
+                          ? `${theme.classes.cardSubtleBg} ${theme.classes.cardBorder} hover:border-sky-400/70 hover:-translate-y-0.5 cursor-pointer`
+                          : 'border-white/5 bg-black/10 opacity-55 cursor-not-allowed'
                       }`}
                     >
                       {isSelected && (
-                        <span className="absolute top-2 left-2 w-5 h-5 rounded-full bg-sky-500 text-white flex items-center justify-center text-[10px]">
+                        <span className="absolute top-2 left-2 w-5 h-5 rounded-full bg-sky-500 text-white flex items-center justify-center text-[10px] z-10">
                           <Check className="w-3 h-3" />
+                        </span>
+                      )}
+                      {!isUnlocked && (
+                        <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-slate-900/80 text-amber-300 flex items-center justify-center text-[10px] z-10" title={`يفتح في المستوى ${avatar.unlockLevel}`}>
+                          <LockKeyhole className="w-3 h-3" />
                         </span>
                       )}
 
                       <div
-                        className="w-14 h-14 rounded-2xl p-1 shadow-md border"
+                        className="w-16 h-16 rounded-2xl p-1 shadow-md border transition-transform duration-200"
                         style={{
                           backgroundColor: avatar.bgColor,
                           borderColor: avatar.borderColor,
                         }}
                       >
-                        <img src={avatar.url} alt={avatar.name} className="w-full h-full object-contain" />
+                        <img src={avatar.url} alt={avatar.name} className="w-full h-full object-contain" loading="lazy" />
                       </div>
 
                       <div className="text-center w-full">
                         <div className={`text-xs font-black ${theme.classes.textMain}`}>{avatar.name}</div>
-                        <div className="text-[10px] text-gray-400 mt-0.5 line-clamp-1">{avatar.description}</div>
+                        <div className={`text-[10px] mt-0.5 line-clamp-1 ${isUnlocked ? 'text-emerald-400' : 'text-amber-400'}`}>
+                          {isUnlocked ? `متاح مجاناً • المستوى ${avatar.unlockLevel}` : `يفتح في المستوى ${avatar.unlockLevel}`}
+                        </div>
                       </div>
                     </button>
                   );
@@ -554,7 +577,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 </div>
                 <div>
                   <div className={`font-bold ${theme.classes.textMain}`}>المستوى الأكاديمي {userLevel}</div>
-                  <div className={`text-[10px] ${theme.classes.textMuted}`}>إنجاز 18 من أصل 24 درساً</div>
+                  <div className={`text-[10px] ${theme.classes.textMuted}`}>{totalPoints} نقطة • التقدم {getLevelSnapshot(totalPoints).progressPercent}% نحو المستوى التالي</div>
                 </div>
               </div>
               <span
@@ -565,7 +588,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   color: theme.colors.primary,
                 }}
               >
-                متقدم
+                المستوى {userLevel}
               </span>
             </div>
 
