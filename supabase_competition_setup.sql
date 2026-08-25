@@ -7,6 +7,7 @@ create table if not exists public.competition_stats (
   activity_day date not null default current_date,
   activity_minutes_today integer not null default 0,
   activity_points_today integer not null default 0,
+  period_points integer not null default 0,
   period_start date not null default date '2026-01-01',
   period_correct integer not null default 0,
   period_answered integer not null default 0,
@@ -15,6 +16,7 @@ create table if not exists public.competition_stats (
 
 alter table public.profiles add column if not exists points integer not null default 0;
 alter table public.profiles add column if not exists level integer not null default 1;
+alter table public.competition_stats add column if not exists period_points integer not null default 0;
 
 alter table public.competition_stats enable row level security;
 
@@ -24,12 +26,18 @@ on public.competition_stats
 for select to authenticated
 using (auth.uid() = user_id);
 
+-- الدوال التالية تعيد بنية مخرجات محدثة؛ حذف تعريفاتها القديمة يجعل إعادة التشغيل آمنة.
+drop function if exists public.record_period_points(integer) cascade;
+drop function if exists public.record_assessment_result(integer, integer) cascade;
+drop function if exists public.record_activity_block() cascade;
+drop function if exists public.get_my_competition_snapshot() cascade;
+
 create or replace function public.competition_period_start(p_day date default current_date)
 returns date
 language sql
 immutable
 as $$
-  select date '2026-01-01' + (((p_day - date '2026-01-01') / 14) * 14);
+  select date '2026-01-01' + (((p_day - date '2026-01-01') / 15) * 15);
 $$;
 
 create or replace function public.competition_level_for_points(p_total integer)
@@ -82,6 +90,7 @@ returns table (
   points integer,
   activity_minutes_today integer,
   activity_points_today integer,
+  period_points integer,
   period_correct integer,
   period_answered integer,
   accuracy_percent integer,
@@ -120,6 +129,7 @@ begin
 
   if v_stats.period_start <> v_period_start then
     v_stats.period_start := v_period_start;
+    v_stats.period_points := 0;
     v_stats.period_correct := 0;
     v_stats.period_answered := 0;
   end if;
@@ -127,6 +137,7 @@ begin
   if v_stats.activity_points_today < 5 then
     v_stats.activity_minutes_today := least(v_stats.activity_minutes_today + 5, 1440);
     v_stats.activity_points_today := v_stats.activity_points_today + 1;
+    v_stats.period_points := v_stats.period_points + 1;
     v_add_point := true;
   end if;
 
@@ -134,6 +145,7 @@ begin
   set activity_day = v_stats.activity_day,
       activity_minutes_today = v_stats.activity_minutes_today,
       activity_points_today = v_stats.activity_points_today,
+      period_points = v_stats.period_points,
       period_start = v_stats.period_start,
       period_correct = v_stats.period_correct,
       period_answered = v_stats.period_answered,
@@ -159,13 +171,14 @@ begin
          coalesce(v_points, 0),
          s.activity_minutes_today,
          s.activity_points_today,
+         s.period_points,
          s.period_correct,
          s.period_answered,
          case when s.period_answered > 0 then round((s.period_correct::numeric / s.period_answered::numeric) * 100)::integer else 0 end,
          public.competition_rating_for(coalesce(v_level, 1), s.period_correct, s.period_answered),
          coalesce(v_level, 1) >= 6,
          s.period_start,
-         s.period_start + 13,
+         s.period_start + 14,
          ranked.rank,
          (select count(*) from public.profiles)
   from public.competition_stats s
@@ -188,6 +201,7 @@ returns table (
   points integer,
   activity_minutes_today integer,
   activity_points_today integer,
+  period_points integer,
   period_correct integer,
   period_answered integer,
   accuracy_percent integer,
@@ -216,6 +230,7 @@ begin
 
   update public.competition_stats
   set period_start = v_period_start,
+      period_points = case when competition_stats.period_start = v_period_start then competition_stats.period_points + v_correct else v_correct end,
       period_correct = case when competition_stats.period_start = v_period_start then competition_stats.period_correct + v_correct else v_correct end,
       period_answered = case when competition_stats.period_start = v_period_start then competition_stats.period_answered + v_total else v_total end,
       updated_at = now()
@@ -284,6 +299,7 @@ returns table (
   points integer,
   activity_minutes_today integer,
   activity_points_today integer,
+  period_points integer,
   period_correct integer,
   period_answered integer,
   accuracy_percent integer,
@@ -310,6 +326,7 @@ as $$
       greatest(coalesce(p.points, 0), 0) as points,
       coalesce(s.activity_minutes_today, 0) as activity_minutes_today,
       coalesce(s.activity_points_today, 0) as activity_points_today,
+      coalesce(s.period_points, 0) as period_points,
       coalesce(s.period_correct, 0) as period_correct,
       coalesce(s.period_answered, 0) as period_answered,
       coalesce(s.period_start, public.competition_period_start(current_date)) as period_start
@@ -322,25 +339,73 @@ as $$
     r.points,
     r.activity_minutes_today,
     r.activity_points_today,
+    r.period_points,
     r.period_correct,
     r.period_answered,
     case when r.period_answered > 0 then round((r.period_correct::numeric / r.period_answered::numeric) * 100)::integer else 0 end,
     public.competition_rating_for(r.level, r.period_correct, r.period_answered),
     r.level >= 6,
     r.period_start,
-    r.period_start + 13,
+    r.period_start + 14,
     r.ranking,
     (select count(*) from public.profiles)
   from ranked r
   where r.id = auth.uid();
 $$;
 
+create or replace function public.record_period_points(p_points integer)
+returns table (
+  user_id uuid,
+  level integer,
+  points integer,
+  activity_minutes_today integer,
+  activity_points_today integer,
+  period_points integer,
+  period_correct integer,
+  period_answered integer,
+  accuracy_percent integer,
+  rating_tier text,
+  rating_visible boolean,
+  period_start date,
+  period_end date,
+  rank bigint,
+  participants bigint
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user_id uuid := auth.uid();
+  v_period_start date := public.competition_period_start(current_date);
+  v_points integer := greatest(least(coalesce(p_points, 0), 100000), 0);
+begin
+  if v_user_id is null or v_points = 0 then return; end if;
+
+  insert into public.competition_stats (user_id, activity_day, period_start)
+  values (v_user_id, current_date, v_period_start)
+  on conflict (user_id) do nothing;
+
+  update public.competition_stats
+  set period_points = case when competition_stats.period_start = v_period_start then competition_stats.period_points + v_points else v_points end,
+      period_start = v_period_start,
+      period_correct = case when competition_stats.period_start = v_period_start then competition_stats.period_correct else 0 end,
+      period_answered = case when competition_stats.period_start = v_period_start then competition_stats.period_answered else 0 end,
+      updated_at = now()
+  where competition_stats.user_id = v_user_id;
+
+  return query select * from public.get_my_competition_snapshot();
+end;
+$$;
+
 revoke all on function public.record_activity_block() from public;
 revoke all on function public.record_assessment_result(integer, integer) from public;
 revoke all on function public.get_competition_leaderboard(integer) from public;
 revoke all on function public.get_my_competition_snapshot() from public;
+revoke all on function public.record_period_points(integer) from public;
 
 grant execute on function public.record_activity_block() to authenticated;
 grant execute on function public.record_assessment_result(integer, integer) to authenticated;
 grant execute on function public.get_competition_leaderboard(integer) to authenticated;
 grant execute on function public.get_my_competition_snapshot() to authenticated;
+grant execute on function public.record_period_points(integer) to authenticated;

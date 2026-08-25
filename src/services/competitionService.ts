@@ -8,6 +8,7 @@ export interface CompetitionSnapshot {
   points: number;
   activityMinutesToday: number;
   activityPointsToday: number;
+  periodPoints: number;
   periodCorrect: number;
   periodAnswered: number;
   accuracyPercent: number;
@@ -76,24 +77,36 @@ const toAccuracy = (value: unknown, correct: number, answered: number): number =
   return answered > 0 ? Math.round((correct / answered) * 100) : 0;
 };
 
+const addDaysToIsoDate = (dateValue: string, days: number): string => {
+  const date = new Date(`${dateValue}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return '';
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+};
+
 const mapSnapshot = (row: any): CompetitionSnapshot | null => {
   if (!row) return null;
   const correct = toSafeInt(row.period_correct);
   const answered = toSafeInt(row.period_answered);
+  const periodStart = String(row.period_start || '');
+  const periodEnd = periodStart ? addDaysToIsoDate(periodStart, 14) : String(row.period_end || '');
   return {
     userId: String(row.user_id || ''),
     level: toSafeInt(row.level, 1),
     points: toSafeInt(row.points),
     activityMinutesToday: toSafeInt(row.activity_minutes_today),
     activityPointsToday: toSafeInt(row.activity_points_today),
+    periodPoints: row.period_points === null || row.period_points === undefined
+      ? correct
+      : toSafeInt(row.period_points),
     periodCorrect: correct,
     periodAnswered: answered,
     accuracyPercent: toAccuracy(row.accuracy_percent, correct, answered),
     ratingTier: normalizeTier(row.rating_tier),
     ratingLabel: RATING_META[normalizeTier(row.rating_tier)].label,
     ratingVisible: Boolean(row.rating_visible),
-    periodStart: String(row.period_start || ''),
-    periodEnd: String(row.period_end || ''),
+    periodStart,
+    periodEnd,
     rank: row.rank === null || row.rank === undefined ? null : toSafeInt(row.rank),
     participants: toSafeInt(row.participants),
   };
@@ -113,6 +126,27 @@ export async function recordActivityBlock(): Promise<CompetitionSnapshot | null>
     return mapSnapshot(Array.isArray(data) ? data[0] : data);
   } catch (error) {
     console.debug('Failed to record competition activity:', error);
+    return null;
+  }
+}
+
+export async function recordPeriodPoints(points: number): Promise<CompetitionSnapshot | null> {
+  const client = getClient();
+  if (!client) return null;
+  const safePoints = Math.max(0, Math.min(100000, Math.floor(Number(points) || 0)));
+  if (safePoints <= 0) return null;
+
+  try {
+    const { data, error } = await client.rpc('record_period_points', {
+      p_points: safePoints,
+    });
+    if (error) {
+      console.debug('Competition points are not ready yet:', error.message);
+      return null;
+    }
+    return mapSnapshot(Array.isArray(data) ? data[0] : data);
+  } catch (error) {
+    console.debug('Failed to record competition points:', error);
     return null;
   }
 }

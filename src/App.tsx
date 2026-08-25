@@ -65,6 +65,7 @@ import { getLevelSnapshot } from './services/pointsService';
 import {
   fetchCompetitionSnapshot,
   recordActivityBlock,
+  recordPeriodPoints,
   recordAssessmentResult,
 } from './services/competitionService';
 
@@ -488,10 +489,18 @@ function AppContent() {
     setCompetitionSnapshot((previous) => previous ? { ...previous, points: nextTotalPoints, level: levelSnapshot.level } : previous);
     showToast(`أضيفت ${points} ${points === 1 ? 'نقطة' : 'نقاط'} إلى مستواك`);
 
-    const savedUser = await updateUserProfileData(currentUser.id, {
-      points: nextTotalPoints,
-      level: levelSnapshot.level,
-    });
+    const [savedUser] = await Promise.all([
+      updateUserProfileData(currentUser.id, {
+        points: nextTotalPoints,
+        level: levelSnapshot.level,
+      }),
+      recordPeriodPoints(points).then((snapshot) => {
+        if (snapshot) {
+          setCompetitionSnapshot(snapshot);
+        }
+        return snapshot;
+      }),
+    ]);
     if (savedUser) {
       setCurrentUser((previous) => ({
         ...(previous || optimisticUser),
