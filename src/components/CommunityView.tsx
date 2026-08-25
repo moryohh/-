@@ -82,7 +82,7 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
   };
 
   return (
-    <div className="p-3 sm:p-4 space-y-4 text-right select-none animate-in fade-in duration-200">
+    <div className="max-w-2xl mx-auto p-0 sm:p-3 space-y-3 text-right select-none animate-in fade-in duration-200">
       {/* Lightbox / Expanded Image Modal */}
       {expandedImage && (
         <div
@@ -105,7 +105,7 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
 
       {/* Header Banner Section */}
       <div
-        className={`border rounded-3xl p-5 shadow-2xl relative overflow-hidden transition-all duration-300 ${theme.classes.cardBg} ${theme.classes.cardBorder}`}
+        className={`border-b sm:border rounded-none sm:rounded-3xl p-4 sm:p-5 shadow-sm sm:shadow-2xl relative overflow-hidden transition-all duration-300 ${theme.classes.cardBg} ${theme.classes.cardBorder}`}
         style={{
           boxShadow: `0 8px 30px ${theme.colors.glow}`,
         }}
@@ -130,9 +130,9 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
               >
                 <Users className="w-5 h-5" />
               </div>
-              <h1 className={`text-lg font-black ${theme.classes.textMain}`}>المجتمع الطلابي</h1>
+              <h1 className={`text-2xl sm:text-3xl font-black tracking-tight ${theme.classes.textMain}`}>المجتمع الطلابي</h1>
             </div>
-            <p className={`text-xs ${theme.classes.textMuted} leading-relaxed max-w-xs mt-1`}>
+            <p className={`text-sm sm:text-base ${theme.classes.textMuted} leading-8 max-w-xl mt-2`}>
               مساحة تفاعلية للطلاب لمناقشة الأسئلة الوزارية، تبادل الملخصات، ومشاركة المعرفة.
             </p>
           </div>
@@ -233,7 +233,7 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
             return (
               <div
                 key={post.id}
-                className={`border rounded-3xl p-4 sm:p-5 shadow-xl space-y-3 text-right relative transition-all duration-300 ${theme.classes.cardBorder} ${theme.classes.cardBg}`}
+                className={`border-b sm:border rounded-none sm:rounded-2xl p-3.5 sm:p-4 shadow-sm sm:shadow-lg space-y-3.5 text-right relative transition-all duration-300 ${theme.classes.cardBorder} ${theme.classes.cardBg}`}
                 style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}
               >
 
@@ -248,7 +248,7 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
                     />
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <h3 className={`text-xs font-black ${theme.classes.textMain}`}>{post.userName}</h3>
+                        <h3 className={`text-base sm:text-lg font-black ${theme.classes.textMain}`}>{post.userName}</h3>
                         {post.type === 'question' && (
                           <span
                             className="text-[9px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 border"
@@ -275,7 +275,7 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
                           </span>
                         )}
                       </div>
-                      <span className={`text-[10px] block mt-0.5 ${theme.classes.textMuted}`}>
+                      <span className={`text-xs block mt-1 ${theme.classes.textMuted}`}>
                         {post.timeAgo}
                       </span>
                     </div>
@@ -322,7 +322,7 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
                 </div>
 
                 {/* Post Content */}
-                <p className={`text-xs sm:text-sm leading-relaxed font-normal whitespace-pre-wrap ${theme.classes.textMain}`}>
+                <p className={`text-[15px] sm:text-[17px] leading-8 font-normal whitespace-pre-wrap ${theme.classes.textMain}`}>
                   {post.content}
                 </p>
 
@@ -343,13 +343,13 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
                       <div
                         key={idx}
                         onClick={() => setExpandedImage(imgUrl)}
-                        className="relative rounded-xl overflow-hidden group cursor-pointer bg-black/40 aspect-video"
+                        className={`relative rounded-xl overflow-hidden group cursor-pointer bg-black/40 ${postImages.length === 1 ? '' : 'aspect-square sm:aspect-video'}`}
                       >
                         <img
                           src={imgUrl}
                           alt={`مرفق منشور ${idx + 1}`}
                           loading="lazy"
-                          className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                          className={`w-full ${postImages.length === 1 ? 'h-auto max-h-[620px] object-contain' : 'h-full object-cover'} transition-transform group-hover:scale-[1.02]`}
                         />
                         <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
                           <Eye className="w-5 h-5" />
@@ -401,7 +401,7 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
                 )}
 
                 {/* Stats line */}
-                <div className={`flex items-center justify-between pt-2 text-[11px] border-t ${theme.classes.textMuted} ${theme.classes.cardBorder}`}>
+                <div className={`flex items-center justify-between pt-3 text-sm border-t ${theme.classes.textMuted} ${theme.classes.cardBorder}`}>
                   <div className="flex items-center gap-1">
                     <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
                     <span>{post.likesCount} إعجاب</span>
@@ -434,7 +434,7 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
                           loading="lazy"
                           className="w-6 h-6 rounded-full object-cover shrink-0 border border-white/10"
                         />
-                        <p className={`text-[11px] leading-relaxed ${theme.classes.textMain}`}>
+                        <p className={`text-[13px] leading-7 ${theme.classes.textMain}`}>
                           <strong className="font-bold">{comment.userName}:</strong> {comment.text}
                         </p>
                       </div>
@@ -443,11 +443,11 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
                 )}
 
                 {/* Interaction Action Buttons */}
-                <div className={`grid grid-cols-3 gap-1 pt-1 border-t text-xs font-bold ${theme.classes.cardBorder}`}>
+                <div className={`grid grid-cols-3 gap-1.5 pt-2 border-t text-sm font-bold ${theme.classes.cardBorder}`}>
                   {/* Like Button */}
                   <button
                     onClick={() => onToggleLikePost(post.id)}
-                    className={`py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    className={`py-3 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                       post.isLiked
                         ? 'bg-rose-500/15 text-rose-500 border border-rose-500/30'
                         : `${theme.classes.cardSubtleBg} ${theme.classes.textMuted} border ${theme.classes.cardBorder}`
@@ -464,7 +464,7 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
                   {/* Comment Button */}
                   <button
                     onClick={() => onOpenComments(post)}
-                    className={`py-2 rounded-xl border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder} ${theme.classes.textMuted}`}
+                    className={`py-3 rounded-xl border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder} ${theme.classes.textMuted}`}
                   >
                     <MessageSquare className="w-4 h-4" style={{ color: theme.colors.primary }} />
                     <span>تعليق ({post.commentsCount})</span>
@@ -473,7 +473,7 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
                   {/* Share Button */}
                   <button
                     onClick={() => handleShare(post)}
-                    className={`py-2 rounded-xl border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder} ${theme.classes.textMuted}`}
+                    className={`py-3 rounded-xl border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder} ${theme.classes.textMuted}`}
                   >
                     <Share2 className="w-4 h-4" />
                     <span>مشاركة</span>
