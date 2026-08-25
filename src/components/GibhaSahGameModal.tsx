@@ -37,6 +37,8 @@ interface GibhaSahGameModalProps {
 }
 
 // Utility to shuffle an array (Fisher-Yates)
+const CARD_SYMBOLS = ['🧬', '🍄', '⚡', '🥚', '🔬', '🌲', '🌿', '🪱', '☀️', '🧽', '🧫', '🧠'];
+
 function shuffleArray<T>(array: T[]): T[] {
   const arr = [...array];
   for (let i = arr.length - 1; i > 0; i--) {
@@ -112,6 +114,11 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
     handleRestartInternal(loaded.questions);
   }, [customConfig, lessonId, lessonTitle, category]);
 
+  // Play a short intro only when the game becomes visible; it remains silent while closed.
+  useEffect(() => {
+    if (isOpen && soundEnabled) gameAudio.playGameStart();
+  }, [isOpen]);
+
   // Remaining questions filtered by unsolved card numbers
   const remainingQuestions = shuffledQuestions.filter(
     (q) => !solvedCardNumbers.includes(q.correctCardNumber)
@@ -155,7 +162,7 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
         gameAudio.playCardSolved();
         break;
       case 'wrong':
-        gameAudio.playMillionaireWrong();
+        gameAudio.playGibhaWrong();
         break;
       case 'select':
         gameAudio.playCardSelect();
@@ -443,11 +450,11 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
   return (
     <div
       id="gibha-sah-modal-root"
-      className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-end sm:items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200 font-cairo select-none"
+      className="fixed inset-0 z-50 bg-[#020617]/95 backdrop-blur-sm flex items-end sm:items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200 font-cairo select-none overscroll-contain"
     >
       <div
         id="gibha-sah-container"
-        className="bg-gradient-to-b from-[#0e212f] via-[#091722] to-[#040c13] border border-cyan-500/30 w-full max-w-xl sm:max-w-2xl rounded-[32px] shadow-[0_0_80px_rgba(0,255,255,0.15)] text-right relative max-h-[96vh] flex flex-col text-white overflow-hidden"
+        className="bg-gradient-to-b from-[#102b58] via-[#081a3b] to-[#040b20] border-2 border-cyan-300/30 w-full max-w-xl sm:max-w-2xl rounded-[32px] shadow-[0_0_80px_rgba(14,165,233,0.25)] text-right relative max-h-[96vh] flex flex-col text-white overflow-hidden"
       >
         {/* Futuristic Background Ambient Glows & Grid Pattern */}
         <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none animate-pulse" />
@@ -494,14 +501,14 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
         {/* 1. Brushed Metal Curved Header Plate (Matching Screenshot) */}
         <div
           id="brushed-metal-header"
-          className="relative z-20 px-4 py-3 rounded-t-[30px] border-b-2 border-slate-700/60 shadow-lg flex items-center justify-between overflow-hidden"
+          className="relative z-20 px-4 py-3 rounded-t-[30px] border-b-2 border-cyan-300/30 shadow-lg flex items-center justify-between overflow-hidden"
           style={{
-            background: 'linear-gradient(180deg, #d3dbe3 0%, #9caab8 45%, #768696 55%, #b2c0cc 100%)',
-            boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.8), inset 0 -2px 4px rgba(0,0,0,0.4), 0 6px 16px rgba(0,0,0,0.5)'
+            background: 'linear-gradient(135deg, #12356d 0%, #0b1f4b 52%, #071532 100%)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.16), 0 8px 22px rgba(2,8,23,0.45)'
           }}
         >
-          {/* Subtle metallic sheen highlights */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent opacity-60 pointer-events-none" />
+          {/* Lightweight top sheen; it stays static to keep the game responsive. */}
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-300 via-cyan-300 to-amber-300 opacity-90 pointer-events-none" />
 
           {/* Left: Action Control Buttons (Close, Restart, Audio) */}
           <div className="flex items-center gap-2 relative z-10">
@@ -572,7 +579,7 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-3 space-y-3 z-10 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-3 space-y-3 z-10 custom-scrollbar overscroll-contain">
           {!isFinished ? (
             <>
               {/* 2. HUD / Players Pods & Timer (Matching Screenshot) */}
@@ -706,14 +713,9 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
                   <div className="flex items-center gap-2">
                     {/* Doctor Avatar Photo */}
                     <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden border border-cyan-400/50 bg-[#162738] shrink-0">
-                      <img
-                        src="https://images.unsplash.com/photo-1594824813596-f94a4968c928?w=150&auto=format&fit=crop&q=80"
-                        alt="Doctor Avatar"
-                        className="w-full h-full object-cover"
-                        referrerPolicy="no-referrer"
-                      />
+                      <GibhaSahAuthenticIcon className="w-12 h-12 sm:w-14 sm:h-14" />
                       {/* Active Blue dot */}
-                      <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_6px_#22d3ee]" />
+                      <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-cyan-300 shadow-[0_0_8px_#67e8f9]" />
                     </div>
 
                     {/* Name & Blue Hearts */}
@@ -754,7 +756,7 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
               {currentQ && (
                 <div
                   id="active-question-banner"
-                  className="relative rounded-2xl p-3.5 sm:p-4 border border-cyan-500/30 overflow-hidden shadow-lg"
+                  className="game-sheen relative rounded-2xl p-4 sm:p-5 border border-cyan-300/35 overflow-hidden shadow-[0_12px_28px_rgba(2,8,23,0.35)]"
                   style={{
                     background: 'linear-gradient(180deg, #0f2738 0%, #081723 100%)',
                     boxShadow: 'inset 0 1px 2px rgba(0,255,255,0.15), 0 4px 14px rgba(0,0,0,0.6)'
@@ -826,7 +828,7 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
 
                   {/* Correct Feedback Banner */}
                   {feedbackStatus === 'correct' && (
-                    <div className="mt-2 p-2 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 text-xs font-black flex items-center justify-center gap-1.5 animate-in zoom-in-95">
+                    <div className="game-pop mt-2 p-2 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 text-xs font-black flex items-center justify-center gap-1.5 animate-in zoom-in-95">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                       <span>{feedbackMessage}</span>
                     </div>
@@ -834,7 +836,7 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
 
                   {/* Wrong Feedback Banner */}
                   {feedbackStatus === 'wrong' && (
-                    <div className="mt-2 p-2 rounded-xl bg-rose-500/20 border border-rose-500/50 text-rose-300 text-xs font-black flex items-center justify-center gap-1.5 animate-in shake">
+                    <div className="game-pop mt-2 p-2 rounded-xl bg-rose-500/20 border border-rose-500/50 text-rose-300 text-xs font-black flex items-center justify-center gap-1.5 animate-in shake">
                       <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
                       <span>{feedbackMessage}</span>
                     </div>
@@ -862,8 +864,9 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
                   celebrationBurst === 'combo' ? 'scale-[1.01] drop-shadow-[0_0_18px_rgba(251,191,36,0.35)]' : ''
                 }`}
               >
-                {activeCards.map((card) => {
+                {activeCards.map((card, cardIndex) => {
                   const isSelected = selectedCardId === card.number;
+                  const cardAccent = card.number % 3 === 0 ? 'from-fuchsia-400 to-rose-400' : card.number % 3 === 1 ? 'from-cyan-300 to-blue-500' : 'from-amber-300 to-emerald-400';
 
                   return (
                     <button
@@ -871,25 +874,40 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
                       id={`card-item-${card.number}`}
                       disabled={feedbackStatus !== 'idle'}
                       onClick={() => handleCardClick(card.number)}
-                      className={`relative p-3 sm:p-3.5 rounded-2xl border text-center transition-all duration-200 flex flex-col items-center justify-center gap-1 group cursor-pointer active:scale-98 animate-in fade-in zoom-in-95 min-h-[90px] sm:min-h-[96px] ${
+                      style={{ animationDelay: `${cardIndex * 35}ms` }}
+                      className={`relative p-3 sm:p-4 rounded-[22px] border-2 text-center transition-[transform,box-shadow,background-color,border-color,opacity] duration-200 flex flex-col items-center justify-center gap-2 group cursor-pointer active:scale-[0.97] animate-in fade-in zoom-in-95 min-h-[128px] sm:min-h-[142px] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-cyan-300/40 ${
                         isSelected
-                          ? 'bg-gradient-to-b from-[#163a4d] to-[#0d2432] border-cyan-400 text-cyan-100 shadow-[0_0_20px_rgba(6,182,212,0.45)] ring-2 ring-cyan-400 scale-[1.02] animate-pulse'
-                          : 'bg-gradient-to-b from-[#132837] via-[#0d1e2b] to-[#07131d] border-slate-700/70 hover:border-cyan-400/60 hover:bg-[#152e40] hover:-translate-y-1 hover:scale-[1.02] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.08),0_4px_10px_rgba(0,0,0,0.5)]'
+                          ? 'bg-gradient-to-br from-[#1c5270] to-[#102c58] border-cyan-200 text-cyan-50 shadow-[0_0_28px_rgba(34,211,238,0.48)] ring-2 ring-cyan-300 scale-[1.02]'
+                          : 'bg-gradient-to-br from-[#173d68] via-[#102852] to-[#091936] border-cyan-300/25 hover:border-cyan-200/80 hover:-translate-y-1 hover:shadow-[0_12px_24px_rgba(8,47,73,0.45)] text-white'
                       }`}
                     >
-                      {/* Top: Card Number with dot (.1, .2, .3, .4, etc.) */}
-                      <span className="text-[11px] sm:text-xs font-mono font-bold text-gray-400 group-hover:text-cyan-300">
-                        .{card.number}
-                      </span>
+                      {/* Bright card identity and category badge. */}
+                      <div className="flex items-center justify-between w-full gap-2">
+                        <span className={`relative w-11 h-11 rounded-2xl bg-gradient-to-br ${cardAccent} text-slate-950 flex items-center justify-center font-black text-lg shadow-[0_0_18px_rgba(56,189,248,0.25)] group-hover:scale-105 transition-transform`}>
+                          {card.image ? (
+                            <img src={card.image} alt="" width={44} height={44} loading="lazy" decoding="async" className="w-full h-full rounded-2xl object-cover" />
+                          ) : (
+                            CARD_SYMBOLS[(card.number - 1) % CARD_SYMBOLS.length]
+                          )}
+                          <span className="absolute -bottom-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-slate-950 text-[8px] text-cyan-100 border border-cyan-200/50 flex items-center justify-center">
+                            {card.number}
+                          </span>
+                        </span>
+                        {card.badge && (
+                          <span className="text-[9px] font-black text-cyan-100/80 bg-cyan-300/10 border border-cyan-200/20 rounded-full px-2 py-1 truncate max-w-[72%]">
+                            {card.badge}
+                          </span>
+                        )}
+                      </div>
 
-                      {/* Main Title (e.g. مملكة الطلائعيات, الخميرة, الجهاز العصبي العقدي...) */}
-                      <h5 className="text-xs sm:text-sm font-black text-white tracking-tight leading-snug drop-shadow-sm">
+                      {/* Main Title */}
+                      <h5 className="text-[13px] sm:text-sm font-black text-white tracking-tight leading-[1.65] drop-shadow-sm">
                         {card.label}
                       </h5>
 
                       {/* Subtitle / Description (e.g. كائنات حقيقية النواة بسيطة, فطريات وحيدة الخلية...) */}
                       {card.sublabel && (
-                        <p className="text-[9px] sm:text-[10px] text-gray-400 leading-tight line-clamp-1">
+                        <p className="text-[10px] sm:text-[11px] text-sky-100/70 leading-tight line-clamp-2">
                           {card.sublabel}
                         </p>
                       )}

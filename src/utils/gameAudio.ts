@@ -525,6 +525,30 @@ class GameAudioEngine {
     } catch {}
   }
 
+  // Short, playful wrong-answer sound for Gibha Sah. Kept separate from Millionaire audio.
+  public playGibhaWrong() {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    try {
+      const now = ctx.currentTime;
+      [246.94, 196].forEach((frequency, index) => {
+        const oscillator = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const time = now + index * 0.09;
+        oscillator.type = 'triangle';
+        oscillator.frequency.setValueAtTime(frequency, time);
+        oscillator.frequency.exponentialRampToValueAtTime(frequency * 0.72, time + 0.16);
+        gain.gain.setValueAtTime(0, time);
+        gain.gain.linearRampToValueAtTime(0.11, time + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.22);
+        oscillator.connect(gain);
+        gain.connect(ctx.destination);
+        oscillator.start(time);
+        oscillator.stop(time + 0.24);
+      });
+    } catch {}
+  }
+
   // Question skip / pass to end of stack
   public playQuestionPass() {
     const ctx = this.getContext();

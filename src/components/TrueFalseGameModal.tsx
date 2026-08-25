@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { TrueFalseGameConfig, TrueFalseQuestion, getTrueFalseGameForLesson } from '../data/mockTrueFalse';
 import { gameAudio } from '../utils/gameAudio';
+import { TrueFalseAuthenticIcon } from './GameIcons';
 import { getTrueFalseReward } from '../services/pointsService';
 
 interface TrueFalseGameModalProps {
@@ -77,6 +78,11 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
       onScoreUpdate?.(getTrueFalseReward(correctCount, config.questions.length));
     }
   }, [isCompleted, correctCount, config.questions.length, onScoreUpdate]);
+
+  // Play a short intro only when the game becomes visible; it remains silent while closed.
+  useEffect(() => {
+    if (isOpen && soundEnabled) gameAudio.playGameStart();
+  }, [isOpen]);
 
   // Audio effects using GameAudioEngine
   const playAudio = (type: 'correct' | 'wrong' | 'win' | 'click' | 'streak') => {
@@ -209,17 +215,18 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
   const accuracy = Math.round((correctCount / totalQuestions) * 100);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-end sm:items-center justify-center p-3 animate-in fade-in duration-200 font-cairo select-none">
-      <div className="bg-gradient-to-b from-[#131b2e] via-[#0d1322] to-[#070b14] border border-cyan-500/30 w-full max-w-md rounded-3xl p-4 sm:p-5 shadow-[0_0_50px_rgba(6,182,212,0.15)] text-right relative max-h-[92vh] flex flex-col text-white overflow-hidden">
-        {/* Background Ambient Glows */}
-        <div className="absolute top-0 right-0 w-44 h-44 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none animate-pulse" />
-        <div className="absolute bottom-0 left-0 w-44 h-44 bg-rose-500/10 rounded-full blur-3xl pointer-events-none animate-pulse" />
+    <div className="fixed inset-0 z-50 bg-[#020617]/95 backdrop-blur-sm flex items-end sm:items-center justify-center p-2 sm:p-3 animate-in fade-in duration-200 font-cairo select-none overscroll-contain">
+      <div className="bg-gradient-to-b from-[#13264a] via-[#0b1731] to-[#050b1d] border-2 border-cyan-400/30 w-full max-w-lg rounded-[30px] p-3 sm:p-5 shadow-[0_0_70px_rgba(14,165,233,0.24)] text-right relative max-h-[94vh] flex flex-col text-white overflow-hidden">
+        {/* Lightweight ambient color, kept static enough for smooth scrolling. */}
+        <div className="absolute -top-20 -right-16 w-56 h-56 bg-cyan-400/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -left-16 w-64 h-64 bg-fuchsia-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-amber-300 to-transparent opacity-80 pointer-events-none" />
 
         {/* Lightweight answer celebration: visual feedback only, never changes the lesson content. */}
         {feedbackBurst && (
           <div className="absolute inset-0 z-30 pointer-events-none overflow-hidden" aria-hidden="true">
             <div
-              className={`absolute left-1/2 top-20 -translate-x-1/2 rounded-full px-4 py-2 text-sm font-black shadow-2xl animate-in zoom-in-95 fade-in duration-200 ${
+              className={`game-pop absolute left-1/2 top-20 -translate-x-1/2 rounded-full px-4 py-2 text-sm font-black shadow-2xl animate-in zoom-in-95 fade-in duration-200 ${
                 feedbackBurst === 'wrong'
                   ? 'bg-rose-500/90 text-white shadow-rose-500/30'
                   : 'bg-emerald-400/95 text-emerald-950 shadow-emerald-400/30'
@@ -248,18 +255,16 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
         <div className="flex items-center justify-between border-b border-white/10 pb-3 z-10">
           <div className="flex items-center gap-2.5">
             {/* Professional True/False Glowing Split Badge */}
-            <div className="w-10 h-10 rounded-2xl p-[1.5px] bg-gradient-to-tr from-emerald-500 via-cyan-400 to-rose-500 shadow-[0_0_15px_rgba(16,185,129,0.3)] shrink-0">
-              <div className="w-full h-full rounded-[14px] bg-[#0c1220] flex items-center justify-center gap-0.5">
-                <span className="text-emerald-400 font-black text-xs">✓</span>
-                <span className="text-gray-500 text-[10px]">/</span>
-                <span className="text-rose-400 font-black text-xs">✗</span>
+            <div className="w-14 h-14 rounded-2xl p-1 bg-gradient-to-br from-emerald-400 via-cyan-300 to-rose-400 shadow-[0_0_24px_rgba(34,211,238,0.35)] shrink-0">
+              <div className="w-full h-full rounded-xl bg-[#08152e] flex items-center justify-center overflow-hidden">
+                <TrueFalseAuthenticIcon className="w-12 h-12" />
               </div>
             </div>
             <div>
               <div className="flex items-center gap-1.5">
                 <h3 className="text-sm sm:text-base font-black text-white">تحدي صح أم خطأ</h3>
-                <span className="bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-[9px] font-black px-1.5 py-0.5 rounded-md">
-                  12 سؤالاً
+                  <span className="bg-amber-300/15 border border-amber-300/40 text-amber-200 text-[9px] font-black px-2 py-1 rounded-full shadow-[0_0_12px_rgba(251,191,36,0.12)]">
+                  {totalQuestions} سؤالاً
                 </span>
               </div>
               <p className="text-[10px] text-gray-400 line-clamp-1 mt-0.5">
@@ -289,11 +294,11 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
         </div>
 
         {/* Main Body */}
-        <div className="flex-1 overflow-y-auto py-3 space-y-3 z-10">
+        <div className="flex-1 overflow-y-auto py-3 space-y-3 z-10 custom-scrollbar overscroll-contain">
           {!isCompleted ? (
             <>
               {/* Status Bar: Progress, Points, Streak, Timer */}
-              <div className="flex items-center justify-between bg-[#080d18] border border-white/10 px-3 py-2 rounded-2xl text-xs shadow-[0_8px_24px_rgba(0,0,0,0.2)]">
+              <div className="flex items-center justify-between bg-[#07142d]/90 border border-cyan-300/20 px-3 py-2.5 rounded-2xl text-xs shadow-[0_8px_24px_rgba(0,0,0,0.25)]">
                 {/* Question index */}
                 <div className="flex items-center gap-1.5">
                   <span className="text-cyan-400 font-black">السؤال {currentIndex + 1}</span>
@@ -319,7 +324,7 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
                   <div
                     className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-mono font-bold border transition-colors ${
                       timeLeft <= 5
-                        ? 'bg-rose-500/20 border-rose-500 text-rose-400 animate-ping'
+                        ? 'bg-rose-500/20 border-rose-400 text-rose-300 animate-pulse'
                         : timeLeft <= 10
                         ? 'bg-amber-500/15 border-amber-500/30 text-amber-300'
                         : 'bg-white/5 border-white/10 text-gray-300'
@@ -332,9 +337,9 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
               </div>
 
               {/* Progress Line */}
-              <div className="w-full bg-[#080d18] h-2 rounded-full overflow-hidden border border-white/5">
+              <div className="w-full bg-[#06112a] h-3 rounded-full overflow-hidden border border-cyan-300/15 p-0.5">
                 <div
-                  className="bg-gradient-to-r from-emerald-500 via-cyan-400 to-blue-500 h-full transition-all duration-300"
+                  className="bg-gradient-to-r from-emerald-400 via-cyan-300 to-blue-500 h-full rounded-full transition-[width] duration-300 shadow-[0_0_12px_rgba(34,211,238,0.55)]"
                   style={{
                     width: `${((currentIndex + 1) / totalQuestions) * 100}%`,
                   }}
@@ -342,19 +347,20 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
               </div>
 
               {/* Question Card */}
-              <div className="bg-gradient-to-b from-[#141d33] to-[#0d1424] border border-cyan-500/20 p-4 sm:p-5 rounded-2xl space-y-3 relative shadow-lg">
+              <div className="game-sheen bg-gradient-to-br from-[#18345b] via-[#102653] to-[#0a1735] border border-cyan-300/30 p-5 sm:p-6 rounded-[26px] space-y-4 relative shadow-[0_12px_30px_rgba(2,8,23,0.35)]">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-cyan-300 bg-cyan-500/15 border border-cyan-500/30 px-2.5 py-0.5 rounded-md flex items-center gap-1">
+                  <span className="text-[10px] font-black text-cyan-100 bg-cyan-400/15 border border-cyan-300/30 px-2.5 py-1 rounded-full flex items-center gap-1 shadow-[0_0_14px_rgba(34,211,238,0.12)]">
                     <Zap className="w-3 h-3 text-cyan-400" />
                     {currentQ.difficulty} • +{currentQ.points} نقطة
                   </span>
 
-                  <span className="text-[10px] text-gray-400">
-                    حدد الإجابة الصحيحة بالأسفل:
+                  <span className="text-[10px] text-sky-100/70 flex items-center gap-1">
+                    <HelpCircle className="w-3 h-3 text-amber-300" />
+                    اختر إجابة واحدة
                   </span>
                 </div>
 
-                <h4 className="text-sm sm:text-base font-black text-white leading-relaxed pt-1">
+                <h4 className="text-base sm:text-lg font-black text-white leading-[2] pt-1 drop-shadow-sm">
                   "{currentQ.question}"
                 </h4>
               </div>
@@ -365,7 +371,7 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
                 <button
                   disabled={isAnswered}
                   onClick={() => handleChoice(true)}
-                  className={`relative p-4 rounded-2xl border-2 flex flex-col items-center justify-center gap-2 transition-all duration-200 cursor-pointer active:scale-95 ${
+                  className={`relative p-5 min-h-[132px] sm:min-h-[146px] rounded-3xl border-2 flex flex-col items-center justify-center gap-2.5 transition-[transform,box-shadow,background-color,border-color,opacity] duration-200 cursor-pointer active:scale-[0.97] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-cyan-300/40 ${
                     isAnswered
                       ? currentQ.isCorrect === true
                         ? 'bg-emerald-500/25 border-emerald-400 shadow-[0_0_25px_rgba(16,185,129,0.4)] text-emerald-200'
@@ -375,7 +381,7 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
                       : 'bg-gradient-to-b from-emerald-950/40 to-[#0c1c18] border-emerald-500/40 hover:border-emerald-400 hover:bg-emerald-900/30 hover:-translate-y-1 hover:scale-[1.02] text-white shadow-[0_4px_20px_rgba(16,185,129,0.15)] group'
                   }`}
                 >
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+                  <div className="w-14 h-14 rounded-3xl bg-emerald-400/20 border border-emerald-300/50 flex items-center justify-center shadow-[0_0_18px_rgba(52,211,153,0.18)] group-hover:scale-105 transition-transform">
                     <CheckCircle2 className="w-7 h-7 text-emerald-400" />
                   </div>
                   <span className="text-base sm:text-lg font-black tracking-wide text-emerald-300">
@@ -390,7 +396,7 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
                 <button
                   disabled={isAnswered}
                   onClick={() => handleChoice(false)}
-                  className={`relative p-4 rounded-2xl border-2 flex flex-col items-center justify-center gap-2 transition-all duration-200 cursor-pointer active:scale-95 ${
+                  className={`relative p-5 min-h-[132px] sm:min-h-[146px] rounded-3xl border-2 flex flex-col items-center justify-center gap-2.5 transition-[transform,box-shadow,background-color,border-color,opacity] duration-200 cursor-pointer active:scale-[0.97] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-cyan-300/40 ${
                     isAnswered
                       ? currentQ.isCorrect === false
                         ? 'bg-emerald-500/25 border-emerald-400 shadow-[0_0_25px_rgba(16,185,129,0.4)] text-emerald-200'
@@ -400,7 +406,7 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
                       : 'bg-gradient-to-b from-rose-950/40 to-[#1c0c12] border-rose-500/40 hover:border-rose-400 hover:bg-rose-900/30 hover:-translate-y-1 hover:scale-[1.02] text-white shadow-[0_4px_20px_rgba(244,63,94,0.15)] group'
                   }`}
                 >
-                  <div className="w-12 h-12 rounded-2xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+                  <div className="w-14 h-14 rounded-3xl bg-rose-400/20 border border-rose-300/50 flex items-center justify-center shadow-[0_0_18px_rgba(251,113,133,0.18)] group-hover:scale-105 transition-transform">
                     <XCircle className="w-7 h-7 text-rose-400" />
                   </div>
                   <span className="text-base sm:text-lg font-black tracking-wide text-rose-300">
@@ -415,7 +421,7 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
               {/* Immediate Feedback & Explanation Card */}
               {isAnswered && (
                 <div
-                  className={`p-3.5 rounded-2xl border space-y-1.5 animate-in fade-in slide-in-from-bottom-2 duration-300 ${
+                  className={`game-pop p-3.5 rounded-2xl border space-y-1.5 animate-in fade-in slide-in-from-bottom-2 duration-300 ${
                     selectedChoice === currentQ.isCorrect
                       ? 'bg-emerald-950/50 border-emerald-500/50 text-emerald-200'
                       : 'bg-rose-950/50 border-rose-500/50 text-rose-200'
