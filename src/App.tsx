@@ -218,6 +218,21 @@ function AppContent() {
     setHomeSubView('learning_path');
   };
 
+  // Always open a subject from the top so the global header is visible immediately.
+  React.useEffect(() => {
+    if (activeTab !== 'home' || homeSubView !== 'learning_path') return;
+
+    const resetPageScroll = () => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    };
+
+    resetPageScroll();
+    const frameId = window.requestAnimationFrame(resetPageScroll);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [activeTab, homeSubView, selectedSubject?.id]);
+
   const handlePositionChange = (pos: LearningPosition) => {
     setLearningPosition(pos);
     setSavedPositions((prev) => ({ ...prev, [pos.subjectId]: pos }));

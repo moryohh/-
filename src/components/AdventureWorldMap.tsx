@@ -111,6 +111,28 @@ export const AdventureWorldMap: React.FC<AdventureWorldMapProps> = ({
   // Ensure total steps count matches the exact dynamic lessons count of the selected chapter
   const totalStepsCount = displayLessonsCount;
 
+  const scrollActiveNodeWithinMap = (behavior: ScrollBehavior = 'smooth') => {
+    const container = containerRef.current;
+    const node = activeNodeRef.current;
+    if (!container) return;
+
+    if (!node) {
+      container.scrollTo({ top: 0, behavior });
+      return;
+    }
+
+    // Calculate the target from the map container itself so window/page scroll never moves.
+    const nodeTop = node.offsetTop;
+    const targetTop = Math.max(
+      0,
+      Math.min(
+        container.scrollHeight - container.clientHeight,
+        nodeTop - container.clientHeight / 2 + node.offsetHeight / 2
+      )
+    );
+    container.scrollTo({ top: targetTop, behavior });
+  };
+
   // Active 3 images based on the selected section (chapter)
   // Chapter 1, 3, 5... (even index 0, 2, 4): First 3 images (Set A: 0, 1, 2)
   // Chapter 2, 4, 6... (odd index 1, 3, 5): Next 3 images (Set B: 3, 4, 5)
@@ -133,14 +155,7 @@ export const AdventureWorldMap: React.FC<AdventureWorldMapProps> = ({
   // Auto-scroll to active node or start of chapter on change
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (activeNodeRef.current && containerRef.current) {
-        activeNodeRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      } else if (containerRef.current) {
-        containerRef.current.scrollTo({
-          top: containerRef.current.scrollHeight,
-          behavior: 'smooth',
-        });
-      }
+      scrollActiveNodeWithinMap('smooth');
     }, 250);
     return () => clearTimeout(timer);
   }, [selectedChapterIndex, totalStepsCount]);
@@ -155,14 +170,7 @@ export const AdventureWorldMap: React.FC<AdventureWorldMapProps> = ({
   };
 
   const scrollToActiveNode = () => {
-    if (activeNodeRef.current && containerRef.current) {
-      activeNodeRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    } else if (containerRef.current) {
-      containerRef.current.scrollTo({
-        top: containerRef.current.scrollHeight,
-        behavior: 'smooth',
-      });
-    }
+    scrollActiveNodeWithinMap('smooth');
   };
 
   // Generate nodes distributed across all 3 images (Y: 250 at top to 5750 at bottom)
