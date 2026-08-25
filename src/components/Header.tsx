@@ -98,23 +98,6 @@ export const Header: React.FC<HeaderProps> = ({
           </span>
         </button>
 
-        {/* Student Avatar */}
-        <button
-          onClick={onOpenProfile}
-          className="w-9 h-9 rounded-full p-[1.5px] transition-all active:scale-95 shrink-0 overflow-hidden cursor-pointer"
-          style={{
-            background: `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.secondary}, ${theme.colors.accent})`,
-            boxShadow: `0 0 10px ${theme.colors.glow}`,
-          }}
-          aria-label="الحساب"
-          title="الحساب الشخصي"
-        >
-          <img
-            src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80"
-            alt="صورة الطالب"
-            className="w-full h-full object-cover rounded-full"
-          />
-        </button>
       </div>
     </header>
   );

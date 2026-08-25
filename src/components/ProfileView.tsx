@@ -86,7 +86,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     showTempMsg(`تم اختيار الشخصية الكرتونية: ${avatarOption.name}`);
 
     if (user.id) {
-      await updateUserProfileData(user.id, { avatarUrl: avatarOption.url });
+      const savedUser = await updateUserProfileData(user.id, { avatarUrl: avatarOption.url });
+      if (savedUser) onUpdateUser?.(savedUser);
     }
   };
 
@@ -108,7 +109,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         showTempMsg('تم تحديث صورتك الشخصية بنجاح 📸');
 
         if (user.id) {
-          await updateUserProfileData(user.id, { avatarUrl: photoUrl });
+          const savedUser = await updateUserProfileData(user.id, { avatarUrl: photoUrl });
+          if (savedUser) onUpdateUser?.(savedUser);
         }
       }
     };

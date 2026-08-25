@@ -1,6 +1,7 @@
 import React from 'react';
-import { Home, Layers, Users, Settings } from 'lucide-react';
+import { Home, Layers, Users } from 'lucide-react';
 import { useAppTheme } from '../services/themeService';
+import { FALLBACK_DEFAULT_AVATAR } from '../data/cartoonAvatars';
 
 export type NavTab = 'home' | 'subscriptions' | 'community' | 'settings' | 'profile';
 
@@ -8,12 +9,14 @@ interface BottomNavProps {
   activeTab: NavTab;
   onSelectTab: (tab: NavTab) => void;
   communityUnreadCount?: number;
+  avatarUrl?: string;
 }
 
 export const BottomNav: React.FC<BottomNavProps> = ({
   activeTab,
   onSelectTab,
   communityUnreadCount = 0,
+  avatarUrl,
 }) => {
   const { theme } = useAppTheme();
 
@@ -21,7 +24,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     { id: 'home' as NavTab, label: 'الرئيسية', icon: Home },
     { id: 'subscriptions' as NavTab, label: 'الاشتراكات', icon: Layers },
     { id: 'community' as NavTab, label: 'المجتمع', icon: Users, badge: communityUnreadCount },
-    { id: 'settings' as NavTab, label: 'الإعدادات', icon: Settings },
+    { id: 'profile' as NavTab, label: 'حسابي', avatar: true },
   ];
 
   return (
@@ -55,8 +58,17 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                 />
               )}
 
-              <div className="relative">
-                <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5px]' : 'stroke-2'}`} />
+              <div className="relative flex items-center justify-center">
+                {tab.avatar ? (
+                  <img
+                    src={avatarUrl || FALLBACK_DEFAULT_AVATAR}
+                    alt="حسابي"
+                    className={`w-6 h-6 rounded-full object-cover border-2 transition-transform ${isActive ? 'scale-110' : ''}`}
+                    style={{ borderColor: isActive ? theme.colors.primary : `${theme.colors.primary}70` }}
+                  />
+                ) : Icon ? (
+                  <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5px]' : 'stroke-2'}`} />
+                ) : null}
                 {tab.badge !== undefined && tab.badge > 0 && (
                   <span
                     className="absolute -top-1.5 -right-2 text-white text-[9px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center border"

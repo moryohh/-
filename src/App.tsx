@@ -790,6 +790,7 @@ function AppContent() {
             }
           }}
           communityUnreadCount={0}
+          avatarUrl={currentUser?.avatarUrl}
         />
       </div>
 

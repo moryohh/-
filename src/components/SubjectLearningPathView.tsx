@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { EducationalLesson, SubjectChapter, SubjectChapterLesson, OpenLessonContext, LearningPosition, UserProfile } from '../types';
 import { getCurriculumForSubject } from '../data/mockCurriculums';
-import { getLevelSnapshot } from '../services/pointsService';
 import { getSubjectIndex, getSubjectChapters, getChapterLessons, getLessonDetails, formatArabicLessonTitle, buildLessonKey } from '../services/lessonsService';
 import { AdventureWorldMap } from './AdventureWorldMap';
 import { MapRewardsModal } from './MapRewardsModal';
@@ -95,9 +94,8 @@ export const SubjectLearningPathView: React.FC<SubjectLearningPathViewProps> = (
   const [openedChests, setOpenedChests] = useState<string[]>([]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Player stats: level progress is driven by the persisted user points.
-  const levelSnapshot = getLevelSnapshot(user?.points ?? 0);
-  const expCount = levelSnapshot.totalPoints;
+  // Map rewards display the persisted user points without fabricating progress.
+  const expCount = user?.points ?? 0;
   const [coinsCount, setCoinsCount] = useState(0);
   const [starsCount, setStarsCount] = useState(0);
 
@@ -383,49 +381,6 @@ export const SubjectLearningPathView: React.FC<SubjectLearningPathViewProps> = (
           </button>
         </div>
       )}
-
-      {/* 1. TOP EXPLORER PROFILE CARD */}
-      <div
-        className={`flex items-center justify-center p-2 rounded-2xl border-2 shadow-xl transition-all duration-300 ${theme.classes.cardBg} ${theme.classes.cardBorder}`}
-        style={{
-          boxShadow: `0 4px 20px ${theme.colors.glow}`,
-        }}
-      >
-        <div
-          className="flex items-center gap-2.5 px-4 py-1.5 rounded-2xl shadow-lg border"
-          style={{
-            background: `linear-gradient(135deg, ${theme.colors.primary}25, ${theme.colors.secondary}20)`,
-            borderColor: theme.colors.primary,
-          }}
-        >
-          <div
-            className="w-10 h-10 rounded-full border-2 overflow-hidden shrink-0 shadow"
-            style={{ borderColor: theme.colors.primary }}
-          >
-              <img
-              src={user?.avatarUrl || subject.teacherAvatar}
-              alt={user?.name || 'صورة المستخدم'}
-              className="w-full h-full object-cover"
-            />
-          </div>
-          <div className="min-w-0">
-            <div className={`text-xs font-black truncate ${theme.classes.textMain}`}>اسم المغامر: {user?.name || 'الطالب'}</div>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="text-[10px] font-bold" style={{ color: theme.colors.primary }}>
-                مستوى {levelSnapshot.level}
-              </span>
-              {/* Level Progress */}
-              <div className="w-16 h-2 bg-black/40 rounded-full overflow-hidden border border-white/20">
-                <div
-                  className="h-full rounded-full transition-all duration-700"
-                  style={{ width: `${levelSnapshot.progressPercent}%`, backgroundColor: theme.colors.primary }}
-                />
-              </div>
-              <span className={`text-[9px] font-bold ${theme.classes.textMuted}`}>{levelSnapshot.progressPercent}%</span>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* 2. MAIN VIEW BODY */}
       {viewMode === 'map' ? (
