@@ -777,7 +777,11 @@ function AppContent() {
               : 'الإعدادات'
           }
           unreadCount={unreadCount}
-          showBackButton={activeTab !== 'community' && (activeTab !== 'home' || (activeTab === 'home' && homeSubView !== 'main_home'))}
+          showBackButton={
+            activeTab !== 'community' &&
+            !(activeTab === 'home' && homeSubView === 'learning_path') &&
+            (activeTab !== 'home' || homeSubView !== 'main_home')
+          }
           onBack={() => {
             if (activeTab === 'home') {
               if (homeSubView === 'lesson_player') {

@@ -110,7 +110,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     { id: 'amber_work', label: 'كهربائي مزرق', colors: ['#FACC15', '#2563EB', '#0F172A'] },
     { id: 'sky_cyan', label: 'سماوي', colors: ['#F0FAFF', '#0891B2'] },
     { id: 'emerald_nature', label: 'زمردي', colors: ['#F0FDF4', '#059669'] },
-    { id: 'night', label: 'ليلي', colors: ['#090E1F', '#00A3FF'] },
+    { id: 'night', label: 'ليلي هادئ', colors: ['#E2E8F0', '#64748B', '#1E3A8A'] },
   ];
 
   useEffect(() => {
@@ -210,18 +210,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             background: `linear-gradient(to right, ${theme.colors.primary}30, ${theme.colors.secondary}20, ${theme.colors.primary}30)`,
           }}
         >
-          {onSignOut ? (
-            <button
-              onClick={onSignOut}
-              className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 z-10 transition-all cursor-pointer text-rose-500 hover:bg-rose-500/10 ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder}`}
-              title="تسجيل الخروج"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span>خروج</span>
-            </button>
-          ) : (
-            <div />
-          )}
+          <div className="w-10" aria-hidden="true" />
 
           <div ref={themePickerRef} className="relative z-20">
             <button
@@ -982,6 +971,19 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </div>
         )}
       </section>
+
+      {onSignOut && (
+        <button
+          type="button"
+          onClick={onSignOut}
+          className={`w-full rounded-2xl border px-4 py-3 text-xs font-black flex items-center justify-center gap-2 text-rose-500 transition-all active:scale-[0.98] hover:bg-rose-500/10 ${theme.classes.cardBg} ${theme.classes.cardBorder}`}
+          title="تسجيل خروج من الحساب"
+          aria-label="تسجيل خروج من الحساب"
+        >
+          <LogOut className="h-4 w-4" />
+          <span>تسجيل خروج من الحساب</span>
+        </button>
+      )}
 
       <MapLeaderboardModal
         isOpen={isLeaderboardOpen}

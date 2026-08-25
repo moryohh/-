@@ -20,6 +20,7 @@ import {
   Layers,
   X,
   Loader2,
+  ArrowRight,
 } from 'lucide-react';
 
 interface AdventureWorldMapProps {
@@ -261,7 +262,7 @@ export const AdventureWorldMap: React.FC<AdventureWorldMapProps> = ({
       {/* ========================================================= */}
       {/* 🧭 CHAPTER SELECTOR DROPDOWN (اختر الفصل / تحديد الفصل) */}
       {/* ========================================================= */}
-      <div className="sticky top-1 z-40 w-full mb-1.5">
+      <div className="order-2 sticky bottom-1 z-40 w-full mt-1.5">
           <div
             className="flex flex-row-reverse items-center justify-between gap-2 p-1.5 sm:p-2 rounded-2xl backdrop-blur-md border-2 shadow-2xl text-white transition-all duration-300"
           style={{
@@ -409,6 +410,16 @@ export const AdventureWorldMap: React.FC<AdventureWorldMapProps> = ({
             )}
           </div>
 
+          <button
+            type="button"
+            onClick={onBack}
+            className="flex shrink-0 items-center gap-1 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 px-3 py-2.5 text-[11px] font-black text-black shadow-[0_0_10px_rgba(251,191,36,0.6)] transition-transform active:scale-95 hover:brightness-110"
+            title="العودة إلى الصفحة السابقة"
+            aria-label="العودة إلى الصفحة السابقة"
+          >
+            <ArrowRight className="h-3.5 w-3.5" />
+            <span>رجوع</span>
+          </button>
         </div>
       </div>
 
