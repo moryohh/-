@@ -15,12 +15,12 @@ import {
   Star,
   Sparkles,
   Gift,
-  Navigation,
   BookOpen,
   ChevronDown,
   Layers,
   X,
   Loader2,
+  ArrowRight,
 } from 'lucide-react';
 
 interface AdventureWorldMapProps {
@@ -37,6 +37,7 @@ interface AdventureWorldMapProps {
   onSelectChapter?: (chapterIndex: number) => void;
   isLoadingLessons?: boolean;
   isLoadingChapters?: boolean;
+  onBack?: () => void;
 }
 
 // Exactly 6 images preserved in their strict original sequence
@@ -63,6 +64,7 @@ export const AdventureWorldMap: React.FC<AdventureWorldMapProps> = ({
   onSelectChapter,
   isLoadingLessons = false,
   isLoadingChapters = false,
+  onBack,
 }) => {
   const { theme } = useAppTheme();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -261,8 +263,8 @@ export const AdventureWorldMap: React.FC<AdventureWorldMapProps> = ({
       {/* 🧭 CHAPTER SELECTOR DROPDOWN (اختر الفصل / تحديد الفصل) */}
       {/* ========================================================= */}
       <div className="sticky top-1 z-40 w-full mb-1.5">
-        <div
-          className="flex items-center justify-between gap-2 p-1.5 sm:p-2 rounded-2xl backdrop-blur-md border-2 shadow-2xl text-white transition-all duration-300"
+          <div
+            className="flex flex-row-reverse items-center justify-between gap-2 p-1.5 sm:p-2 rounded-2xl backdrop-blur-md border-2 shadow-2xl text-white transition-all duration-300"
           style={{
             backgroundColor: `${theme.colors.bgCard}F2`,
             borderColor: `${theme.colors.primary}60`,
@@ -408,14 +410,16 @@ export const AdventureWorldMap: React.FC<AdventureWorldMapProps> = ({
             )}
           </div>
 
-          {/* Quick "My Position" Button */}
+          {/* Back button in the right side of the map toolbar */}
           <button
-            onClick={scrollToActiveNode}
+            type="button"
+            onClick={onBack}
             className="flex items-center gap-1 px-3 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black text-[11px] hover:brightness-110 active:scale-95 transition-all shadow-[0_0_10px_rgba(251,191,36,0.6)] shrink-0 cursor-pointer"
-            title="الانتقال إلى موضعك الحالي على الخريطة"
+            title="العودة إلى الصفحة السابقة"
+            aria-label="العودة إلى الصفحة السابقة"
           >
-            <Navigation className="w-3.5 h-3.5 fill-black" />
-            <span>موقعي</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+            <span>رجوع</span>
           </button>
         </div>
       </div>

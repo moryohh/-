@@ -312,6 +312,7 @@ export async function updateUserProfileData(
 
   try {
     const payload: any = {
+      id: userId,
       updated_at: new Date().toISOString(),
     };
 
@@ -323,11 +324,11 @@ export async function updateUserProfileData(
     if (updates.level !== undefined) payload.level = updates.level;
     if (updates.studyHours !== undefined) payload.study_hours = updates.studyHours;
     if (updates.streakDays !== undefined) payload.streak_days = updates.streakDays;
+    if (updates.themeId !== undefined) payload.theme_id = updates.themeId;
 
     const { data, error } = await client
       .from('profiles')
-      .update(payload)
-      .eq('id', userId)
+      .upsert(payload, { onConflict: 'id' })
       .select('*')
       .maybeSingle();
 
@@ -343,6 +344,7 @@ export async function updateUserProfileData(
         points: data.points ?? updates.points ?? 0,
         studyHours: data.study_hours ?? updates.studyHours ?? 0,
         streakDays: data.streak_days ?? updates.streakDays ?? 0,
+        themeId: data.theme_id ?? updates.themeId,
       };
     }
   } catch (err) {

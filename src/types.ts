@@ -281,5 +281,6 @@ export interface UserProfile {
   points?: number;
   studyHours?: number;
   streakDays?: number;
+  themeId?: string;
 }
 

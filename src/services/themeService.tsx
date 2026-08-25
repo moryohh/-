@@ -283,6 +283,7 @@ export const APP_THEMES: Record<AppThemeId, ThemeConfig> = {
 };
 
 const THEME_STORAGE_KEY = 'nahnu_maak_app_theme_v2';
+const THEME_STORAGE_FALLBACK_KEY = 'nahnu_maak_theme_backup';
 
 interface ThemeContextType {
   currentThemeId: AppThemeId;
@@ -299,7 +300,7 @@ export const ThemeContext = createContext<ThemeContextType>({
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentThemeId, setCurrentThemeId] = useState<AppThemeId>(() => {
     try {
-      const saved = localStorage.getItem(THEME_STORAGE_KEY) as AppThemeId;
+      const saved = (localStorage.getItem(THEME_STORAGE_KEY) || localStorage.getItem(THEME_STORAGE_FALLBACK_KEY)) as AppThemeId;
       if (saved && APP_THEMES[saved]) {
         return saved;
       }
@@ -314,6 +315,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setCurrentThemeId(id);
       try {
         localStorage.setItem(THEME_STORAGE_KEY, id);
+        localStorage.setItem(THEME_STORAGE_FALLBACK_KEY, id);
       } catch {
         // ignore
       }

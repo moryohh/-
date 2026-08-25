@@ -21,7 +21,6 @@ import {
   Calendar,
   LockKeyhole,
   UserX,
-  Settings2,
   Palette,
   Trophy,
   Gem,
@@ -41,7 +40,6 @@ interface ProfileViewProps {
   onUpdateUser?: (updated: UserProfile) => void;
   onDeletePost?: (postId: string) => void;
   onOpenComments?: (post: CommunityPost) => void;
-  onBack?: () => void;
   onSignOut?: () => void;
   competitionSnapshot?: CompetitionSnapshot | null;
 }
@@ -52,7 +50,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onUpdateUser,
   onDeletePost,
   onOpenComments,
-  onBack,
   onSignOut,
   competitionSnapshot,
 }) => {
@@ -71,9 +68,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const userName = user?.name || 'طالب منصة نحن معك';
   const userGrade = user?.grade || 'السادس الإعدادي';
   const userBranch = user?.branch || 'الفرع العلمي';
-  const userAvatar =
-    user?.avatarUrl ||
-    DEFAULT_CARTOON_AVATARS[0].url;
+  const avatarStorageKey = user?.id ? `nahnu_maak_avatar_${user.id}` : null;
+  const storedAvatar = avatarStorageKey ? localStorage.getItem(avatarStorageKey) : null;
+  const userAvatar = storedAvatar || user?.avatarUrl || DEFAULT_CARTOON_AVATARS[0].url;
   const studyHours = user?.studyHours ?? 0;
   const streakDays = user?.streakDays ?? 0;
   const totalPoints = user?.points ?? 0;
@@ -111,6 +108,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       ...user,
       avatarUrl: avatarOption.url,
     };
+    if (avatarStorageKey) localStorage.setItem(avatarStorageKey, avatarOption.url);
     onUpdateUser?.(updated);
     setShowAvatarPicker(false);
     showTempMsg(`تم اختيار الشخصية الكرتونية: ${avatarOption.name}`);
@@ -134,6 +132,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           ...user,
           avatarUrl: photoUrl,
         };
+        if (avatarStorageKey) localStorage.setItem(avatarStorageKey, photoUrl);
         onUpdateUser?.(updated);
         setShowAvatarPicker(false);
         showTempMsg('تم تحديث صورتك الشخصية بنجاح 📸');
@@ -190,28 +189,29 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             <div />
           )}
 
-          <div className="flex items-center gap-2 z-10">
-            <button
-              type="button"
-              onClick={() => setIsSettingsOpen((previous) => !previous)}
-              className={`p-2 rounded-xl border transition-all active:scale-95 cursor-pointer ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder}`}
-              style={{ color: theme.colors.primary }}
-              aria-label="إعدادات الصفحة الشخصية"
-              title="إعدادات الصفحة الشخصية"
+          <button
+            type="button"
+            onClick={() => setIsSettingsOpen((previous) => !previous)}
+            className="flex flex-col items-center gap-0.5 z-10 cursor-pointer transition-transform active:scale-95"
+            aria-label="تغيير اللون"
+            title="تغيير اللون"
+          >
+            <span
+              className={`w-10 h-10 rounded-full p-0.5 border-2 shadow-lg transition-transform ${isSettingsOpen ? 'rotate-12 scale-105' : ''}`}
+              style={{
+                borderColor: theme.colors.primary,
+                boxShadow: `0 0 14px ${theme.colors.glow}`,
+              }}
             >
-              <Settings2 className={`w-4 h-4 transition-transform ${isSettingsOpen ? 'rotate-90' : ''}`} />
-            </button>
-            {onBack && (
-              <button
-                onClick={onBack}
-                className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder}`}
-                style={{ color: theme.colors.primary }}
-              >
-                <ArrowRight className="w-4 h-4" />
-                <span>رجوع</span>
-              </button>
-            )}
-          </div>
+              <span
+                className="block w-full h-full rounded-full"
+                style={{
+                  background: 'conic-gradient(#ef4444 0deg 52deg, #f97316 52deg 104deg, #facc15 104deg 156deg, #22c55e 156deg 208deg, #06b6d4 208deg 260deg, #3b82f6 260deg 312deg, #a855f7 312deg 360deg)',
+                }}
+              />
+            </span>
+            <span className={`text-[9px] font-black ${theme.classes.textMain}`}>تغيير اللون</span>
+          </button>
         </div>
 
         <div className="relative pt-4">

@@ -198,6 +198,15 @@ function AppContent() {
     clearLessonsCache();
   }, []);
 
+  // Restore a locally selected avatar immediately, even before a profile request finishes.
+  React.useEffect(() => {
+    if (!currentUser?.id) return;
+    const storedAvatar = localStorage.getItem(`nahnu_maak_avatar_${currentUser.id}`);
+    if (storedAvatar && storedAvatar !== currentUser.avatarUrl) {
+      setCurrentUser((previous) => (previous ? { ...previous, avatarUrl: storedAvatar } : previous));
+    }
+  }, [currentUser?.id]);
+
   // Sync stories whenever the active lesson changes (showing the teachers who teach this exact lesson)
   React.useEffect(() => {
     if (lesson && (lesson as any).teacherStories && (lesson as any).teacherStories.length > 0) {
@@ -759,7 +768,7 @@ function AppContent() {
               : 'الإعدادات'
           }
           unreadCount={unreadCount}
-          showBackButton={activeTab !== 'home' || (activeTab === 'home' && homeSubView !== 'main_home')}
+          showBackButton={activeTab !== 'community' && (activeTab !== 'home' || (activeTab === 'home' && homeSubView !== 'main_home'))}
           onBack={() => {
             if (activeTab === 'home') {
               if (homeSubView === 'lesson_player') {
@@ -854,6 +863,10 @@ function AppContent() {
               onToggleLikePost={handleToggleLikeCommunityPost}
               onSharePost={handleShareCommunityPost}
               onReportPost={handleReportCommunityPost}
+              onBack={() => {
+                setActiveTab('home');
+                setHomeSubView('main_home');
+              }}
             />
           )}
 
@@ -876,10 +889,6 @@ function AppContent() {
               onUpdateUser={(updated) => setCurrentUser(updated)}
               competitionSnapshot={competitionSnapshot}
               onOpenComments={(post) => setActiveCommunityPostForComments(post)}
-              onBack={() => {
-                setActiveTab('home');
-                setHomeSubView('main_home');
-              }}
               onSignOut={handleSignOut}
             />
           )}

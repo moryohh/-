@@ -94,6 +94,7 @@ export async function syncUserProfile(supabaseUser: any): Promise<UserProfile> {
     points: 0,
     studyHours: 0,
     streakDays: 0,
+    themeId: meta.theme_id,
   };
 
   if (!client) {
@@ -120,6 +121,7 @@ export async function syncUserProfile(supabaseUser: any): Promise<UserProfile> {
         points: existingProfile.points ?? 0,
         studyHours: existingProfile.study_hours ?? 0,
         streakDays: existingProfile.streak_days ?? 0,
+        themeId: existingProfile.theme_id,
       };
     }
 

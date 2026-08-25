@@ -14,6 +14,7 @@ import {
   Check,
   Eye,
   X,
+  ArrowRight,
 } from 'lucide-react';
 import { CommunityPost } from '../types';
 import { useAppTheme } from '../services/themeService';
@@ -25,6 +26,7 @@ interface CommunityViewProps {
   onToggleLikePost: (postId: string) => void;
   onSharePost: (post: CommunityPost) => void;
   onReportPost: (postId: string) => void;
+  onBack?: () => void;
 }
 
 export const CommunityView: React.FC<CommunityViewProps> = ({
@@ -34,6 +36,7 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
   onToggleLikePost,
   onSharePost,
   onReportPost,
+  onBack,
 }) => {
   const { theme } = useAppTheme();
   const [activeMenuPostId, setActiveMenuPostId] = useState<string | null>(null);
@@ -94,8 +97,20 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
         </div>
       )}
 
-      {/* Compact community actions: the global Header already provides back and notifications. */}
-      <div className={`flex justify-end px-3 pt-2 pb-1 ${theme.classes.cardBg}`}>
+      {/* Compact community actions: the global header keeps notifications, while back is placed here. */}
+      <div className={`flex items-center justify-between px-3 pt-2 pb-1 ${theme.classes.cardBg}`}>
+        {onBack ? (
+          <button
+            type="button"
+            onClick={onBack}
+            className={`border font-black py-2.5 px-4 rounded-2xl text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder} ${theme.classes.textMain}`}
+            aria-label="العودة من المجتمع"
+          >
+            <ArrowRight className="w-4 h-4" style={{ color: theme.colors.primary }} />
+            <span>رجوع</span>
+          </button>
+        ) : <span />}
+
         <button
           type="button"
           onClick={onOpenCreatePost}

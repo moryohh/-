@@ -415,6 +415,7 @@ export const SubjectLearningPathView: React.FC<SubjectLearningPathViewProps> = (
             }}
             isLoadingLessons={isLoadingLessons}
             isLoadingChapters={isLoading}
+            onBack={onBack}
             />
           </React.Suspense>
         </div>
