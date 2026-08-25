@@ -262,7 +262,7 @@ export const AdventureWorldMap: React.FC<AdventureWorldMapProps> = ({
       {/* ========================================================= */}
       {/* 🧭 CHAPTER SELECTOR DROPDOWN (اختر الفصل / تحديد الفصل) */}
       {/* ========================================================= */}
-      <div className="order-2 sticky bottom-1 z-40 w-full mt-1.5">
+      <div className="sticky top-1 z-40 w-full mb-1.5">
           <div
             className="flex flex-row-reverse items-center justify-between gap-2 p-1.5 sm:p-2 rounded-2xl backdrop-blur-md border-2 shadow-2xl text-white transition-all duration-300"
           style={{
