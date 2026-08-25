@@ -82,6 +82,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const ratingTier = competitionSnapshot?.ratingTier || 'bronze';
   const ratingMeta = RATING_META[ratingTier];
   const ratingVisible = userLevel >= 6;
+  const accuracyPercent = competitionSnapshot?.accuracyPercent ?? 0;
+  const qualityProgress = ratingVisible ? accuracyPercent : Math.min(100, Math.round((userLevel / 6) * 100));
+  const activityPointsToday = Math.min(5, competitionSnapshot?.activityPointsToday ?? 0);
+  const activityProgress = activityPointsToday * 20;
   const profileThemeOptions: { id: AppThemeId; label: string; colors: string[] }[] = [
     { id: 'solar_light', label: 'شمسي', colors: ['#FFFFFF', '#0284C7'] },
     { id: 'golden_navy', label: 'ذهبي', colors: ['#FFFDF5', '#D97706'] },
@@ -324,27 +328,55 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   : `${theme.colors.primary}08`,
               }}
             >
-              <div className={`text-[10px] font-black ${theme.classes.textMuted}`}>التقييم الدوري كل أسبوعين</div>
-              {ratingVisible ? (
-                <div className="flex items-center gap-2 mt-1">
-                  <span
-                    className="w-9 h-9 rounded-xl flex items-center justify-center text-lg font-black border"
-                    style={{ color: ratingMeta.color, borderColor: `${ratingMeta.color}80`, backgroundColor: `${ratingMeta.color}18` }}
-                  >
-                    <Gem className="w-5 h-5" />
+              <div className="flex items-center justify-between gap-2">
+                <div className={`text-[10px] font-black ${theme.classes.textMuted}`}>مقياس الجودة والتقييم</div>
+                {ratingVisible ? (
+                  <span className="text-[10px] font-black flex items-center gap-1" style={{ color: ratingMeta.color }}>
+                    <Gem className="w-3.5 h-3.5" /> {ratingMeta.label}
                   </span>
-                  <div>
-                    <div className="text-sm font-black" style={{ color: ratingMeta.color }}>{ratingMeta.label}</div>
-                    <div className={`text-[10px] ${theme.classes.textMuted}`}>
-                      دقة {competitionSnapshot?.accuracyPercent ?? 0}% • {competitionSnapshot?.periodAnswered ?? 0} إجابة
-                    </div>
-                  </div>
+                ) : (
+                  <span className={`text-[9px] font-bold ${theme.classes.textMuted}`}>يفتح بعد المستوى 5</span>
+                )}
+              </div>
+
+              <div className="mt-2">
+                <div className="flex items-center justify-between text-[10px] font-bold">
+                  <span className={theme.classes.textMain}>{ratingVisible ? 'جودة إجاباتك' : 'التقدم لفتح الشارات'}</span>
+                  <span style={{ color: ratingVisible ? ratingMeta.color : theme.colors.primary }}>
+                    {qualityProgress}%
+                  </span>
                 </div>
-              ) : (
-                <div className={`text-[11px] font-bold mt-1 ${theme.classes.textMuted}`}>
-                  تُفتح الشارات بعد تجاوز المستوى 5
+                <div className="mt-1.5 h-2.5 rounded-full bg-black/15 overflow-hidden border border-white/10" aria-label="شريط جودة التقييم">
+                  <div
+                    className="h-full rounded-full transition-[width] duration-500"
+                    style={{
+                      width: `${qualityProgress}%`,
+                      background: ratingVisible
+                        ? `linear-gradient(90deg, ${ratingMeta.color}90, ${ratingMeta.color})`
+                        : `linear-gradient(90deg, ${theme.colors.primary}80, ${theme.colors.secondary})`,
+                    }}
+                  />
                 </div>
-              )}
+                <div className={`mt-1 text-[9px] ${theme.classes.textMuted}`}>
+                  {ratingVisible
+                    ? `${accuracyPercent}% دقة • ${competitionSnapshot?.periodAnswered ?? 0} إجابة في الفترة الحالية`
+                    : `تحتاج إلى الوصول للمستوى 6 لبدء التقييم الدوري`}
+                </div>
+              </div>
+
+              <div className="mt-2.5 pt-2 border-t border-white/10">
+                <div className="flex items-center justify-between text-[10px] font-bold">
+                  <span className={theme.classes.textMain}>نشاط اليوم</span>
+                  <span className="text-amber-400">{activityPointsToday} من 5 نقاط</span>
+                </div>
+                <div className="mt-1.5 h-2 rounded-full bg-black/15 overflow-hidden border border-white/10" aria-label="شريط نشاط اليوم">
+                  <div
+                    className="h-full rounded-full transition-[width] duration-500 bg-gradient-to-r from-amber-400 to-yellow-200"
+                    style={{ width: `${activityProgress}%` }}
+                  />
+                </div>
+                <div className={`mt-1 text-[9px] ${theme.classes.textMuted}`}>كل 5 دقائق نشاط فعلي تمنح نقطة واحدة، والحد اليومي 5 نقاط</div>
+              </div>
             </div>
             <button
               type="button"
