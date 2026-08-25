@@ -12,6 +12,8 @@ export interface TeacherStory {
   storyImage?: string;
   textNotes?: string;
   lessonData?: EducationalLesson;
+  /** Exact lesson identity used when switching teachers/videos. */
+  lessonContext?: OpenLessonContext;
 }
 
 export interface CommunityStory {

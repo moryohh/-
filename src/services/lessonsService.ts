@@ -665,6 +665,7 @@ export function buildTeacherStoriesFromLessonJson(
           duration: vid.duration || '20:00',
           storyImage: ytThumb,
           textNotes: vid.content_summary || `شرح ${tName} لدرس ${vTitle}`,
+          lessonContext: { ...context },
         };
 
         stories.push(storyObj);

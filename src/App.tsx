@@ -50,8 +50,6 @@ import {
   clearLessonsCache,
   getSubjectChapters,
   getChapterLessons,
-  getLessonDetails,
-  createTeacherStoryFromLesson,
   extractYoutubeId,
 } from './services/lessonsService';
 import {
@@ -302,6 +300,14 @@ function AppContent() {
                   storyImage: yThumb,
                   textNotes: cl.subtitle || `شرح ${cl.title} لمادة ${selectedSubject.name}`,
                   lessonData: cl.lessonData,
+                  lessonContext: {
+                    subjectId: selectedSubject.id,
+                    chapterNumber: firstChapter.number,
+                    lessonNumber: cl.number,
+                    lessonId: cl.id,
+                    title: cl.title,
+                    lessonTitle: cl.title,
+                  },
                 };
               });
 
@@ -324,77 +330,45 @@ function AppContent() {
   };
 
   // Handlers - Direct Teacher Switching without Story Modals
-  const handleSelectStory = async (story: TeacherStory) => {
-    // Switch the main video player directly to this teacher's YouTube video from JSON/Curriculum
+  const handleSelectStory = (story: TeacherStory) => {
+    // Switch the video inside the exact lesson that is already open.
+    // Do not fetch by title or default to chapter 1: that can reopen a generic JSON file.
+    if (story.lessonContext) {
+      setOpenLessonContext((prev) => ({
+        ...prev,
+        ...story.lessonContext,
+        title: story.lessonContext?.title || story.lessonContext?.lessonTitle,
+        lessonTitle: story.lessonContext?.lessonTitle || story.lessonContext?.title,
+      }));
+    }
+
     if (story.lessonData) {
       setLesson(story.lessonData);
-    } else if (selectedSubject) {
-      try {
-        const res = await getLessonDetails(
-          selectedSubject.id,
-          'الفصل الأول',
-          story.title,
-          selectedSubject.name
-        );
-        if (res.data) {
-          setLesson(res.data);
-        } else if (story.youtubeId) {
-          setLesson((prev) => ({
-            ...prev,
-            id: story.id,
-            title: story.title || prev.title,
-            subtitle: story.subject || prev.subtitle,
-            category: story.subject || prev.category,
-            teacherName: story.teacherName,
-            teacherAvatar: story.avatar,
-            teacherRole: story.channelName || story.teacherName,
-            youtubeId: story.youtubeId!,
-            duration: story.duration || prev.duration,
-            description: story.textNotes || prev.description,
-          }));
-        }
-      } catch {
-        if (story.youtubeId) {
-          setLesson((prev) => ({
-            ...prev,
-            id: story.id,
-            title: story.title || prev.title,
-            subtitle: story.subject || prev.subtitle,
-            category: story.subject || prev.category,
-            teacherName: story.teacherName,
-            teacherAvatar: story.avatar,
-            teacherRole: story.channelName || story.teacherName,
-            youtubeId: story.youtubeId!,
-            duration: story.duration || prev.duration,
-            description: story.textNotes || prev.description,
-          }));
-        }
-      }
     } else if (story.youtubeId) {
       setLesson((prev) => ({
         ...prev,
-        id: story.id,
-        title: story.title || prev.title,
-        subtitle: story.subject || prev.subtitle,
-        category: story.subject || prev.category,
+        id: story.lessonContext?.lessonId || prev.id,
+        title: story.lessonContext?.title || story.lessonContext?.lessonTitle || prev.title,
+        subtitle: prev.subtitle,
+        category: story.lessonContext?.subjectId || prev.category,
         teacherName: story.teacherName,
         teacherAvatar: story.avatar,
         teacherRole: story.channelName || story.teacherName,
-        youtubeId: story.youtubeId!,
+        youtubeId: story.youtubeId,
         duration: story.duration || prev.duration,
         description: story.textNotes || prev.description,
       }));
     }
 
-    // Match subject if possible
+    // Match the subject without deriving an invalid ID from the story slug.
     const matchedSubject = GRADE_6_SUBJECTS.find(
-      (s) => s.name === story.subject || s.id === story.id.replace('story-', '')
+      (s) => s.name === story.subject || s.id === story.lessonContext?.subjectId
     );
     if (matchedSubject) {
       setSelectedSubject(matchedSubject);
     }
 
-    // Ensure the video player view is shown immediately
+    // Ensure the video player view is shown immediately.
     setActiveTab('home');
     setHomeSubView('lesson_player');
 
@@ -403,7 +377,7 @@ function AppContent() {
 
     showToast(`▶ تم اختيار شرح ${story.teacherName}`);
 
-    // Mark story as seen
+    // Mark story as seen.
     setStories((prev) =>
       prev.map((s) => (s.id === story.id ? { ...s, hasUnseen: false } : s))
     );
