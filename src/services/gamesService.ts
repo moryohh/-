@@ -57,6 +57,32 @@ async function fetchExactSectionContent(
       .in('subject_id', dbSubjects)
       .in('section_id', sectionAliases);
 
+  // Prefer the exact content-index relation; file names may use legacy conventions.
+  try {
+    const { data: indexedRows } = await supabase
+      .from('educational_content_index')
+      .select('record_id, subject_id, section_id, file_name, lesson_id, chapter_number, lesson_number, has_content')
+      .in('subject_id', dbSubjects)
+      .in('section_id', sectionAliases)
+      .eq('chapter_number', chapterNumber)
+      .eq('lesson_number', lessonNumber)
+      .limit(20);
+    const indexedRecordIds = (indexedRows || [])
+      .filter((row) => row.record_id && row.has_content !== false)
+      .map((row) => row.record_id);
+    if (indexedRecordIds.length > 0) {
+      const { data: indexedContent } = await supabase
+        .from('educational_data')
+        .select('content')
+        .in('id', indexedRecordIds)
+        .limit(20);
+      const indexedMatch = indexedContent?.find((row) => row.content);
+      if (indexedMatch?.content) return indexedMatch.content;
+    }
+  } catch (error) {
+    console.warn('[gamesService] Exact content-index lookup failed:', error);
+  }
+
   // An exact lesson id is safer than a chapter-only search when the database has it.
   const cleanLessonId = lessonId.replace(/\.json$/i, '').trim();
   if (cleanLessonId.length > 3) {
@@ -81,53 +107,123 @@ async function fetchExactSectionContent(
   return exactMatch?.content || null;
 }
 
-async function getPreviousLessonGibhaSahConfig(
-  context: OpenLessonContext,
-  currentConfig: GibhaSahGameConfig
-): Promise<GibhaSahGameConfig> {
-  if (currentConfig.questions.length > 0 || context.lessonNumber <= 1) return currentConfig;
+/**
+ * Finds the nearest usable section file in the same subject and chapter.
+ * The content index carries the lesson numbers even when file_name uses a legacy format.
+ */
+async function fetchNearestSectionContent(
+  sectionId: 'mcq' | 'ph',
+  dbSubjects: string[],
+  chapterNumber: number | undefined,
+  lessonNumber: number | undefined,
+  isUsable: (content: any) => boolean
+): Promise<{ content: any; lessonNumber: number } | null> {
+  if (chapterNumber === undefined || lessonNumber === undefined) return null;
+
+  const sectionAliases = sectionId === 'ph'
+    ? ['ph', 'فلاش_كاردز', 'بطاقات']
+    : [sectionId];
 
   try {
-    const previousLessonNumber = context.lessonNumber - 1;
-    const previousContext: OpenLessonContext = {
-      ...context,
-      lessonNumber: previousLessonNumber,
-      lessonId: `${context.subjectId}-ch${context.chapterNumber}-les${previousLessonNumber}`,
-      lessonKey: buildLessonKey(context.subjectId, context.chapterNumber, previousLessonNumber),
-      title: `الدرس ${previousLessonNumber}`,
-      lessonTitle: `الدرس ${previousLessonNumber}`,
-    };
-    const previousDbSubjects = getDbSubjectIds(getSubjectNormalizedKey(context.subjectId));
-    const directPreviousPh = await fetchExactSectionContent(
-      'ph',
-      previousDbSubjects,
-      context.chapterNumber,
-      previousLessonNumber,
-      previousContext.lessonId
-    );
-    const previousBundle = directPreviousPh ? null : await getLessonContentBundle(previousContext);
-    const previousPhData = directPreviousPh || previousBundle?.phData;
-    if (previousPhData) {
-      const previousConfig = parsePhToGibhaSah(
-        previousPhData,
-        previousContext.lessonId,
-        previousContext.title || previousContext.lessonTitle || `الدرس ${previousLessonNumber}`,
-        context.subjectId
-      );
-      if (previousConfig.questions.length > 0) {
-        return {
-          ...previousConfig,
-          lessonId: context.lessonId,
-          title: `لعبة جِيبْهَا صَح 🎯 - ${context.title || context.lessonTitle || `الدرس ${context.lessonNumber}`}`,
-          subtitle: `أسئلة الدرس السابق (${previousLessonNumber}) لعدم كفاية بنك هذا الدرس`,
-        };
+    const { data: indexRows, error: indexError } = await supabase
+      .from('educational_content_index')
+      .select('record_id, subject_id, section_id, file_name, lesson_id, chapter_number, lesson_number, has_content')
+      .in('subject_id', dbSubjects)
+      .in('section_id', sectionAliases)
+      .eq('chapter_number', chapterNumber)
+      .order('lesson_number', { ascending: true })
+      .limit(300);
+
+    if (!indexError && indexRows?.length) {
+      const candidates = indexRows
+        .filter((row) => row.record_id && row.has_content !== false && Number(row.lesson_number) !== lessonNumber)
+        .sort((a, b) => {
+          const aLesson = Number(a.lesson_number);
+          const bLesson = Number(b.lesson_number);
+          const distance = Math.abs(aLesson - lessonNumber) - Math.abs(bLesson - lessonNumber);
+          if (distance !== 0) return distance;
+          // Prefer the previous lesson when two files are equally near.
+          const aIsPrevious = aLesson < lessonNumber ? 0 : 1;
+          const bIsPrevious = bLesson < lessonNumber ? 0 : 1;
+          return aIsPrevious - bIsPrevious;
+        });
+
+      for (const candidate of candidates) {
+        const { data: rows, error } = await supabase
+          .from('educational_data')
+          .select('content')
+          .eq('id', candidate.record_id)
+          .limit(1);
+        if (!error && rows?.[0]?.content && isUsable(rows[0].content)) {
+          return { content: rows[0].content, lessonNumber: Number(candidate.lesson_number) };
+        }
       }
     }
   } catch (error) {
-    console.warn('[gamesService] Previous lesson PH fallback failed:', error);
+    console.warn('[gamesService] Nearest section lookup failed:', error);
   }
 
-  return currentConfig;
+  return null;
+}
+
+async function getNearestMcqConfig(
+  context: OpenLessonContext,
+  currentConfig: MillionaireGameConfig
+): Promise<MillionaireGameConfig> {
+  if (currentConfig.questions.length > 0) return currentConfig;
+
+  const dbSubjects = getDbSubjectIds(getSubjectNormalizedKey(context.subjectId));
+  const nearest = await fetchNearestSectionContent(
+    'mcq',
+    dbSubjects,
+    context.chapterNumber,
+    context.lessonNumber,
+    (content) => parseMcqToMillionaire(content, context.lessonId, context.title || context.lessonTitle || `الدرس ${context.lessonNumber}`, context.subjectId).questions.length > 0
+  );
+  if (!nearest) return currentConfig;
+
+  const nearestConfig = parseMcqToMillionaire(
+    nearest.content,
+    context.lessonId,
+    context.title || context.lessonTitle || `الدرس ${context.lessonNumber}`,
+    context.subjectId
+  );
+  return {
+    ...nearestConfig,
+    lessonId: context.lessonId,
+    title: `من سيربح المليون - ${context.title || context.lessonTitle || `الدرس ${context.lessonNumber}`}`,
+    subtitle: `أسئلة ملف قريب داخل الفصل نفسه (الدرس ${nearest.lessonNumber})`,
+  };
+}
+
+async function getNearestLessonGibhaSahConfig(
+  context: OpenLessonContext,
+  currentConfig: GibhaSahGameConfig
+): Promise<GibhaSahGameConfig> {
+  if (currentConfig.questions.length > 0) return currentConfig;
+
+  const dbSubjects = getDbSubjectIds(getSubjectNormalizedKey(context.subjectId));
+  const nearest = await fetchNearestSectionContent(
+    'ph',
+    dbSubjects,
+    context.chapterNumber,
+    context.lessonNumber,
+    (content) => parsePhToGibhaSah(content, context.lessonId, context.title || context.lessonTitle || `الدرس ${context.lessonNumber}`, context.subjectId).questions.length > 0
+  );
+  if (!nearest) return currentConfig;
+
+  const nearestConfig = parsePhToGibhaSah(
+    nearest.content,
+    context.lessonId,
+    context.title || context.lessonTitle || `الدرس ${context.lessonNumber}`,
+    context.subjectId
+  );
+  return {
+    ...nearestConfig,
+    lessonId: context.lessonId,
+    title: `لعبة جِيبْهَا صَح 🎯 - ${context.title || context.lessonTitle || `الدرس ${context.lessonNumber}`}`,
+    subtitle: `أسئلة ملف PH قريب داخل الفصل نفسه (الدرس ${nearest.lessonNumber})`,
+  };
 }
 
 /**
@@ -139,11 +235,28 @@ function parseMcqToMillionaire(
   lessonTitle: string,
   category: string
 ): MillionaireGameConfig {
-  const items: any[] = rawContent.pages?.flatMap((p: any) => p.items || []) || [];
+  const items: any[] = Array.isArray(rawContent?.pages)
+    ? rawContent.pages.flatMap((p: any) => p.items || p.questions || p.rounds || [])
+    : Array.isArray(rawContent?.items)
+      ? rawContent.items
+      : Array.isArray(rawContent?.questions)
+        ? rawContent.questions
+        : Array.isArray(rawContent?.data)
+          ? rawContent.data
+          : [];
   const validQuestions = items.filter((it: any) => it && it.question && Array.isArray(it.options) && it.options.length >= 2);
 
-  if (validQuestions.length < 4) {
-    return getMillionaireGameForLesson(lessonId, lessonTitle, category);
+  if (validQuestions.length < 5) {
+    return {
+      gameId: `game-mcq-${lessonId}`,
+      gameType: 'millionaire',
+      lessonId,
+      subject: category,
+      grade: 'السادس الإعدادي',
+      title: `من سيربح المليون - ${lessonTitle}`,
+      subtitle: 'لا تتوفر أسئلة MCQ كافية لهذا الدرس حاليًا',
+      questions: [],
+    };
   }
 
   const ladderPoints = [
@@ -265,25 +378,40 @@ function parsePhToGibhaSah(
   category: string
 ): GibhaSahGameConfig {
   let rawRounds: any[] = [];
-  if (Array.isArray(rawContent.pages)) {
+  if (Array.isArray(rawContent?.pages)) {
     for (const page of rawContent.pages) {
       if (Array.isArray(page.rounds)) {
         rawRounds.push(...page.rounds);
       } else if (Array.isArray(page.items)) {
         rawRounds.push(...page.items);
+      } else if (Array.isArray(page.questions)) {
+        rawRounds.push(...page.questions);
       }
     }
+  } else if (Array.isArray(rawContent?.rounds)) {
+    rawRounds = rawContent.rounds;
+  } else if (Array.isArray(rawContent?.items)) {
+    rawRounds = rawContent.items;
+  } else if (Array.isArray(rawContent?.questions)) {
+    rawRounds = rawContent.questions;
   }
+
 
   const getRoundAnswer = (round: any): string => String(round?.correct_answer ?? round?.answer ?? '').trim();
   const validRounds = rawRounds.filter(
     (round: any) => round && typeof round.question === 'string' && round.question.trim() && getRoundAnswer(round)
   );
-  const uniqueAnswers = Array.from(new Set(validRounds.map(getRoundAnswer)));
-
-  // Fewer than four valid rounds/answers means this lesson cannot form a valid game.
-  if (validRounds.length < 4 || uniqueAnswers.length < 4) {
-    return getGibhaSahGameForLesson(lessonId, lessonTitle, category);
+  // Fewer than five valid questions means this lesson cannot form a valid game.
+  if (validRounds.length < 5) {
+    return {
+      lessonId,
+      subject: category,
+      title: `لعبة جِيبْهَا صَح 🎯 - ${lessonTitle}`,
+      subtitle: 'لا تتوفر بطاقات PH كافية لهذا الدرس حاليًا',
+      mode: 'cards_10',
+      cards: [],
+      questions: [],
+    };
   }
 
   const cardsCount = 10;
@@ -363,9 +491,10 @@ export async function fetchLessonGamesData(
           bundle.phData || fetchExactSectionContent('ph', exactDbSubjects, ctx.chapterNumber, ctx.lessonNumber, ctx.lessonId),
         ]);
 
-        const mcqConfig = exactMcqData
+        const currentMcqConfig = exactMcqData
           ? parseMcqToMillionaire(exactMcqData, actualLessonId, actualLessonTitle, actualCategory)
           : getMillionaireGameForLesson(actualLessonId, actualLessonTitle, actualCategory);
+        const mcqConfig = await getNearestMcqConfig(ctx, currentMcqConfig);
 
         const trueFalseConfig = exactTrueFalseData
           ? parseTrueFalseConfig(exactTrueFalseData, actualLessonId, actualLessonTitle, actualCategory)
@@ -374,7 +503,7 @@ export async function fetchLessonGamesData(
         const currentGibhaSahConfig = exactPhData
           ? parsePhToGibhaSah(exactPhData, actualLessonId, actualLessonTitle, actualCategory)
           : getGibhaSahGameForLesson(actualLessonId, actualLessonTitle, actualCategory);
-        const gibhaSahConfig = await getPreviousLessonGibhaSahConfig(
+        const gibhaSahConfig = await getNearestLessonGibhaSahConfig(
           ctx,
           currentGibhaSahConfig
         );
@@ -427,7 +556,7 @@ export async function fetchLessonGamesData(
     ]);
 
     // Parse configs
-    const mcqConfig = mcqRes
+    const currentMcqConfig = mcqRes
       ? parseMcqToMillionaire(mcqRes, actualLessonId, actualLessonTitle, actualCategory)
       : getMillionaireGameForLesson(actualLessonId, actualLessonTitle, actualCategory);
 
@@ -450,8 +579,11 @@ export async function fetchLessonGamesData(
             lessonTitle: actualLessonTitle,
           }
         : null;
+    const mcqConfig = standardContext
+      ? await getNearestMcqConfig(standardContext, currentMcqConfig)
+      : currentMcqConfig;
     const gibhaSahConfig = standardContext
-      ? await getPreviousLessonGibhaSahConfig(standardContext, currentGibhaSahConfig)
+      ? await getNearestLessonGibhaSahConfig(standardContext, currentGibhaSahConfig)
       : currentGibhaSahConfig;
 
     const bundle: LessonGamesBundle = {

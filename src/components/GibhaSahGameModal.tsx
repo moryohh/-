@@ -244,7 +244,7 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
             <HelpCircle className="h-7 w-7" aria-hidden="true" />
           </div>
           <h2 className="text-lg font-black">لا تتوفر بطاقات كافية لهذا الدرس حاليًا</h2>
-          <p className="mt-2 text-sm leading-7 text-slate-300">لم يتم العثور على بنك بطاقات مطابق للمادة والفصل والدرس المفتوح أو الدرس السابق.</p>
+          <p className="mt-2 text-sm leading-7 text-slate-300">لم يتم العثور على بنك بطاقات PH صالح للدرس المفتوح أو ملف قريب مناسب داخل الفصل نفسه.</p>
           <button
             type="button"
             onClick={onClose}

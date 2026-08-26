@@ -826,7 +826,7 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
             <BookOpen className="h-7 w-7" aria-hidden="true" />
           </div>
           <h2 className="text-lg font-black">لا تتوفر أسئلة لهذا الدرس حاليًا</h2>
-          <p className="mt-2 text-sm leading-7 text-slate-300">لم يتم العثور على ملف MCQ مطابق للمادة والفصل والدرس المفتوح.</p>
+          <p className="mt-2 text-sm leading-7 text-slate-300">لم يتم العثور على ملف MCQ صالح للدرس المفتوح أو ملف قريب مناسب داخل الفصل نفسه.</p>
           <button
             type="button"
             onClick={onClose}
