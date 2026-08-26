@@ -16,11 +16,14 @@ export interface LevelSnapshot {
 }
 
 /**
- * The first level uses a 10-point target, then every next level requires
- * 25% more than the previous one. Keeping this in one constant makes the
- * progression easy to adjust later without touching the game rules.
+ * Level 1 requires 20 points, then every next level requires 9% more
+ * than the previous level. The game and assessment reward rules remain
+ * separate from this progression formula.
  */
-export const LEVEL_ONE_TARGET = 10;
+export const LEVEL_ONE_TARGET = 20;
+export const LEVEL_GROWTH_RATE = 0.09;
+
+const roundRequirement = (value: number): number => Math.round(value * 100) / 100;
 
 const clampPercent = (value: number) => Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
 
@@ -28,7 +31,7 @@ export const getLevelRequirement = (level: number): number => {
   const safeLevel = Math.max(1, Math.floor(level));
   let requirement = LEVEL_ONE_TARGET;
   for (let current = 1; current < safeLevel; current += 1) {
-    requirement = Math.ceil(requirement * 1.25);
+    requirement = roundRequirement(requirement * (1 + LEVEL_GROWTH_RATE));
   }
   return requirement;
 };
@@ -41,9 +44,9 @@ export const getLevelSnapshot = (totalPoints: number): LevelSnapshot => {
 
   // The guard keeps the calculation safe even for an unusually large score.
   while (remaining >= requirement && level < 10000) {
-    remaining -= requirement;
+    remaining = roundRequirement(remaining - requirement);
     level += 1;
-    requirement = Math.ceil(requirement * 1.25);
+    requirement = roundRequirement(requirement * (1 + LEVEL_GROWTH_RATE));
   }
 
   return {

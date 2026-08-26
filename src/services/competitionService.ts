@@ -1,4 +1,5 @@
 import { getSupabaseClient } from '../lib/supabase';
+import { getLevelSnapshot } from './pointsService';
 
 export type RatingTier = 'diamond' | 'gold' | 'silver' | 'bronze';
 
@@ -61,10 +62,15 @@ export const RATING_META: Record<RatingTier, { label: string; icon: string; colo
   },
 };
 
-const normalizeTier = (value: unknown): RatingTier => {
-  if (value === 'diamond' || value === 'gold' || value === 'silver') return value;
+const getRatingTierForMetrics = (level: number, accuracyPercent: number): RatingTier => {
+  if (level < 6) return 'bronze';
+  if (accuracyPercent > 70) return 'diamond';
+  if (accuracyPercent >= 50) return 'gold';
+  if (accuracyPercent >= 25) return 'silver';
   return 'bronze';
 };
+
+const getComputedLevel = (points: number): number => getLevelSnapshot(points).level;
 
 const toSafeInt = (value: unknown, fallback = 0): number => {
   const numberValue = Number(value);
@@ -88,12 +94,16 @@ const mapSnapshot = (row: any): CompetitionSnapshot | null => {
   if (!row) return null;
   const correct = toSafeInt(row.period_correct);
   const answered = toSafeInt(row.period_answered);
+  const points = toSafeInt(row.points);
+  const level = getComputedLevel(points);
+  const accuracyPercent = toAccuracy(row.accuracy_percent, correct, answered);
+  const ratingTier = getRatingTierForMetrics(level, accuracyPercent);
   const periodStart = String(row.period_start || '');
   const periodEnd = periodStart ? addDaysToIsoDate(periodStart, 14) : String(row.period_end || '');
   return {
     userId: String(row.user_id || ''),
-    level: toSafeInt(row.level, 1),
-    points: toSafeInt(row.points),
+    level,
+    points,
     activityMinutesToday: toSafeInt(row.activity_minutes_today),
     activityPointsToday: toSafeInt(row.activity_points_today),
     periodPoints: row.period_points === null || row.period_points === undefined
@@ -101,10 +111,10 @@ const mapSnapshot = (row: any): CompetitionSnapshot | null => {
       : toSafeInt(row.period_points),
     periodCorrect: correct,
     periodAnswered: answered,
-    accuracyPercent: toAccuracy(row.accuracy_percent, correct, answered),
-    ratingTier: normalizeTier(row.rating_tier),
-    ratingLabel: RATING_META[normalizeTier(row.rating_tier)].label,
-    ratingVisible: Boolean(row.rating_visible),
+    accuracyPercent,
+    ratingTier,
+    ratingLabel: RATING_META[ratingTier].label,
+    ratingVisible: level >= 6,
     periodStart,
     periodEnd,
     rank: row.rank === null || row.rank === undefined ? null : toSafeInt(row.rank),
@@ -205,17 +215,20 @@ export async function fetchCompetitionLeaderboard(limit = 20): Promise<Leaderboa
       return [];
     }
     return data.map((row: any) => {
-      const tier = normalizeTier(row.rating_tier);
+      const points = toSafeInt(row.points);
+      const level = getComputedLevel(points);
+      const accuracyPercent = toAccuracy(row.accuracy_percent, toSafeInt(row.period_correct), toSafeInt(row.period_answered));
+      const tier = getRatingTierForMetrics(level, accuracyPercent);
       return {
         rank: toSafeInt(row.rank),
         userId: String(row.user_id || ''),
         name: String(row.display_name || 'طالب المنصة'),
         avatarUrl: row.avatar_url || undefined,
-        level: toSafeInt(row.level, 1),
-        points: toSafeInt(row.points),
+        level,
+        points,
         ratingTier: tier,
         ratingLabel: RATING_META[tier].label,
-        accuracyPercent: toAccuracy(row.accuracy_percent, toSafeInt(row.period_correct), toSafeInt(row.period_answered)),
+        accuracyPercent,
         isCurrentUser: Boolean(row.is_current_user),
       };
     });

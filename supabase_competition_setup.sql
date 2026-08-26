@@ -48,16 +48,20 @@ as $$
 declare
   v_total integer := greatest(coalesce(p_total, 0), 0);
   v_level integer := 1;
-  v_requirement integer := 10;
+  v_requirement numeric := 20;
 begin
   while v_total >= v_requirement and v_level < 10000 loop
     v_total := v_total - v_requirement;
     v_level := v_level + 1;
-    v_requirement := greatest(v_requirement + 1, ceil(v_requirement * 1.25)::integer);
+    v_requirement := round(v_requirement * 1.09, 2);
   end loop;
   return v_level;
 end;
 $$;
+
+update public.profiles p
+set level = public.competition_level_for_points(greatest(coalesce(p.points, 0), 0))
+where level is distinct from public.competition_level_for_points(greatest(coalesce(p.points, 0), 0));
 
 create or replace function public.competition_rating_for(
   p_level integer,
@@ -184,7 +188,7 @@ begin
   from public.competition_stats s
   left join (
     select p2.id,
-           dense_rank() over (order by greatest(coalesce(p2.points, 0), 0) desc, greatest(coalesce(p2.level, 1), 1) desc, p2.updated_at asc) as rank
+           dense_rank() over (order by greatest(coalesce(p2.points, 0), 0) desc, public.competition_level_for_points(greatest(coalesce(p2.points, 0), 0)) desc, p2.updated_at asc) as rank
     from public.profiles p2
   ) ranked on ranked.id = s.user_id
   where s.user_id = v_user_id;
@@ -262,13 +266,13 @@ as $$
     select
       dense_rank() over (
         order by greatest(coalesce(p.points, 0), 0) desc,
-                 greatest(coalesce(p.level, 1), 1) desc,
+                 public.competition_level_for_points(greatest(coalesce(p.points, 0), 0)) desc,
                  p.updated_at asc
       ) as ranking,
       p.id,
       coalesce(nullif(p.full_name, ''), 'طالب المنصة') as display_name,
       p.avatar_url,
-      greatest(coalesce(p.level, 1), 1) as level,
+      public.competition_level_for_points(greatest(coalesce(p.points, 0), 0)) as level,
       greatest(coalesce(p.points, 0), 0) as points,
       coalesce(s.period_correct, 0) as period_correct,
       coalesce(s.period_answered, 0) as period_answered
@@ -318,11 +322,11 @@ as $$
     select
       dense_rank() over (
         order by greatest(coalesce(p.points, 0), 0) desc,
-                 greatest(coalesce(p.level, 1), 1) desc,
+                 public.competition_level_for_points(greatest(coalesce(p.points, 0), 0)) desc,
                  p.updated_at asc
       ) as ranking,
       p.id,
-      greatest(coalesce(p.level, 1), 1) as level,
+      public.competition_level_for_points(greatest(coalesce(p.points, 0), 0)) as level,
       greatest(coalesce(p.points, 0), 0) as points,
       coalesce(s.activity_minutes_today, 0) as activity_minutes_today,
       coalesce(s.activity_points_today, 0) as activity_points_today,
