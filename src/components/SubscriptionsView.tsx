@@ -158,7 +158,7 @@ export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack, co
         !hasRequiredLevel ? `مستواك الحالي ${currentLevel}، ويجب أن يصل إلى ${requiredLevel}.` : '',
       ].filter(Boolean);
       setApplicationState('error');
-      setApplicationMessage(`فشل التقديم: ${reasons.join(' ')} آخر موعد لاستيفاء الشروط هو ${selectedCourse.applicationDeadline || '25 نوفمبر'}.`);
+      setApplicationMessage(`لم تستوفِ الشروط بعد. ${reasons.join(' ')} آخر موعد لاستيفاء الشروط هو ${selectedCourse.applicationDeadline || '25 نوفمبر'}.`);
       return;
     }
 
@@ -458,7 +458,8 @@ export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack, co
                   className="flex items-center justify-center gap-1.5 rounded-2xl px-3 py-3 text-xs font-black text-slate-950 transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
                   style={{ background: `linear-gradient(135deg, ${theme.colors.secondary}, ${theme.colors.primary})` }}
                 >
-                  {applicationState === 'checking' ? 'جارٍ التحقق...' : applicationState === 'success' ? 'دخول الدورة' : 'قدّم الآن'}
+                  <UsersRound className="h-4 w-4" />
+                  {applicationState === 'checking' ? 'جارٍ التحقق...' : applicationState === 'success' ? 'تم التحقق من الشروط' : 'حجز المقعد الآن'}
                 </button>
               )}
               {selectedCourse.status === 'upcoming' && (
