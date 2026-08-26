@@ -764,7 +764,9 @@ export async function getLessonContentBundle(
           .in('id', recordIds);
 
         if (!error && data) {
-          rawSectionRows = data.filter((row) => fileNameMatchesLesson(row.file_name, context.chapterNumber, context.lessonNumber));
+          // recordIds come from the exact lesson index entry. Trust this relation even
+          // when file_name uses a legacy/path naming convention without ch/les tokens.
+          rawSectionRows = data;
         }
       }
 

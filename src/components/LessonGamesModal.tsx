@@ -60,23 +60,29 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
   // Dynamic Supabase Games Bundle (Lazy-loaded on demand only when modal opens)
   const [gamesBundle, setGamesBundle] = useState<LessonGamesBundle | null>(null);
   const [isLoadingBundle, setIsLoadingBundle] = useState(false);
+  const [bundleLoadError, setBundleLoadError] = useState(false);
+  const canOpenInteractiveGame = Boolean(gamesBundle) && !isLoadingBundle && !bundleLoadError;
 
   useEffect(() => {
     let isCancelled = false;
     if (isOpen) {
+      setActiveGameMode('menu');
       setGamesBundle(null);
+      setBundleLoadError(false);
       setIsLoadingBundle(true);
       if (openLessonContext) {
         fetchLessonGamesData(openLessonContext)
           .then((bundle) => {
             if (!isCancelled) {
               setGamesBundle(bundle);
+              setBundleLoadError(false);
               setIsLoadingBundle(false);
             }
           })
           .catch((err) => {
             console.error('Failed to load games bundle:', err);
             if (!isCancelled) {
+              setBundleLoadError(true);
               setIsLoadingBundle(false);
             }
           });
@@ -91,12 +97,14 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
           .then((bundle) => {
             if (!isCancelled) {
               setGamesBundle(bundle);
+              setBundleLoadError(false);
               setIsLoadingBundle(false);
             }
           })
           .catch((err) => {
             console.error('Failed to load games bundle:', err);
             if (!isCancelled) {
+              setBundleLoadError(true);
               setIsLoadingBundle(false);
             }
           });
@@ -296,6 +304,13 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
                     جاري جلب أسئلة واختبارات هذا الدرس...
                   </span>
                 </div>
+              ) : bundleLoadError ? (
+                <div className="flex items-center gap-2.5 bg-rose-500/10 border border-rose-500/30 px-3.5 py-2 rounded-xl text-xs text-rose-200">
+                  <XCircle className="w-4 h-4 text-rose-300 shrink-0" />
+                  <span className="font-semibold text-[11px]">
+                    تعذر تحميل ألعاب هذا الدرس. أغلق النافذة وافتحها مرة أخرى.
+                  </span>
+                </div>
               ) : null}
 
               {/* 2x2 Grid (4 Quadrants / Square Sides) */}
@@ -313,10 +328,12 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
 
                   <button
                     onClick={() => {
+                      if (!canOpenInteractiveGame) return;
                       gameAudio.playGameStart();
                       setActiveGameMode('daily_exam');
                     }}
-                    className="w-full mt-3 py-2 px-2.5 bg-gradient-to-r from-purple-500 via-indigo-500 to-purple-500 hover:from-purple-400 hover:to-indigo-400 text-white font-bold rounded-xl text-xs shadow-md shadow-purple-600/25 flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+                    disabled={!canOpenInteractiveGame}
+                    className="w-full mt-3 py-2 px-2.5 bg-gradient-to-r from-purple-500 via-indigo-500 to-purple-500 hover:from-purple-400 hover:to-indigo-400 text-white font-bold rounded-xl text-xs shadow-md shadow-purple-600/25 flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer disabled:cursor-wait disabled:opacity-50"
                   >
                     <span>ابدأ الآن</span>
                     <ArrowRight className="w-3.5 h-3.5 rotate-180" />
@@ -336,10 +353,12 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
 
                   <button
                     onClick={() => {
+                      if (!canOpenInteractiveGame) return;
                       gameAudio.playGameStart();
                       setActiveGameMode('millionaire');
                     }}
-                    className="w-full mt-3 py-2 px-2.5 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-300 text-black font-black rounded-xl text-xs shadow-md shadow-amber-500/20 flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+                    disabled={!canOpenInteractiveGame}
+                    className="w-full mt-3 py-2 px-2.5 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-300 text-black font-black rounded-xl text-xs shadow-md shadow-amber-500/20 flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer disabled:cursor-wait disabled:opacity-50"
                   >
                     <span>ابدأ الآن</span>
                     <ArrowRight className="w-3.5 h-3.5 rotate-180" />
@@ -359,10 +378,12 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
 
                   <button
                     onClick={() => {
+                      if (!canOpenInteractiveGame) return;
                       gameAudio.playGameStart();
                       setActiveGameMode('true_false');
                     }}
-                    className="w-full mt-3 py-2 px-2.5 bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-400 hover:from-emerald-400 hover:to-teal-300 text-black font-black rounded-xl text-xs shadow-md shadow-emerald-500/20 flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+                    disabled={!canOpenInteractiveGame}
+                    className="w-full mt-3 py-2 px-2.5 bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-400 hover:from-emerald-400 hover:to-teal-300 text-black font-black rounded-xl text-xs shadow-md shadow-emerald-500/20 flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer disabled:cursor-wait disabled:opacity-50"
                   >
                     <span>ابدأ الآن</span>
                     <ArrowRight className="w-3.5 h-3.5 rotate-180" />
@@ -382,10 +403,12 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
 
                   <button
                     onClick={() => {
+                      if (!canOpenInteractiveGame) return;
                       gameAudio.playGameStart();
                       setActiveGameMode('gibha_sah');
                     }}
-                    className="w-full mt-3 py-2 px-2.5 bg-gradient-to-r from-cyan-400 via-teal-300 to-cyan-400 hover:from-cyan-300 hover:to-teal-200 text-black font-black rounded-xl text-xs shadow-md shadow-cyan-500/20 flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+                    disabled={!canOpenInteractiveGame}
+                    className="w-full mt-3 py-2 px-2.5 bg-gradient-to-r from-cyan-400 via-teal-300 to-cyan-400 hover:from-cyan-300 hover:to-teal-200 text-black font-black rounded-xl text-xs shadow-md shadow-cyan-500/20 flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer disabled:cursor-wait disabled:opacity-50"
                   >
                     <span>ابدأ الآن</span>
                     <ArrowRight className="w-3.5 h-3.5 rotate-180" />
