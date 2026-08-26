@@ -284,7 +284,7 @@ export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack, co
 
                 <div className="rounded-2xl border px-3 py-2 text-left" style={getPriceBoxStyle(course)}>
                   {course.oldPrice !== undefined && (
-                    <div className={`text-sm font-bold line-through ${theme.classes.textMuted}`}>{formatPrice(course.oldPrice)}</div>
+                    <div className="text-sm font-black line-through" style={{ color: 'rgba(255,255,255,0.96)' }}>{formatPrice(course.oldPrice)}</div>
                   )}
                   {course.isFree ? (
                     <div className="flex items-center justify-end gap-1.5 text-2xl font-black">
@@ -425,6 +425,12 @@ export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack, co
                   <div className={theme.classes.textMuted}>السعة: {selectedCourse.seatsPerGovernorate || 400} مقعد لكل محافظة.</div>
                   <div className={theme.classes.textMuted}>تبدأ الدورة في 1/12، ويفتح الدخول مع بدء الدورة.</div>
                 </div>
+                {selectedCourse.sponsorNote && (
+                  <div className={`mt-3 rounded-2xl border p-3 text-xs leading-6 ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder}`}>
+                    <div className="font-black" style={{ color: theme.colors.secondary }}>الجهة الداعمة</div>
+                    <div className={theme.classes.textMuted}>{selectedCourse.sponsorNote}</div>
+                  </div>
+                )}
                 <div className={`mt-3 space-y-2 rounded-2xl border p-3 text-xs leading-6 ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder}`}>
                   <div className="font-black" style={{ color: theme.colors.secondary }}>شروط التقديم للدورة المجانية</div>
                   <div className={theme.classes.textMuted}>يجب أن يكون مستواك 80 أو أكثر، وأن يكون تقييمك ذهبيًا.</div>

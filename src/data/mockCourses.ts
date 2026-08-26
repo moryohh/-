@@ -19,6 +19,7 @@ export interface MockCourse {
   requiredLevel?: number;
   requiredRating?: 'gold';
   seatsPerGovernorate?: number;
+  sponsorNote?: string;
 }
 
 /**
@@ -36,8 +37,8 @@ export const MOCK_COURSES: MockCourse[] = [
     status: 'upcoming',
     registrationMonth: 'الشهر الحادي عشر',
     includesOnlineExam: true,
-    includesInPersonExam: false,
-    badge: 'تشمل الامتحان الإلكتروني فقط',
+    includesInPersonExam: true,
+    badge: 'تشمل الامتحان الإلكتروني والحضوري',
     featured: true,
   },
   {
@@ -65,6 +66,7 @@ export const MOCK_COURSES: MockCourse[] = [
     requiredLevel: 80,
     requiredRating: 'gold',
     seatsPerGovernorate: 400,
+    sponsorNote: 'هذه الدورة مدفوعة من قبل المجلس الثقافي البريطاني ومنظمة معًا وجمعية Thomson للتنمية الدولية في الشرق الأوسط.',
     includesOnlineExam: true,
     includesInPersonExam: true,
     badge: 'مجانية — إلكتروني وحضوري',
