@@ -262,11 +262,6 @@ export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack }) 
         })}
       </div>
 
-      <div className={`flex items-center justify-center gap-2 rounded-2xl border p-3 text-center text-[10px] leading-5 ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder} ${theme.classes.textMuted}`}>
-        <BookOpen className="h-4 w-4 shrink-0" style={{ color: theme.colors.primary }} />
-        <span>هذه الدورات بيانات تجريبية للواجهة فقط، ولا يوجد دفع إلكتروني أو تعاقد فعلي داخل المنصة.</span>
-      </div>
-
       {selectedCourse && (
         <div
           className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm animate-in fade-in duration-150"
