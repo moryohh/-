@@ -21,12 +21,12 @@ export interface MockCourse {
  */
 export const MOCK_COURSES: MockCourse[] = [
   {
-    id: 'comprehensive-online',
-    title: 'الدورة الشاملة — جميع المواد',
+    id: 'august-comprehensive',
+    title: 'دورة شهر 8',
     description: 'برنامج متكامل يشمل جميع المواد الدراسية للسادس الإعدادي',
     subjects: ['التربية الإسلامية', 'العربي', 'الإنجليزي', 'الرياضيات', 'الأحياء', 'الفيزياء', 'الكيمياء'],
-    oldPrice: 750000,
-    currentPrice: 108000,
+    oldPrice: 800000,
+    currentPrice: 180000,
     status: 'full',
     includesOnlineExam: true,
     includesInPersonExam: false,
@@ -34,11 +34,11 @@ export const MOCK_COURSES: MockCourse[] = [
     featured: true,
   },
   {
-    id: 'comprehensive-online-upcoming',
-    title: 'الدورة الشاملة — التقديم القادم',
+    id: 'october-comprehensive',
+    title: 'دورة شهر 10',
     description: 'جميع المواد الدراسية مع امتحان إلكتروني شامل ومتابعة منظمة',
     subjects: ['التربية الإسلامية', 'العربي', 'الإنجليزي', 'الرياضيات', 'الأحياء', 'الفيزياء', 'الكيمياء'],
-    oldPrice: 1000000,
+    oldPrice: 900000,
     currentPrice: 200000,
     status: 'upcoming',
     registrationMonth: 'الشهر الحادي عشر',
@@ -47,8 +47,8 @@ export const MOCK_COURSES: MockCourse[] = [
     badge: 'تشمل الامتحان الإلكتروني فقط',
   },
   {
-    id: 'comprehensive-with-exams',
-    title: 'الدورة الشاملة + الامتحان الحضوري',
+    id: 'september-comprehensive-with-exams',
+    title: 'دورة شهر 9',
     description: 'جميع المواد الدراسية مع امتحان إلكتروني وامتحان حضوري شامل',
     subjects: ['التربية الإسلامية', 'العربي', 'الإنجليزي', 'الرياضيات', 'الأحياء', 'الفيزياء', 'الكيمياء'],
     currentPrice: 220000,

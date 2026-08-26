@@ -6,7 +6,6 @@ import {
   CalendarDays,
   CheckCircle2,
   Clock3,
-  GraduationCap,
   Layers,
   MapPin,
   MonitorCheck,
@@ -178,17 +177,6 @@ export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack }) 
                 </div>
               </div>
 
-              <div className="mt-3 flex flex-wrap justify-end gap-1.5">
-                {course.subjects.map((subject) => (
-                  <span
-                    key={subject}
-                    className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-bold ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder}`}
-                  >
-                    <GraduationCap className="h-3 w-3" style={{ color: theme.colors.primary }} />
-                    <span className={theme.classes.textMuted}>{subject}</span>
-                  </span>
-                ))}
-              </div>
 
               <div className={`mt-4 flex items-end justify-between gap-3 border-t pt-3 ${theme.classes.cardBorder}`}>
                 <span
