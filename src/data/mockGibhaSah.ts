@@ -12,7 +12,7 @@ export interface GibhaSahQuestion {
   id: string;
   questionNumber: number;
   question: string;
-  correctCardNumber: number; // 1 to 12
+  correctCardNumber: number; // 1 to 10
   explanation: string;
   points: number;
   hint?: string;
@@ -23,7 +23,7 @@ export interface GibhaSahGameConfig {
   subject: string;
   title: string;
   subtitle: string;
-  mode: 'cards_12' | 'visual_4';
+  mode: 'cards_10' | 'visual_4';
   cards: GibhaSahCard[];
   questions: GibhaSahQuestion[];
 }
@@ -35,7 +35,7 @@ export const GIBHA_SAH_GAMES: Record<string, GibhaSahGameConfig> = {
     subject: 'البيولوجيا والأحياء',
     title: 'جيبها صح - التكاثر والأحياء التفاعلية',
     subtitle: 'تحدي تفريغ وإسقاط البطاقات العلمية الـ 12',
-    mode: 'cards_12',
+    mode: 'cards_10',
     cards: [
       { id: 1, number: 1, label: 'مملكة الطليعيات', sublabel: 'كائنات حقيقية النواة بسيطة', badge: 'تصنيف علمي' },
       { id: 2, number: 2, label: 'الخميرة', sublabel: 'فطريات وحيدة الخلية', badge: 'فطريات' },
@@ -156,7 +156,7 @@ export const GIBHA_SAH_GAMES: Record<string, GibhaSahGameConfig> = {
     subject: 'الفيزياء',
     title: 'جيبها صح - فيزياء الحث الكهرومغناطيسي',
     subtitle: 'تحدي تفريغ شبكة المفاهيم والوحدات الفيزيائية',
-    mode: 'cards_12',
+    mode: 'cards_10',
     cards: [
       { id: 1, number: 1, label: 'قانون لنز', sublabel: 'معاكسة السبب المولد للتيار المحتث', badge: 'قانون' },
       { id: 2, number: 2, label: 'الويبر (Weber)', sublabel: 'وحدة قياس الفيض المغناطيسي', badge: 'وحدة قياس' },
@@ -277,7 +277,7 @@ export const GIBHA_SAH_GAMES: Record<string, GibhaSahGameConfig> = {
     subject: 'اللغة العربية',
     title: 'جيبها صح - قواعد واستفهام اللغة العربية',
     subtitle: 'تحدي تفريغ شبكة أدوات الاستفهام ودلالاتها',
-    mode: 'cards_12',
+    mode: 'cards_10',
     cards: [
       { id: 1, number: 1, label: 'مَنْ / مَنْ ذا', sublabel: 'للعاقل وتُعرب بحسب ما يليها', badge: 'أداة استفهام' },
       { id: 2, number: 2, label: 'ما / ماذا', sublabel: 'لغير العاقل وتُحذف ألفها مع الجر', badge: 'أداة استفهام' },
@@ -398,7 +398,7 @@ export const GIBHA_SAH_GAMES: Record<string, GibhaSahGameConfig> = {
     subject: 'الرياضيات',
     title: 'جيبها صح - مبرهنة ديموافر والأعداد المركبة',
     subtitle: 'تحدي تفريغ بطاقات الأعداد المركبة والتحليل الرياضي',
-    mode: 'cards_12',
+    mode: 'cards_10',
     cards: [
       { id: 1, number: 1, label: 'مبرهنة ديموافر', sublabel: '[cos θ + i sin θ]ⁿ = cos(nθ) + i sin(nθ)', badge: 'مبرهنة رياضية' },
       { id: 2, number: 2, label: 'الوحدة التخيلية (i)', sublabel: 'i² = -1 , i⁴ = 1', badge: 'عنصر أساسي' },
@@ -519,7 +519,7 @@ export const GIBHA_SAH_GAMES: Record<string, GibhaSahGameConfig> = {
     subject: 'الثقافة العامة والتحديات',
     title: 'جيبها صح - تحدي العواصم والمدن العالمية',
     subtitle: 'تحدي تفريغ شبكة العواصم الـ 12',
-    mode: 'cards_12',
+    mode: 'cards_10',
     cards: [
       { id: 1, number: 1, label: 'طوكيو', sublabel: 'اليابان - برج طوكيو', badge: 'عاصمة آسيوية' },
       { id: 2, number: 2, label: 'باريس', sublabel: 'فرنسا - برج إيفل', badge: 'عاصمة أوروبية' },
@@ -635,34 +635,42 @@ export const GIBHA_SAH_GAMES: Record<string, GibhaSahGameConfig> = {
   }
 };
 
+const normalizeStaticGibhaSahConfig = (config: GibhaSahGameConfig): GibhaSahGameConfig => ({
+  ...config,
+  mode: 'cards_10',
+  subtitle: config.subtitle.replace(/12/g, '10'),
+  cards: config.cards.slice(0, 10).map((card, index) => ({
+    ...card,
+    id: index + 1,
+    number: index + 1,
+  })),
+  questions: config.questions.slice(0, 10).map((question, index) => ({
+    ...question,
+    questionNumber: index + 1,
+    correctCardNumber: question.correctCardNumber >= 1 && question.correctCardNumber <= 10
+      ? question.correctCardNumber
+      : (index % 10) + 1,
+  })),
+});
+
 export const getGibhaSahGameForLesson = (
   lessonId: string,
   lessonTitle: string,
   category: string
 ): GibhaSahGameConfig => {
-  // Direct match
+  // Direct match, normalized to the current ten-card format.
   if (GIBHA_SAH_GAMES[lessonId]) {
-    return GIBHA_SAH_GAMES[lessonId];
+    return normalizeStaticGibhaSahConfig(GIBHA_SAH_GAMES[lessonId]);
   }
-
-  // Category search
-  if (category.includes('أحياء') || category.includes('بيولوجيا') || lessonTitle.includes('أحياء') || lessonTitle.includes('تكاثر')) {
-    return GIBHA_SAH_GAMES['lesson-bio-ch3'];
-  }
-  if (category.includes('فيزياء') || lessonTitle.includes('فيزياء') || lessonTitle.includes('حث') || lessonTitle.includes('مغناطيس')) {
-    return GIBHA_SAH_GAMES['lesson-phys-ch2'];
-  }
-  if (category.includes('عربي') || category.includes('استفهام') || lessonTitle.includes('عربي')) {
-    return GIBHA_SAH_GAMES['lesson-ar-g1'];
-  }
-  if (category.includes('رياضيات') || lessonTitle.includes('رياضيات') || lessonTitle.includes('ديموافر')) {
-    return GIBHA_SAH_GAMES['lesson-math-ch1'];
-  }
-
-  // Default fallback
-  const fallback = { ...GIBHA_SAH_GAMES['lesson-bio-ch3'] };
-  fallback.lessonId = lessonId;
-  fallback.title = `جيبها صح - ${category || 'الدرس'}`;
-  fallback.subtitle = `تحدي تفريغ البطاقات العلمية لدرس: ${lessonTitle}`;
-  return fallback;
+  // Do not borrow another subject or the old general-culture/biology set.
+  // The database loader handles the mandatory previous-lesson policy for this game.
+  return {
+    lessonId,
+    subject: category || 'المادة التعليمية',
+    title: `لعبة جِيبْهَا صَح - ${lessonTitle}`,
+    subtitle: 'لا تتوفر أسئلة مرتبطة بهذا الدرس حاليًا',
+    mode: 'cards_10',
+    cards: [],
+    questions: [],
+  };
 };

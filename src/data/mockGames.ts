@@ -57,7 +57,7 @@ export const MOCK_EDUCATIONAL_GAMES: Record<string, EducationalGame[]> = {
   ]
 };
 
-// Helper function to fetch games dynamically by lesson_id
+// Return only games explicitly associated with this lesson; never show another lesson's preview.
 export const getGamesForLesson = (lessonId: string): EducationalGame[] => {
-  return MOCK_EDUCATIONAL_GAMES[lessonId] || MOCK_EDUCATIONAL_GAMES['lesson-ai-01'];
+  return MOCK_EDUCATIONAL_GAMES[lessonId] || [];
 };

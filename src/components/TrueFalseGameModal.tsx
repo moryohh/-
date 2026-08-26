@@ -135,6 +135,27 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
 
   if (!isOpen) return null;
 
+  if (config.questions.length === 0) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 font-cairo">
+        <div className="w-full max-w-sm rounded-3xl border border-cyan-400/40 bg-[#08152e] p-6 text-center text-white shadow-2xl">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-300/40 bg-cyan-400/10 text-cyan-300">
+            <HelpCircle className="h-7 w-7" aria-hidden="true" />
+          </div>
+          <h2 className="text-lg font-black">لا تتوفر أسئلة لهذا الدرس حاليًا</h2>
+          <p className="mt-2 text-sm leading-7 text-slate-300">لم يتم العثور على ملف صح وخطأ مطابق للمادة والفصل والدرس المفتوح.</p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="mt-5 w-full rounded-2xl bg-gradient-to-r from-cyan-500 to-emerald-400 px-4 py-3 font-black text-slate-950 transition-transform active:scale-95"
+          >
+            حسنًا
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const currentQ = config.questions[currentIndex];
   const totalQuestions = config.questions.length;
 

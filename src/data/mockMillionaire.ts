@@ -358,7 +358,7 @@ export const MILLIONAIRE_GAMES: Record<string, MillionaireGameConfig> = {
   }
 };
 
-const IQD_13_LADDER_POINTS = [
+const IQD_11_LADDER_POINTS = [
   5000,
   10000,
   25000,
@@ -374,11 +374,11 @@ const IQD_13_LADDER_POINTS = [
   1000000,
 ];
 
-// Helper to normalize any game config to exactly 13 questions with 1M IQD ladder points
-const normalizeTo13Questions = (config: MillionaireGameConfig): MillionaireGameConfig => {
-  const slicedQuestions = config.questions.slice(0, 13).map((q, idx) => ({
+// Keep only eleven lesson questions; never pad with unrelated or generated questions.
+const normalizeTo11Questions = (config: MillionaireGameConfig): MillionaireGameConfig => {
+  const slicedQuestions = config.questions.slice(0, 11).map((q, idx) => ({
     ...q,
-    points: IQD_13_LADDER_POINTS[idx] || 1000000,
+    points: IQD_11_LADDER_POINTS[idx] || 1000000,
   }));
   return {
     ...config,
@@ -393,30 +393,22 @@ export const getMillionaireGameForLesson = (
   category: string = 'المادة العلمية'
 ): MillionaireGameConfig => {
   if (MILLIONAIRE_GAMES[lessonId]) {
-    return normalizeTo13Questions(MILLIONAIRE_GAMES[lessonId]);
+    return normalizeTo11Questions(MILLIONAIRE_GAMES[lessonId]);
   }
 
-  // If the title contains Biology/الأحياء or Frog/الضفدع, return biology set
-  if (lessonTitle.includes('أحياء') || lessonTitle.includes('التكاثر') || lessonTitle.includes('الضفدع')) {
-    return normalizeTo13Questions({
-      ...MILLIONAIRE_GAMES['lesson-bio-ch3'],
-      lessonId,
-      title: 'من سيربح المليون؟',
-      subtitle: `مسابقة ${lessonTitle}`
-    });
-  }
+  // No exact lesson bank: return an explicit empty state instead of another lesson or generated AI questions.
+  return {
+    gameId: `millionaire-${lessonId}`,
+    gameType: 'millionaire',
+    lessonId,
+    subject: category || 'المادة التعليمية',
+    grade: 'السادس الإعدادي',
+    title: 'من سيربح المليون؟',
+    subtitle: `لا تتوفر أسئلة مرتبطة بهذا الدرس حاليًا: ${lessonTitle}`,
+    questions: [],
+  };
 
-  // If AI, return AI set
-  if (lessonTitle.includes('ذكاء') || lessonTitle.includes('AI') || lessonTitle.includes('برمجة')) {
-    return normalizeTo13Questions({
-      ...MILLIONAIRE_GAMES['lesson-ai-01'],
-      lessonId,
-      title: 'من سيربح المليون؟',
-      subtitle: `مسابقة ${lessonTitle}`
-    });
-  }
-
-  // Default fallback customized with lesson title
+  /* Legacy generated fallback intentionally disabled.
   const rawFallback: MillionaireGameConfig = {
     gameId: `millionaire-${lessonId}`,
     gameType: 'millionaire',
@@ -594,5 +586,6 @@ export const getMillionaireGameForLesson = (
     }
   };
 
-  return normalizeTo13Questions(rawFallback);
+  return normalizeTo11Questions(rawFallback);
+  */
 };

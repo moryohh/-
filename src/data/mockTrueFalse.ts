@@ -572,24 +572,15 @@ export const getTrueFalseGameForLesson = (
     return TRUE_FALSE_GAMES[lessonId];
   }
 
-  // Category matching
-  if (category.includes('عربي') || lessonTitle.includes('عربي') || category.includes('استفهام')) {
-    return TRUE_FALSE_GAMES['lesson-ar-g1'];
-  }
-  if (category.includes('أحياء') || category.includes('بيولوجيا') || lessonTitle.includes('أحياء')) {
-    return TRUE_FALSE_GAMES['lesson-bio-ch3'];
-  }
-  if (category.includes('فيزياء') || lessonTitle.includes('فيزياء')) {
-    return TRUE_FALSE_GAMES['lesson-phys-ch2'];
-  }
-  if (category.includes('رياضيات') || lessonTitle.includes('رياضيات') || lessonTitle.includes('ديموافر')) {
-    return TRUE_FALSE_GAMES['lesson-math-ch1'];
-  }
-
-  // Default fallback with 12 rich questions
-  const defaultConf = { ...TRUE_FALSE_GAMES['default'] };
-  defaultConf.lessonId = lessonId;
-  defaultConf.title = `تحدي صح أم خطأ - ${category || 'المادة'}`;
-  defaultConf.subtitle = `12 سؤالاً تفاعلياً مستوحاة من درس: ${lessonTitle}`;
-  return defaultConf;
+  // Do not borrow another subject or a generic AI/general set.
+  // The database loader will show an unavailable state when this exact lesson has no bank.
+  return {
+    lessonId,
+    subject: category || 'المادة التعليمية',
+    title: `تحدي صح أم خطأ - ${lessonTitle}`,
+    subtitle: 'لا تتوفر أسئلة مرتبطة بهذا الدرس حاليًا',
+    totalQuestions: 0,
+    totalPoints: 0,
+    questions: [],
+  };
 };

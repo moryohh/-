@@ -46,7 +46,7 @@ interface MillionaireGameModalProps {
   customConfig?: MillionaireGameConfig;
 }
 
-// 13-level Iraqi dinar prize ladder shown inside the game.
+// 11-level Iraqi dinar prize ladder shown inside the game.
 const LADDER_LEVELS = [
   { level: 1, points: 250, label: '250 د.ع', isSafety: false },
   { level: 2, points: 500, label: '500 د.ع', isSafety: false },
@@ -59,8 +59,6 @@ const LADDER_LEVELS = [
   { level: 9, points: 250000, label: '250 000 د.ع', isSafety: true },
   { level: 10, points: 500000, label: '500 000 د.ع', isSafety: false },
   { level: 11, points: 1000000, label: '1 000 000 د.ع', isSafety: true },
-  { level: 12, points: 2000000, label: '2 000 000 د.ع', isSafety: false },
-  { level: 13, points: 5000000, label: '5 000 000 د.ع', isSafety: true },
 ];
 
 const MILLIONAIRE_WRONG_AUDIO_URL = `${import.meta.env.BASE_URL}audio/millionaire-wrong.mp3`;
@@ -265,7 +263,7 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
   onAssessmentResult,
   customConfig,
 }) => {
-  // Game Configuration & Load (13 questions standardized)
+  // Game Configuration & Load (11 questions standardized)
   const [gameConfig, setGameConfig] = useState<MillionaireGameConfig>(() =>
     customConfig || getMillionaireGameForLesson(lessonId, lessonTitle, category)
   );
@@ -691,7 +689,7 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
       setIsOpponentThinking(true);
       setOpponentHoveredOption(null);
 
-      const isAboveTen = currentQuestionIndex >= 10; // الأسئلة فوق 10 (11، 12، 13)
+      const isAboveTen = currentQuestionIndex >= 10; // السؤال 11 هو آخر سؤال بعد العشرة الأولى
 
       // Timing rule: 5 to 15 seconds for Q1-10, and double (10 to 30 seconds) for Q>10
       const thinkingDuration = isAboveTen
@@ -700,7 +698,7 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
 
       // Opponent Error Rate: Starts only after Question 8 (index 7) at 5% and increases +5% per subsequent question
       // Q1 to Q7 (idx 0 to 6): 0%
-      // Q8 (idx 7): 5%, Q9 (idx 8): 10%, Q10 (idx 9): 15%, Q11 (idx 10): 20%, Q12 (idx 11): 25%, Q13 (idx 12): 30%
+      // Q8 (idx 7): 5% حتى Q11 (idx 10): 20%
       const opponentErrorRate = currentQuestionIndex >= 7 ? (currentQuestionIndex - 6) * 0.05 : 0;
       const isOpponentCorrect = Math.random() >= opponentErrorRate;
 
@@ -819,6 +817,27 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
   }, [lessonId, lessonTitle, category]);
 
   if (!isOpen) return null;
+
+  if (gameConfig.questions.length === 0) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 font-cairo">
+        <div className="w-full max-w-sm rounded-3xl border border-amber-400/40 bg-[#08152e] p-6 text-center text-white shadow-2xl">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-300/40 bg-amber-400/10 text-amber-300">
+            <BookOpen className="h-7 w-7" aria-hidden="true" />
+          </div>
+          <h2 className="text-lg font-black">لا تتوفر أسئلة لهذا الدرس حاليًا</h2>
+          <p className="mt-2 text-sm leading-7 text-slate-300">لم يتم العثور على ملف MCQ مطابق للمادة والفصل والدرس المفتوح.</p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="mt-5 w-full rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-300 px-4 py-3 font-black text-slate-950 transition-transform active:scale-95"
+          >
+            حسنًا
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const currentQuestion = gameConfig.questions[currentQuestionIndex] || gameConfig.questions[0];
   const currentLadder = LADDER_LEVELS[currentQuestionIndex] || LADDER_LEVELS[0];
@@ -1040,7 +1059,7 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
     }, 800);
   };
 
-  // Progress to next question or completion (13 questions total)
+  // Progress to next question or completion (11 questions total)
   const handleNextQuestion = () => {
     if (isAdvancingQuestionRef.current) return;
     isAdvancingQuestionRef.current = true;
@@ -1342,7 +1361,7 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
                     سؤال المليون دينار
                   </h1>
                   <p className="text-xs sm:text-sm text-blue-200/90 font-medium">
-                    13 سؤالاً متدرجاً نحو الجائزة الكبرى — اختر نمط اللعب
+                    11 سؤالاً متدرجاً نحو الجائزة الكبرى — اختر نمط اللعب
                   </p>
                 </div>
 
@@ -1661,7 +1680,7 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
                     <div className="text-right">
                       <div className="text-[11px] font-extrabold text-blue-200 flex items-center gap-1.5">
                         <span className="text-amber-400">السؤال:</span>
-                        <span>{currentQuestionIndex + 1} من 13</span>
+                        <span>{currentQuestionIndex + 1} من 11</span>
                       </div>
                       <div className="text-[11px] font-bold text-amber-300 flex items-center gap-1">
                         <span className="text-blue-300">الجائزة:</span>
@@ -1839,7 +1858,7 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
                       <span>
                         {(() => {
                           const isCorrect = selectedOption === currentQuestion.correctAnswer && !isTimeOutLoss;
-                          if (currentQuestionIndex === 12 && isCorrect) {
+                          if (currentQuestionIndex === 10 && isCorrect) {
                             return 'تتويج بطل المليونير 🏆';
                           }
                           if (isCorrect) {
@@ -1866,7 +1885,7 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
               </div>
             )}
 
-            {/* 5. VICTORY SCREEN (13 QUESTIONS CLEARED) */}
+            {/* 5. VICTORY SCREEN (11 QUESTIONS CLEARED) */}
             {gameState === 'victory' && (
               <div className="flex-1 flex flex-col items-center justify-center text-center py-6 space-y-5 animate-in fade-in">
                 <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-200 p-1 shadow-[0_0_40px_rgba(245,158,11,0.6)] animate-bounce">
@@ -1880,7 +1899,7 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
                     🎉 ألف مبروك! ربحت المليون دينار!
                   </h2>
                   <p className="text-xs sm:text-sm text-blue-200">
-                    أكملت جميع أسئلة الـ 13 بنجاح استثنائي واقتدار تام 🏆
+                    أكملت جميع أسئلة الـ 11 بنجاح استثنائي واقتدار تام 🏆
                   </p>
                 </div>
 
@@ -1895,7 +1914,7 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
                   <div className="bg-[#050d26] p-3 rounded-xl border border-blue-900/40">
                     <span className="text-[10px] text-blue-300 block">الإجابات الصحيحة</span>
                     <span className="text-base font-bold text-emerald-400 mt-0.5 block">
-                      13 / 13
+                      11 / 11
                     </span>
                   </div>
                 </div>
@@ -1948,7 +1967,7 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
                   <div className="bg-[#050d26] p-3 rounded-xl border border-blue-900/40">
                     <span className="text-[10px] text-blue-300 block">وصلت للسؤال</span>
                     <span className="text-base font-bold text-white mt-0.5 block">
-                      {currentQuestionIndex + 1} من 13
+                      {currentQuestionIndex + 1} من 11
                     </span>
                   </div>
                 </div>
@@ -2056,14 +2075,14 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
               </div>
             )}
 
-            {/* Exact 13 Ladder Stack (من 1,000,000 د.ع إلى 5,000 د.ع) */}
+            {/* Exact 11 Ladder Stack (من 1,000,000 د.ع إلى 250 د.ع) */}
             <div className="space-y-2 flex-1">
               <div className="flex items-center justify-between border-b border-blue-900/60 pb-1.5">
                 <span className="text-xs font-black text-[#E5B869] flex items-center gap-1.5">
                   <Award className="w-4 h-4 text-amber-400" />
                   سلم جوائز المليون دينار
                 </span>
-                <span className="text-[10px] text-blue-300">13 سؤالاً</span>
+                <span className="text-[10px] text-blue-300">11 سؤالاً</span>
               </div>
 
               <div className="space-y-1 text-xs overflow-y-auto max-h-[380px] pr-1">
@@ -2112,7 +2131,7 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
             <div className="pt-2 border-t border-blue-900/60 text-center">
               <span className="text-[10px] text-blue-300 block">السؤال الحالي</span>
               <span className="text-xs font-bold text-amber-400">
-                {currentQuestionIndex + 1} من 13 — {currentLadder.label}
+                {currentQuestionIndex + 1} من 11 — {currentLadder.label}
               </span>
             </div>
           </div>
@@ -2276,13 +2295,13 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
                   className="w-full py-4 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-300 text-black font-black text-sm sm:text-base rounded-2xl shadow-[0_0_30px_rgba(245,158,11,0.5)] flex items-center justify-center gap-2 transition-transform active:scale-95 cursor-pointer group"
                 >
                   <span>
-                    {activeClimbLevel < 13 ? 'الانتقال للسؤال التالي ➔' : 'تتويج المليونير 🏆'}
+                    {activeClimbLevel < LADDER_LEVELS.length ? 'الانتقال للسؤال التالي ➔' : 'تتويج المليونير 🏆'}
                   </span>
                   <ArrowRight className="w-5 h-5 rotate-180 group-hover:-translate-x-1 transition-transform" />
                 </button>
               </div>
 
-              {/* Right Column: 13-Level Ladder TV Panel */}
+              {/* Right Column: 11-Level Ladder TV Panel */}
               <div className="md:col-span-7 flex justify-center">
                 <div
                   id="millionaire-ladder-tv-panel"

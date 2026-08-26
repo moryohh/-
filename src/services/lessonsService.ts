@@ -328,6 +328,29 @@ export function getDbSubjectIds(subjectKey: string): string[] {
 /**
  * Extracts chapter and segment/lesson numbers from strings or filenames
  */
+export function fileNameMatchesLesson(fileName: string | undefined, chapterNumber?: number, lessonNumber?: number): boolean {
+  if (!fileName || chapterNumber === undefined || lessonNumber === undefined) return false;
+
+  const arabicToLatin = (value: string) => value.replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)));
+  const normalized = arabicToLatin(String(fileName).toLowerCase()).replace(/[\s_.\/\\-]+/g, '');
+  const hasToken = (token: string) => new RegExp(`${token}(?!\\d)`, 'i').test(normalized);
+
+  const chapterMatches = [
+    `ch${chapterNumber}`,
+    `chapter${chapterNumber}`,
+    `فصل${chapterNumber}`,
+  ].some(hasToken);
+  const lessonMatches = [
+    `les${lessonNumber}`,
+    `lesson${lessonNumber}`,
+    `segment${lessonNumber}`,
+    `سجمنت${lessonNumber}`,
+    `درس${lessonNumber}`,
+  ].some(hasToken);
+
+  return chapterMatches && lessonMatches;
+}
+
 export function extractChapterAndSegment(input: string): { chapter?: number; segment?: number } {
   if (!input) return {};
   const chMatch =
@@ -741,11 +764,12 @@ export async function getLessonContentBundle(
           .in('id', recordIds);
 
         if (!error && data) {
-          rawSectionRows = data;
+          rawSectionRows = data.filter((row) => fileNameMatchesLesson(row.file_name, context.chapterNumber, context.lessonNumber));
         }
       }
 
-      // If recordIds was missing for a section, query precisely with subject_id, chapter & lesson match
+      // If recordIds was missing or did not prove the exact lesson, query only the chapter
+      // and select the row whose filename contains both the exact chapter and lesson tokens.
       const loadedSections = new Set(rawSectionRows.map((r) => normalizeSectionId(r.section_id)));
       const requiredSections: LessonSectionType[] = ['lessons', 'curriculum', 'mcq', 'true_false', 'ph'];
       const missingSections = requiredSections.filter((sec) => !loadedSections.has(sec));
@@ -754,17 +778,28 @@ export async function getLessonContentBundle(
         const dbSubjects = getDbSubjectIds(context.subjectId);
         for (const sec of missingSections) {
           if (signal?.aborted) break;
-          const { data: directRows } = await supabase
+          const sectionAliases = sec === 'true_false'
+            ? ['true_false', 'tf', 'صح_خطأ', 'صح_ام_خطا']
+            : sec === 'ph'
+              ? ['ph', 'فلاش_كاردز', 'بطاقات']
+              : [sec];
+          let sectionQuery = supabase
             .from('educational_data')
             .select('id, subject_id, section_id, file_name, content')
             .in('subject_id', dbSubjects)
-            .eq('section_id', sec === 'true_false' ? 'true_false' : sec)
-            .or(`file_name.ilike.%ch${context.chapterNumber}%,file_name.ilike.%فصل%${context.chapterNumber}%`)
-            .or(`file_name.ilike.%les${context.lessonNumber}%,file_name.ilike.%segment${context.lessonNumber}%,file_name.ilike.%درس%${context.lessonNumber}%`)
-            .limit(1);
+            .in('section_id', sectionAliases);
 
-          if (directRows && directRows.length > 0 && directRows[0].content) {
-            rawSectionRows.push(directRows[0]);
+          sectionQuery = sectionQuery.or(
+            `file_name.ilike.%ch${context.chapterNumber}%,file_name.ilike.%chapter${context.chapterNumber}%,file_name.ilike.%فصل%${context.chapterNumber}%`
+          );
+
+          const { data: candidateRows } = await sectionQuery.limit(100);
+          const exactRow = candidateRows?.find((row) =>
+            fileNameMatchesLesson(row.file_name, context.chapterNumber, context.lessonNumber) && row.content
+          );
+
+          if (exactRow) {
+            rawSectionRows.push(exactRow);
           }
         }
       }

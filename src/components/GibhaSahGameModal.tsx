@@ -13,7 +13,8 @@ import {
   Check,
   User,
   Shuffle,
-  FastForward
+  FastForward,
+  HelpCircle
 } from 'lucide-react';
 import {
   GibhaSahGameConfig,
@@ -124,8 +125,8 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
   );
 
   const currentQ: GibhaSahQuestion | undefined = remainingQuestions[0];
-  const totalCardsCount = config.cards.length; // 12
-  const remainingCardsCount = totalCardsCount - solvedCardNumbers.length; // 12 -> 11 -> 10 ... -> 0
+  const totalCardsCount = config.cards.length; // 10
+  const remainingCardsCount = totalCardsCount - solvedCardNumbers.length; // 10 -> 9 -> 8 ... -> 0
 
   // Filter only active, non-solved cards so their boxes completely disappear from the DOM
   const activeCards = config.cards.filter((card) => !solvedCardNumbers.includes(card.number));
@@ -187,7 +188,7 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
 
   // Timer effect
   useEffect(() => {
-    if (!isOpen || isFinished || !isTimerRunning || feedbackStatus !== 'idle') return;
+    if (!isOpen || isFinished || !isTimerRunning || feedbackStatus !== 'idle' || remainingQuestions.length === 0) return;
 
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
@@ -234,6 +235,27 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
   };
 
   if (!isOpen) return null;
+
+  if (config.questions.length === 0 || config.cards.length === 0) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 font-cairo">
+        <div className="w-full max-w-sm rounded-3xl border border-amber-400/40 bg-[#08152e] p-6 text-center text-white shadow-2xl">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-300/40 bg-amber-400/10 text-amber-300">
+            <HelpCircle className="h-7 w-7" aria-hidden="true" />
+          </div>
+          <h2 className="text-lg font-black">لا تتوفر بطاقات كافية لهذا الدرس حاليًا</h2>
+          <p className="mt-2 text-sm leading-7 text-slate-300">لم يتم العثور على بنك بطاقات مطابق للمادة والفصل والدرس المفتوح أو الدرس السابق.</p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="mt-5 w-full rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-300 px-4 py-3 font-black text-slate-950 transition-transform active:scale-95"
+          >
+            حسنًا
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Handle clicking a card in the active grid
   const handleCardClick = (cardNum: number) => {
@@ -301,7 +323,7 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
         },
       ]);
 
-      // Remove card from board completely to free up space (12 -> 11 -> 10 ...)
+      // Remove card from board completely to free up space (10 -> 9 -> 8 ...)
       setTimeout(() => {
         setSolvedCardNumbers((prev) => [...prev, selectedCardId]);
         setSelectedCardId(null);
@@ -847,7 +869,7 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
               <div className="space-y-1">
                 <div className="inline-flex items-center gap-1.5 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-black px-3 py-1 rounded-full mb-1">
                   <PartyPopper className="w-4 h-4 text-emerald-400" />
-                  <span>تم مسح وتفريغ جميع البطاقات الـ 12 بنجاح!</span>
+                  <span>تم مسح وتفريغ جميع البطاقات الـ 10 بنجاح!</span>
                 </div>
                 <h3 className="text-lg sm:text-xl font-black text-white">
                   {gameMode === 'teams' ? (

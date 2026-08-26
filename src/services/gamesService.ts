@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { getDbSubjectIds, getLessonContentBundle } from './lessonsService';
+import { buildLessonKey, fileNameMatchesLesson, getDbSubjectIds, getLessonContentBundle } from './lessonsService';
 import { MillionaireGameConfig, MillionaireQuestion, OpenLessonContext } from '../types';
 import { TrueFalseGameConfig, TrueFalseQuestion, getTrueFalseGameForLesson } from '../data/mockTrueFalse';
 import { GibhaSahGameConfig, GibhaSahQuestion, GibhaSahCard, getGibhaSahGameForLesson } from '../data/mockGibhaSah';
@@ -32,6 +32,105 @@ function getSubjectNormalizedKey(subjectId: string): string {
 }
 
 /**
+ * Fetch one section only when the filename proves the exact chapter + lesson.
+ * A broad chapter/lesson OR query is intentionally not used because it can
+ * return an arbitrary neighboring file and silently generalize its questions.
+ */
+async function fetchExactSectionContent(
+  sectionId: 'mcq' | 'true_false' | 'ph',
+  dbSubjects: string[],
+  chapterNumber: number | undefined,
+  lessonNumber: number | undefined,
+  lessonId: string
+): Promise<any | null> {
+  if (chapterNumber === undefined || lessonNumber === undefined) return null;
+
+  const sectionAliases = sectionId === 'true_false'
+    ? ['true_false', 'tf', 'صح_خطأ', 'صح_ام_خطا']
+    : sectionId === 'ph'
+      ? ['ph', 'فلاش_كاردز', 'بطاقات']
+      : [sectionId];
+  const baseQuery = () =>
+    supabase
+      .from('educational_data')
+      .select('id, file_name, subject_id, section_id, content')
+      .in('subject_id', dbSubjects)
+      .in('section_id', sectionAliases);
+
+  // An exact lesson id is safer than a chapter-only search when the database has it.
+  const cleanLessonId = lessonId.replace(/\.json$/i, '').trim();
+  if (cleanLessonId.length > 3) {
+    const { data: directRows } = await baseQuery()
+      .ilike('file_name', `%${cleanLessonId}%`)
+      .limit(20);
+    const directMatch = directRows?.find(
+      (row) => fileNameMatchesLesson(row.file_name, chapterNumber, lessonNumber) && row.content
+    );
+    if (directMatch) return directMatch.content;
+  }
+
+  const { data: chapterRows } = await baseQuery()
+    .or(
+      `file_name.ilike.%ch${chapterNumber}%,file_name.ilike.%chapter${chapterNumber}%,file_name.ilike.%فصل%${chapterNumber}%`
+    )
+    .limit(100);
+
+  const exactMatch = chapterRows?.find(
+    (row) => fileNameMatchesLesson(row.file_name, chapterNumber, lessonNumber) && row.content
+  );
+  return exactMatch?.content || null;
+}
+
+async function getPreviousLessonGibhaSahConfig(
+  context: OpenLessonContext,
+  currentConfig: GibhaSahGameConfig
+): Promise<GibhaSahGameConfig> {
+  if (currentConfig.questions.length > 0 || context.lessonNumber <= 1) return currentConfig;
+
+  try {
+    const previousLessonNumber = context.lessonNumber - 1;
+    const previousContext: OpenLessonContext = {
+      ...context,
+      lessonNumber: previousLessonNumber,
+      lessonId: `${context.subjectId}-ch${context.chapterNumber}-les${previousLessonNumber}`,
+      lessonKey: buildLessonKey(context.subjectId, context.chapterNumber, previousLessonNumber),
+      title: `الدرس ${previousLessonNumber}`,
+      lessonTitle: `الدرس ${previousLessonNumber}`,
+    };
+    const previousDbSubjects = getDbSubjectIds(getSubjectNormalizedKey(context.subjectId));
+    const directPreviousPh = await fetchExactSectionContent(
+      'ph',
+      previousDbSubjects,
+      context.chapterNumber,
+      previousLessonNumber,
+      previousContext.lessonId
+    );
+    const previousBundle = directPreviousPh ? null : await getLessonContentBundle(previousContext);
+    const previousPhData = directPreviousPh || previousBundle?.phData;
+    if (previousPhData) {
+      const previousConfig = parsePhToGibhaSah(
+        previousPhData,
+        previousContext.lessonId,
+        previousContext.title || previousContext.lessonTitle || `الدرس ${previousLessonNumber}`,
+        context.subjectId
+      );
+      if (previousConfig.questions.length > 0) {
+        return {
+          ...previousConfig,
+          lessonId: context.lessonId,
+          title: `لعبة جِيبْهَا صَح 🎯 - ${context.title || context.lessonTitle || `الدرس ${context.lessonNumber}`}`,
+          subtitle: `أسئلة الدرس السابق (${previousLessonNumber}) لعدم كفاية بنك هذا الدرس`,
+        };
+      }
+    }
+  } catch (error) {
+    console.warn('[gamesService] Previous lesson PH fallback failed:', error);
+  }
+
+  return currentConfig;
+}
+
+/**
  * Parses raw Supabase MCQ JSON into MillionaireGameConfig
  */
 function parseMcqToMillionaire(
@@ -43,15 +142,17 @@ function parseMcqToMillionaire(
   const items: any[] = rawContent.pages?.flatMap((p: any) => p.items || []) || [];
   const validQuestions = items.filter((it: any) => it && it.question && Array.isArray(it.options) && it.options.length >= 2);
 
-  if (validQuestions.length === 0) {
+  if (validQuestions.length < 4) {
     return getMillionaireGameForLesson(lessonId, lessonTitle, category);
   }
 
   const ladderPoints = [
-    5000, 10000, 25000, 50000, 100000, 150000, 250000, 400000, 500000, 650000, 800000, 900000, 1000000,
+    5000, 10000, 25000, 50000, 100000, 150000, 250000, 400000, 500000, 650000, 800000,
   ];
+  const targetQuestionCount = 11;
+  const questionsForGame = Array.from({ length: targetQuestionCount }, (_, idx) => validQuestions[idx % validQuestions.length]);
 
-  const parsedQuestions: MillionaireQuestion[] = validQuestions.slice(0, 15).map((item, idx) => {
+  const parsedQuestions: MillionaireQuestion[] = questionsForGame.map((item, idx) => {
     // Standardize 4 options
     const rawOpts = item.options.map((opt: string) => opt.replace(/^[A-D]\)\s*/i, '').trim());
     while (rawOpts.length < 4) {
@@ -112,11 +213,13 @@ function parseTrueFalseConfig(
   const items: any[] = rawContent.pages?.flatMap((p: any) => p.items || []) || [];
   const validQuestions = items.filter((it: any) => it && it.question && it.type === 'question');
 
-  if (validQuestions.length === 0) {
+  if (validQuestions.length < 4) {
     return getTrueFalseGameForLesson(lessonId, lessonTitle, category);
   }
 
-  const parsedQuestions: TrueFalseQuestion[] = validQuestions.slice(0, 12).map((item, idx) => {
+  const targetQuestionCount = 12;
+  const questionsForGame = Array.from({ length: targetQuestionCount }, (_, idx) => validQuestions[idx % validQuestions.length]);
+  const parsedQuestions: TrueFalseQuestion[] = questionsForGame.map((item, idx) => {
     let isCorrectVal = true;
     if (item.correct_option !== undefined) {
       const opt = String(item.correct_option).toLowerCase().trim();
@@ -172,50 +275,39 @@ function parsePhToGibhaSah(
     }
   }
 
-  if (rawRounds.length === 0) {
+  const getRoundAnswer = (round: any): string => String(round?.correct_answer ?? round?.answer ?? '').trim();
+  const validRounds = rawRounds.filter(
+    (round: any) => round && typeof round.question === 'string' && round.question.trim() && getRoundAnswer(round)
+  );
+  const uniqueAnswers = Array.from(new Set(validRounds.map(getRoundAnswer)));
+
+  // Fewer than four valid rounds/answers means this lesson cannot form a valid game.
+  if (validRounds.length < 4 || uniqueAnswers.length < 4) {
     return getGibhaSahGameForLesson(lessonId, lessonTitle, category);
   }
 
-  // Extract up to 12 distinct answers to form the 12 grid cards
-  const uniqueAnswers = Array.from(
-    new Set(rawRounds.map((r: any) => (r.correct_answer || r.answer || '').trim()).filter((a: string) => a.length > 0))
-  );
-
-  const cardsCount = Math.min(12, Math.max(4, uniqueAnswers.length));
-  const activeAnswers = uniqueAnswers.slice(0, cardsCount);
-
-  // If we have fewer than 12, pad with meaningful terms or fallback
-  const cards: GibhaSahCard[] = activeAnswers.map((ans, idx) => ({
+  const cardsCount = 10;
+  // Repeat only rounds from this same PH file until ten question/card slots exist.
+  // Each question owns its numbered slot, so duplicate labels never point to the first duplicate.
+  const roundsForGame = Array.from({ length: cardsCount }, (_, idx) => validRounds[idx % validRounds.length]);
+  const cards: GibhaSahCard[] = roundsForGame.map((round, idx) => ({
     id: idx + 1,
     number: idx + 1,
-    label: ans,
+    label: getRoundAnswer(round),
     sublabel: `المصطلح رقم ${idx + 1}`,
     badge: 'بطاقة علمية',
   }));
 
-  while (cards.length < 12) {
-    const extraIdx = cards.length + 1;
-    cards.push({
-      id: extraIdx,
-      number: extraIdx,
-      label: `بطاقة إضافية ${extraIdx}`,
-      sublabel: 'مفهوم منهجي',
-      badge: 'تحدي إضافي',
-    });
-  }
-
-  // Map questions to the respective card number
-  const questions: GibhaSahQuestion[] = rawRounds.slice(0, 12).map((r, idx) => {
-    const correctAns = (r.correct_answer || r.answer || '').trim();
-    const cardMatchIndex = cards.findIndex((c) => c.label === correctAns);
-    const correctCardNumber = cardMatchIndex !== -1 ? cardMatchIndex + 1 : (idx % cards.length) + 1;
+  const questions: GibhaSahQuestion[] = roundsForGame.map((round, idx) => {
+    const correctCardNumber = idx + 1;
+    const correctAns = getRoundAnswer(round);
 
     return {
       id: `gs-${idx + 1}`,
       questionNumber: idx + 1,
-      question: r.question,
+      question: round.question,
       correctCardNumber,
-      explanation: `الإجابة الصحيحة هي بطاقة (${correctCardNumber}): ${cards[correctCardNumber - 1]?.label || correctAns}`,
+      explanation: `الإجابة الصحيحة هي بطاقة (${correctCardNumber}): ${cards[idx]?.label || correctAns}`,
       points: 100,
     };
   });
@@ -224,8 +316,8 @@ function parsePhToGibhaSah(
     lessonId,
     subject: rawContent.lesson_info?.subject || category,
     title: `لعبة جِيبْهَا صَح 🎯 - ${lessonTitle}`,
-    subtitle: 'شبكة الـ 12 بطاقة علمية التنافسية',
-    mode: 'cards_12',
+    subtitle: 'شبكة 10 بطاقات من بنك هذا الدرس',
+    mode: 'cards_10',
     cards,
     questions,
   };
@@ -264,17 +356,28 @@ export async function fetchLessonGamesData(
     try {
       const bundle = await getLessonContentBundle(ctx);
       if (bundle && (bundle.mcqData || bundle.trueFalseData || bundle.phData)) {
-        const mcqConfig = bundle.mcqData
-          ? parseMcqToMillionaire(bundle.mcqData, actualLessonId, actualLessonTitle, actualCategory)
+        const exactDbSubjects = getDbSubjectIds(getSubjectNormalizedKey(ctx.subjectId));
+        const [exactMcqData, exactTrueFalseData, exactPhData] = await Promise.all([
+          bundle.mcqData || fetchExactSectionContent('mcq', exactDbSubjects, ctx.chapterNumber, ctx.lessonNumber, ctx.lessonId),
+          bundle.trueFalseData || fetchExactSectionContent('true_false', exactDbSubjects, ctx.chapterNumber, ctx.lessonNumber, ctx.lessonId),
+          bundle.phData || fetchExactSectionContent('ph', exactDbSubjects, ctx.chapterNumber, ctx.lessonNumber, ctx.lessonId),
+        ]);
+
+        const mcqConfig = exactMcqData
+          ? parseMcqToMillionaire(exactMcqData, actualLessonId, actualLessonTitle, actualCategory)
           : getMillionaireGameForLesson(actualLessonId, actualLessonTitle, actualCategory);
 
-        const trueFalseConfig = bundle.trueFalseData
-          ? parseTrueFalseConfig(bundle.trueFalseData, actualLessonId, actualLessonTitle, actualCategory)
+        const trueFalseConfig = exactTrueFalseData
+          ? parseTrueFalseConfig(exactTrueFalseData, actualLessonId, actualLessonTitle, actualCategory)
           : getTrueFalseGameForLesson(actualLessonId, actualLessonTitle, actualCategory);
 
-        const gibhaSahConfig = bundle.phData
-          ? parsePhToGibhaSah(bundle.phData, actualLessonId, actualLessonTitle, actualCategory)
+        const currentGibhaSahConfig = exactPhData
+          ? parsePhToGibhaSah(exactPhData, actualLessonId, actualLessonTitle, actualCategory)
           : getGibhaSahGameForLesson(actualLessonId, actualLessonTitle, actualCategory);
+        const gibhaSahConfig = await getPreviousLessonGibhaSahConfig(
+          ctx,
+          currentGibhaSahConfig
+        );
 
         return {
           mcqConfig,
@@ -313,117 +416,14 @@ export async function fetchLessonGamesData(
   try {
     // Concurrently fetch MCQ, True/False, and PH from Supabase educational_data
     const [mcqRes, tfRes, phRes] = await Promise.all([
-      // 1. Fetch MCQ
-      (async () => {
-        if (targetChapter !== undefined) {
-          let query = supabase
-            .from('educational_data')
-            .select('id, file_name, subject_id, section_id, content')
-            .in('subject_id', dbSubjects)
-            .eq('section_id', 'mcq')
-            .or(`file_name.ilike.%ch${targetChapter}%,file_name.ilike.%فصل%${targetChapter}%`);
+      // 1. Fetch MCQ from the exact lesson file only.
+      fetchExactSectionContent('mcq', dbSubjects, targetChapter, targetSegment, actualLessonId),
 
-          if (targetSegment !== undefined) {
-            query = query.or(
-              `file_name.ilike.%segment${targetSegment}%,file_name.ilike.%lesson${targetSegment}%,file_name.ilike.%les${targetSegment}%,file_name.ilike.%درس%${targetSegment}%`
-            );
-          }
+      // 2. Fetch True/False from the exact lesson file only.
+      fetchExactSectionContent('true_false', dbSubjects, targetChapter, targetSegment, actualLessonId),
 
-          const { data } = await query.limit(1);
-          if (data && data.length > 0 && data[0].content) return data[0].content;
-        }
-
-        // Only query direct lesson ID without chapter-jumping
-        if (actualLessonId && actualLessonId.length > 3) {
-          const { data: directData } = await supabase
-            .from('educational_data')
-            .select('id, file_name, subject_id, section_id, content')
-            .in('subject_id', dbSubjects)
-            .eq('section_id', 'mcq')
-            .ilike('file_name', `%${actualLessonId.replace(/\.json$/i, '')}%`)
-            .limit(1);
-
-          if (directData && directData.length > 0 && directData[0].content) {
-            return directData[0].content;
-          }
-        }
-
-        return null;
-      })(),
-
-      // 2. Fetch True/False
-      (async () => {
-        if (targetChapter !== undefined) {
-          let query = supabase
-            .from('educational_data')
-            .select('id, file_name, subject_id, section_id, content')
-            .in('subject_id', dbSubjects)
-            .eq('section_id', 'true_false')
-            .or(`file_name.ilike.%ch${targetChapter}%,file_name.ilike.%فصل%${targetChapter}%`);
-
-          if (targetSegment !== undefined) {
-            query = query.or(
-              `file_name.ilike.%segment${targetSegment}%,file_name.ilike.%lesson${targetSegment}%,file_name.ilike.%les${targetSegment}%,file_name.ilike.%درس%${targetSegment}%`
-            );
-          }
-
-          const { data } = await query.limit(1);
-          if (data && data.length > 0 && data[0].content) return data[0].content;
-        }
-
-        if (actualLessonId && actualLessonId.length > 3) {
-          const { data: directData } = await supabase
-            .from('educational_data')
-            .select('id, file_name, subject_id, section_id, content')
-            .in('subject_id', dbSubjects)
-            .eq('section_id', 'true_false')
-            .ilike('file_name', `%${actualLessonId.replace(/\.json$/i, '')}%`)
-            .limit(1);
-
-          if (directData && directData.length > 0 && directData[0].content) {
-            return directData[0].content;
-          }
-        }
-
-        return null;
-      })(),
-
-      // 3. Fetch PH (Gibha Sah)
-      (async () => {
-        if (targetChapter !== undefined) {
-          let query = supabase
-            .from('educational_data')
-            .select('id, file_name, subject_id, section_id, content')
-            .in('subject_id', dbSubjects)
-            .eq('section_id', 'ph')
-            .or(`file_name.ilike.%ch${targetChapter}%,file_name.ilike.%فصل%${targetChapter}%`);
-
-          if (targetSegment !== undefined) {
-            query = query.or(
-              `file_name.ilike.%segment${targetSegment}%,file_name.ilike.%lesson${targetSegment}%,file_name.ilike.%les${targetSegment}%,file_name.ilike.%درس%${targetSegment}%`
-            );
-          }
-
-          const { data } = await query.limit(1);
-          if (data && data.length > 0 && data[0].content) return data[0].content;
-        }
-
-        if (actualLessonId && actualLessonId.length > 3) {
-          const { data: directData } = await supabase
-            .from('educational_data')
-            .select('id, file_name, subject_id, section_id, content')
-            .in('subject_id', dbSubjects)
-            .eq('section_id', 'ph')
-            .ilike('file_name', `%${actualLessonId.replace(/\.json$/i, '')}%`)
-            .limit(1);
-
-          if (directData && directData.length > 0 && directData[0].content) {
-            return directData[0].content;
-          }
-        }
-
-        return null;
-      })(),
+      // 3. Fetch PH/Gibha Sah from the exact lesson file only.
+      fetchExactSectionContent('ph', dbSubjects, targetChapter, targetSegment, actualLessonId),
     ]);
 
     // Parse configs
@@ -435,9 +435,24 @@ export async function fetchLessonGamesData(
       ? parseTrueFalseConfig(tfRes, actualLessonId, actualLessonTitle, actualCategory)
       : getTrueFalseGameForLesson(actualLessonId, actualLessonTitle, actualCategory);
 
-    const gibhaSahConfig = phRes
+    const currentGibhaSahConfig = phRes
       ? parsePhToGibhaSah(phRes, actualLessonId, actualLessonTitle, actualCategory)
       : getGibhaSahGameForLesson(actualLessonId, actualLessonTitle, actualCategory);
+    const standardContext: OpenLessonContext | null =
+      targetChapter !== undefined && targetSegment !== undefined
+        ? {
+            subjectId,
+            chapterNumber: targetChapter,
+            lessonNumber: targetSegment,
+            lessonId: actualLessonId,
+            lessonKey: buildLessonKey(subjectId, targetChapter, targetSegment),
+            title: actualLessonTitle,
+            lessonTitle: actualLessonTitle,
+          }
+        : null;
+    const gibhaSahConfig = standardContext
+      ? await getPreviousLessonGibhaSahConfig(standardContext, currentGibhaSahConfig)
+      : currentGibhaSahConfig;
 
     const bundle: LessonGamesBundle = {
       mcqConfig,
