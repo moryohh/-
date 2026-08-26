@@ -181,7 +181,7 @@ export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack, co
   };
 
   return (
-    <div className="space-y-4 p-3 text-right select-none sm:p-4 animate-in fade-in duration-200">
+    <div className="space-y-4 p-3 pb-[calc(7rem+env(safe-area-inset-bottom))] text-right select-none sm:p-4 animate-in fade-in duration-200">
       <section
         className={`relative overflow-hidden rounded-3xl border p-4 shadow-xl ${theme.classes.cardBg} ${theme.classes.cardBorder}`}
         style={{ boxShadow: `0 8px 28px ${theme.colors.glow}` }}
@@ -336,7 +336,7 @@ export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack, co
 
       {selectedCourse && (
         <div
-          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm animate-in fade-in duration-150"
+          className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-black/70 p-4 pb-[calc(7rem+env(safe-area-inset-bottom))] backdrop-blur-sm animate-in fade-in duration-150 sm:items-center"
           role="presentation"
           onClick={closeCourseDialog}
         >
@@ -344,18 +344,30 @@ export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack, co
             role="dialog"
             aria-modal="true"
             aria-labelledby="course-status-title"
-            className={`w-full max-w-md rounded-3xl border p-5 text-right shadow-2xl animate-in zoom-in-95 duration-150 ${theme.classes.cardBg} ${theme.classes.cardBorder}`}
+            className={`my-auto max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-3xl border p-5 text-right shadow-2xl animate-in zoom-in-95 duration-150 ${theme.classes.cardBg} ${theme.classes.cardBorder}`}
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
-              <button
-                type="button"
-                onClick={closeCourseDialog}
-                className={`rounded-xl border p-2 transition-transform active:scale-95 ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder} ${theme.classes.textMuted}`}
-                aria-label="إغلاق النافذة"
-              >
-                <X className="h-4 w-4" />
-              </button>
+              <div className="flex shrink-0 items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={closeCourseDialog}
+                  className={`flex items-center gap-1 rounded-xl border px-2.5 py-2 text-[10px] font-black transition-transform active:scale-95 ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder}`}
+                  style={{ color: theme.colors.primary }}
+                  aria-label="الرجوع إلى قائمة الدورات"
+                >
+                  <ArrowRight className="h-4 w-4" />
+                  <span>رجوع</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={closeCourseDialog}
+                  className={`rounded-xl border p-2 transition-transform active:scale-95 ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder} ${theme.classes.textMuted}`}
+                  aria-label="إغلاق النافذة"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
               <div className="flex items-center gap-2">
                 <span
                   className="flex h-10 w-10 items-center justify-center rounded-2xl border"

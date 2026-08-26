@@ -29,7 +29,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
 
   return (
     <nav
-      className={`fixed bottom-0 inset-x-0 z-40 ${theme.classes.navBg} backdrop-blur-lg border-t ${theme.classes.cardBorder} px-4 py-2.5 shadow-2xl transition-all duration-300`}
+      className={`fixed bottom-0 inset-x-0 z-40 ${theme.classes.navBg} backdrop-blur-lg border-t ${theme.classes.cardBorder} px-4 pt-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] shadow-2xl transition-all duration-300`}
     >
       <div className="max-w-md mx-auto flex items-center justify-around">
         {tabs.map((tab) => {
