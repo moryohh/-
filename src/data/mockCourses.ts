@@ -21,6 +21,20 @@ export interface MockCourse {
  */
 export const MOCK_COURSES: MockCourse[] = [
   {
+    id: 'november-comprehensive',
+    title: 'دورة شهر تشرين الثاني',
+    description: 'جميع المواد الدراسية مع امتحان إلكتروني شامل ومتابعة منظمة',
+    subjects: ['التربية الإسلامية', 'العربي', 'الإنجليزي', 'الرياضيات', 'الأحياء', 'الفيزياء', 'الكيمياء'],
+    oldPrice: 900000,
+    currentPrice: 200000,
+    status: 'upcoming',
+    registrationMonth: 'الشهر الحادي عشر',
+    includesOnlineExam: true,
+    includesInPersonExam: false,
+    badge: 'تشمل الامتحان الإلكتروني فقط',
+    featured: true,
+  },
+  {
     id: 'august-comprehensive',
     title: 'دورة شهر 8',
     description: 'برنامج متكامل يشمل جميع المواد الدراسية للسادس الإعدادي',
@@ -31,20 +45,6 @@ export const MOCK_COURSES: MockCourse[] = [
     includesOnlineExam: true,
     includesInPersonExam: false,
     badge: 'تشمل الامتحان الإلكتروني',
-    featured: true,
-  },
-  {
-    id: 'october-comprehensive',
-    title: 'دورة شهر 10',
-    description: 'جميع المواد الدراسية مع امتحان إلكتروني شامل ومتابعة منظمة',
-    subjects: ['التربية الإسلامية', 'العربي', 'الإنجليزي', 'الرياضيات', 'الأحياء', 'الفيزياء', 'الكيمياء'],
-    oldPrice: 900000,
-    currentPrice: 200000,
-    status: 'upcoming',
-    registrationMonth: 'الشهر الحادي عشر',
-    includesOnlineExam: true,
-    includesInPersonExam: false,
-    badge: 'تشمل الامتحان الإلكتروني فقط',
   },
   {
     id: 'september-comprehensive-with-exams',

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   ArrowRight,
   BadgePercent,
+  BellRing,
   BookOpen,
   CalendarDays,
   CheckCircle2,
@@ -13,6 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import { useAppTheme } from '../services/themeService';
+import { registerCourseReminder } from '../services/communityService';
 import {
   COURSE_STATUS_LABELS,
   CourseStatus,
@@ -82,8 +84,34 @@ const getStatusMessage = (course: MockCourse) => {
 export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack }) => {
   const { theme } = useAppTheme();
   const [selectedCourse, setSelectedCourse] = useState<MockCourse | null>(null);
+  const [reminderState, setReminderState] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [reminderMessage, setReminderMessage] = useState('');
 
-  const closeCourseDialog = () => setSelectedCourse(null);
+  const openCourseDialog = (course: MockCourse) => {
+    setSelectedCourse(course);
+    setReminderState('idle');
+    setReminderMessage('');
+  };
+
+  const closeCourseDialog = () => {
+    setSelectedCourse(null);
+    setReminderState('idle');
+    setReminderMessage('');
+  };
+
+  const handleRegisterReminder = async () => {
+    if (!selectedCourse || selectedCourse.status !== 'upcoming') return;
+    setReminderState('saving');
+    setReminderMessage('');
+    try {
+      const response = await registerCourseReminder(selectedCourse.id);
+      setReminderState('success');
+      setReminderMessage(response.message || 'تم تسجيل تذكيرك بنجاح');
+    } catch (error: any) {
+      setReminderState('error');
+      setReminderMessage(error?.message || 'تعذر تسجيل التذكير حاليًا');
+    }
+  };
 
   return (
     <div className="space-y-4 p-3 text-right select-none sm:p-4 animate-in fade-in duration-200">
@@ -141,7 +169,7 @@ export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack }) 
             <button
               key={course.id}
               type="button"
-              onClick={() => setSelectedCourse(course)}
+              onClick={() => openCourseDialog(course)}
               className={`group relative w-full overflow-hidden rounded-3xl border p-4 text-right shadow-lg transition-[transform,box-shadow,border-color] duration-200 active:scale-[0.99] hover:-translate-y-0.5 ${theme.classes.cardBg} ${theme.classes.cardBorder}`}
               style={{
                 boxShadow: course.featured ? `0 10px 32px ${theme.colors.glow}` : undefined,
@@ -323,14 +351,40 @@ export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack }) 
               </div>
             )}
 
-            <button
-              type="button"
-              onClick={closeCourseDialog}
-              className="mt-5 w-full rounded-2xl px-4 py-3 text-xs font-black text-white transition-transform active:scale-[0.98]"
-              style={{ background: `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.secondary})` }}
-            >
-              حسنًا
-            </button>
+            {reminderMessage && (
+              <div
+                className={`mt-3 rounded-xl border px-3 py-2 text-center text-[10px] font-bold ${reminderState === 'error' ? 'border-red-400/30 text-red-300' : 'border-emerald-400/30 text-emerald-300'}`}
+              >
+                {reminderMessage}
+              </div>
+            )}
+
+            <div className={`mt-5 grid gap-2 ${selectedCourse.status === 'upcoming' ? 'grid-cols-2' : 'grid-cols-1'}`}>
+              {selectedCourse.status === 'upcoming' && (
+                <button
+                  type="button"
+                  onClick={handleRegisterReminder}
+                  disabled={reminderState === 'saving' || reminderState === 'success'}
+                  className="flex items-center justify-center gap-1.5 rounded-2xl border px-3 py-3 text-[10px] font-black transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
+                  style={{
+                    color: theme.colors.secondary,
+                    borderColor: `${theme.colors.secondary}55`,
+                    backgroundColor: `${theme.colors.secondary}14`,
+                  }}
+                >
+                  <BellRing className="h-4 w-4" />
+                  {reminderState === 'saving' ? 'جارٍ الحفظ...' : reminderState === 'success' ? 'تم تذكيري' : 'ذكرني عند فتح الدورة'}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={closeCourseDialog}
+                className="rounded-2xl px-4 py-3 text-xs font-black text-white transition-transform active:scale-[0.98]"
+                style={{ background: `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.secondary})` }}
+              >
+                حسنًا
+              </button>
+            </div>
           </div>
         </div>
       )}

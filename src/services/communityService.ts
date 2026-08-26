@@ -375,3 +375,21 @@ function calculateTimeAgo(dateStr?: string): string {
     return 'الآن';
   }
 }
+
+
+/**
+ * Register the authenticated student's interest in an upcoming course.
+ * The API derives name, email, and user ID from the verified Supabase A JWT.
+ */
+export async function registerCourseReminder(courseId: string): Promise<{
+  success: boolean;
+  alreadyRegistered?: boolean;
+  message: string;
+  reminder?: { id: string; course_id: string; user_id: string };
+}> {
+  if (!courseId.trim()) throw new Error('معرف الدورة مطلوب');
+  return communityRequest('course-reminders', {
+    method: 'POST',
+    body: JSON.stringify({ course_id: courseId.trim() }),
+  });
+}
