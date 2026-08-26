@@ -21,11 +21,12 @@ import {
   MOCK_COURSES,
   MockCourse,
 } from '../data/mockCourses';
-import { EducationalLesson } from '../types';
+import { CompetitionSnapshot, EducationalLesson } from '../types';
 
 interface SubscriptionsViewProps {
   onSelectLesson: (lesson: EducationalLesson) => void;
   onBack?: () => void;
+  competitionSnapshot?: CompetitionSnapshot | null;
 }
 
 const STATUS_STYLES: Record<CourseStatus, { text: string; background: string; border: string }> = {
@@ -69,6 +70,13 @@ const getStatusMessage = (course: MockCourse) => {
   }
 
   if (course.status === 'open') {
+    if (course.isFree) {
+      return {
+        title: 'دورة مجانية — ابدأ الآن',
+        description: 'تبدأ هذه الدورة في 1/12، ويمكنك التقديم الآن بعد استيفاء شروط المستوى والتقييم.',
+      };
+    }
+
     return {
       title: 'التسجيل متاح',
       description: 'يمكنك الاطلاع على تفاصيل التسجيل عند تفعيل الدورة رسميًا.',
@@ -81,22 +89,52 @@ const getStatusMessage = (course: MockCourse) => {
   };
 };
 
-export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack }) => {
+export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack, competitionSnapshot }) => {
   const { theme } = useAppTheme();
   const [selectedCourse, setSelectedCourse] = useState<MockCourse | null>(null);
   const [reminderState, setReminderState] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [reminderMessage, setReminderMessage] = useState('');
+  const [applicationState, setApplicationState] = useState<'idle' | 'checking' | 'success' | 'error'>('idle');
+  const [applicationMessage, setApplicationMessage] = useState('');
 
   const openCourseDialog = (course: MockCourse) => {
     setSelectedCourse(course);
     setReminderState('idle');
     setReminderMessage('');
+    setApplicationState('idle');
+    setApplicationMessage('');
   };
 
   const closeCourseDialog = () => {
     setSelectedCourse(null);
     setReminderState('idle');
     setReminderMessage('');
+    setApplicationState('idle');
+    setApplicationMessage('');
+  };
+
+  const handleApplyForFreeCourse = () => {
+    if (!selectedCourse?.isFree) return;
+    setApplicationState('checking');
+    setApplicationMessage('');
+
+    const requiredLevel = selectedCourse.requiredLevel ?? 80;
+    const currentLevel = competitionSnapshot?.level ?? 0;
+    const hasRequiredRating = competitionSnapshot?.ratingTier === selectedCourse.requiredRating;
+    const hasRequiredLevel = currentLevel >= requiredLevel;
+
+    if (!hasRequiredRating || !hasRequiredLevel) {
+      const reasons = [
+        !hasRequiredRating ? 'تقييمك الحالي ليس ذهبيًا.' : '',
+        !hasRequiredLevel ? `مستواك الحالي ${currentLevel}، ويجب أن يصل إلى ${requiredLevel}.` : '',
+      ].filter(Boolean);
+      setApplicationState('error');
+      setApplicationMessage(`فشل التقديم: ${reasons.join(' ')} آخر موعد لاستيفاء الشروط هو ${selectedCourse.applicationDeadline || '25 نوفمبر'}.`);
+      return;
+    }
+
+    setApplicationState('success');
+    setApplicationMessage('تم استيفاء شروط التقديم مبدئيًا. تبدأ الدورة في 1/12.');
   };
 
   const handleRegisterReminder = async () => {
@@ -193,7 +231,7 @@ export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack }) 
                   }}
                 >
                   {course.status === 'full' ? <UsersRound className="h-3.5 w-3.5" /> : <CalendarDays className="h-3.5 w-3.5" />}
-                  {COURSE_STATUS_LABELS[course.status]}
+                  {course.statusLabel || COURSE_STATUS_LABELS[course.status]}
                 </span>
 
                 <div className="min-w-0">
@@ -219,7 +257,12 @@ export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack }) 
                   {course.oldPrice !== undefined && (
                     <div className={`text-sm font-bold line-through ${theme.classes.textMuted}`}>{formatPrice(course.oldPrice)}</div>
                   )}
-                  {course.currentPrice !== undefined ? (
+                  {course.isFree ? (
+                    <div className="flex items-center justify-end gap-1.5 text-2xl font-black" style={{ color: theme.colors.secondary }}>
+                      <span>مجانية</span>
+                      <CheckCircle2 className="h-5 w-5" />
+                    </div>
+                  ) : course.currentPrice !== undefined ? (
                     <div className="flex items-baseline justify-end gap-1.5">
                       <span className="text-xs font-black" style={{ color: theme.colors.secondary }}>د.ع</span>
                       <span className={`text-3xl font-black tracking-tight ${theme.classes.textMain}`}>{course.currentPrice.toLocaleString('en-US')}</span>
@@ -339,10 +382,26 @@ export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack }) 
               )}
             </div>
 
-            {selectedCourse.status === 'upcoming' && selectedCourse.registrationMonth && (
+            {(selectedCourse.status === 'upcoming' || selectedCourse.isFree) && selectedCourse.registrationMonth && (
               <div className="mt-3 flex items-center justify-end gap-1.5 text-xs font-black" style={{ color: theme.colors.secondary }}>
                 <CalendarDays className="h-4 w-4" />
-                يبدأ التقديم في {selectedCourse.registrationMonth}
+                تبدأ الدورة في {selectedCourse.registrationMonth}
+              </div>
+            )}
+
+            {selectedCourse.isFree && (
+              <div className={`mt-3 space-y-2 rounded-2xl border p-3 text-xs leading-6 ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder}`}>
+                <div className="font-black" style={{ color: theme.colors.secondary }}>شروط التقديم للدورة المجانية</div>
+                <div className={theme.classes.textMuted}>يجب أن يكون مستواك 80 أو أكثر، وأن يكون تقييمك ذهبيًا.</div>
+                <div className={theme.classes.textMuted}>آخر موعد للوصول إلى الشروط: {selectedCourse.applicationDeadline || '25 نوفمبر'}.</div>
+              </div>
+            )}
+
+            {applicationMessage && (
+              <div
+                className={`mt-3 rounded-xl border px-3 py-2 text-center text-[10px] font-bold leading-6 ${applicationState === 'error' ? 'border-red-400/30 text-red-300' : 'border-emerald-400/30 text-emerald-300'}`}
+              >
+                {applicationMessage}
               </div>
             )}
 
@@ -354,7 +413,18 @@ export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack }) 
               </div>
             )}
 
-            <div className={`mt-5 grid gap-2 ${selectedCourse.status === 'upcoming' ? 'grid-cols-2' : 'grid-cols-1'}`}>
+            <div className={`mt-5 grid gap-2 ${selectedCourse.status === 'upcoming' ? 'grid-cols-2' : selectedCourse.isFree ? 'grid-cols-1' : 'grid-cols-1'}`}>
+              {selectedCourse.isFree && (
+                <button
+                  type="button"
+                  onClick={handleApplyForFreeCourse}
+                  disabled={applicationState === 'checking' || applicationState === 'success'}
+                  className="flex items-center justify-center gap-1.5 rounded-2xl px-3 py-3 text-xs font-black text-slate-950 transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
+                  style={{ background: `linear-gradient(135deg, ${theme.colors.secondary}, ${theme.colors.primary})` }}
+                >
+                  {applicationState === 'checking' ? 'جارٍ التحقق...' : applicationState === 'success' ? 'تم التحقق من الشروط' : 'قدّم الآن'}
+                </button>
+              )}
               {selectedCourse.status === 'upcoming' && (
                 <button
                   type="button"

@@ -13,6 +13,11 @@ export interface MockCourse {
   includesInPersonExam: boolean;
   badge?: string;
   featured?: boolean;
+  statusLabel?: string;
+  isFree?: boolean;
+  applicationDeadline?: string;
+  requiredLevel?: number;
+  requiredRating?: 'gold';
 }
 
 /**
@@ -47,15 +52,20 @@ export const MOCK_COURSES: MockCourse[] = [
     badge: 'تشمل الامتحان الإلكتروني',
   },
   {
-    id: 'september-comprehensive-with-exams',
-    title: 'دورة شهر 9',
-    description: 'جميع المواد الدراسية مع امتحان إلكتروني وامتحان حضوري شامل',
+    id: 'december-free-comprehensive',
+    title: 'دورة شهر 12',
+    description: 'دورة مجانية تشمل جميع المواد الدراسية مع امتحان إلكتروني وحضوري شامل',
     subjects: ['التربية الإسلامية', 'العربي', 'الإنجليزي', 'الرياضيات', 'الأحياء', 'الفيزياء', 'الكيمياء'],
-    currentPrice: 220000,
-    status: 'full',
+    status: 'open',
+    statusLabel: 'دورة مجانية — ابدأ الآن',
+    isFree: true,
+    registrationMonth: '1/12',
+    applicationDeadline: '25 نوفمبر',
+    requiredLevel: 80,
+    requiredRating: 'gold',
     includesOnlineExam: true,
     includesInPersonExam: true,
-    badge: 'إلكتروني وحضوري',
+    badge: 'مجانية — إلكتروني وحضوري',
   },
 ];
 

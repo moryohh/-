@@ -865,6 +865,7 @@ function AppContent() {
                 setActiveTab('home');
                 setHomeSubView('main_home');
               }}
+              competitionSnapshot={competitionSnapshot}
             />
           )}
 
