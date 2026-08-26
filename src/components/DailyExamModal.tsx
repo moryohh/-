@@ -129,7 +129,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
 
   // Countdown timer
   useEffect(() => {
-    if (!isOpen || !isTimerRunning || isSubmitted) return;
+    if (!isOpen || !isTimerRunning || isSubmitted || !exam?.isAvailable) return;
 
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
@@ -288,7 +288,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
   const totalEvaluatedCount = validEvaluations.length;
 
   const awardDailyExamReward = () => {
-    if (rewardIssuedRef.current || !exam || totalEvaluatedCount < 2) return;
+    if (rewardIssuedRef.current || !exam?.isAvailable || totalEvaluatedCount < 2) return;
     rewardIssuedRef.current = true;
     const totalExamPoints = Number(exam.totalPoints) || 1;
     const percentage = (totalEarnedPoints / totalExamPoints) * 100;
@@ -379,6 +379,23 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
               <p className="text-xs text-purple-300 font-semibold">
                 جاري إعداد وتجهيز سبورة الامتحان اليومي...
               </p>
+            </div>
+          ) : !exam.isAvailable ? (
+            <div className="py-20 text-center space-y-4">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-300/40 bg-amber-400/10 text-amber-300">
+                <FileCheck2 className="h-8 w-8" />
+              </div>
+              <h3 className={`text-lg font-black ${theme.classes.textMain}`}>الاختبار اليومي غير متوفر</h3>
+              <p className={`mx-auto max-w-md text-sm leading-7 ${theme.classes.textMuted}`}>
+                لا يوجد ملف منهج أو أسئلة اختبارية لهذا الدرس حاليًا. يرجى رفع ملف JSON الخاص بالدرس أولًا.
+              </p>
+              <button
+                type="button"
+                onClick={onClose}
+                className="mx-auto rounded-2xl bg-gradient-to-r from-purple-500 to-indigo-500 px-6 py-3 text-xs font-black text-white transition-transform active:scale-95"
+              >
+                حسنًا
+              </button>
             </div>
           ) : (
             <>
@@ -854,7 +871,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
         {/* ======================================================== */}
         {/* MODAL FOOTER ACTIONS */}
         {/* ======================================================== */}
-        {exam && (
+        {exam?.isAvailable && (
           <div className="border-t border-white/10 pt-3 flex items-center justify-between gap-3">
             <button
               onClick={onClose}

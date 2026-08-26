@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { Component, useState } from 'react';
 import {
   INITIAL_STORIES,
   FEATURED_LESSON,
@@ -74,6 +74,54 @@ const LessonGamesModal = React.lazy(() =>
     default: LazyLessonGamesModal,
   }))
 );
+
+interface GamesLoadBoundaryProps {
+  onClose: () => void;
+  children: React.ReactNode;
+}
+
+class GamesLoadBoundary extends Component<GamesLoadBoundaryProps, { hasError: boolean }> {
+  declare props: GamesLoadBoundaryProps;
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  render() {
+    if (!this.state.hasError) return this.props.children;
+
+    return (
+      <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 p-4 font-cairo">
+        <div className="w-full max-w-sm rounded-3xl border border-amber-400/40 bg-[#08152e] p-6 text-center text-white shadow-2xl">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-300/40 bg-amber-400/10 text-amber-300">
+            <Loader2 className="h-7 w-7" aria-hidden="true" />
+          </div>
+          <h2 className="text-lg font-black">تعذر فتح ألعاب الدرس</h2>
+          <p className="mt-2 text-sm leading-7 text-slate-300">
+            لم يتم تحميل مكوّن الألعاب الآن. يمكنك إغلاق النافذة أو إعادة المحاولة.
+          </p>
+          <div className="mt-5 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={this.props.onClose}
+              className="rounded-2xl border border-slate-500/50 bg-slate-700/60 px-3 py-3 text-xs font-black text-slate-100"
+            >
+              إغلاق
+            </button>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-300 px-3 py-3 text-xs font-black text-slate-950"
+            >
+              إعادة المحاولة
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
 
 const LEARNING_POSITIONS_STORAGE_KEY = 'nahnu_maek_learning_positions_v2';
 
@@ -976,8 +1024,18 @@ function AppContent() {
         teacherRole={lesson.teacherRole}
       />
 
-      <React.Suspense fallback={null}>
-        <LessonGamesModal
+      <GamesLoadBoundary onClose={() => setIsGamesOpen(false)}>
+        <React.Suspense
+          fallback={
+            <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-4 font-cairo">
+              <div className="rounded-3xl border border-sky-400/40 bg-[#08152e] px-6 py-5 text-center text-sky-100 shadow-2xl">
+                <Loader2 className="mx-auto mb-2 h-7 w-7 animate-spin text-sky-300" />
+                <p className="text-xs font-black">جارٍ فتح ألعاب الدرس...</p>
+              </div>
+            </div>
+          }
+        >
+          <LessonGamesModal
           isOpen={isGamesOpen}
           onClose={() => setIsGamesOpen(false)}
           games={getGamesForLesson(lesson.id)}
@@ -988,9 +1046,10 @@ function AppContent() {
           onScoreUpdate={handleScoreUpdate}
           onAssessmentResult={handleAssessmentResult}
           playerAvatarUrl={currentUser?.avatarUrl}
-          playerId={currentUser?.id}
-        />
-      </React.Suspense>
+            playerId={currentUser?.id}
+          />
+        </React.Suspense>
+      </GamesLoadBoundary>
     </div>
   );
 }

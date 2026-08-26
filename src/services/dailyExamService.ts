@@ -27,6 +27,7 @@ export interface DailyExamConfig {
   question1: ExamMainQuestion;
   question2: ExamMainQuestion;
   source: 'curriculum_json' | 'fallback';
+  isAvailable: boolean;
 }
 
 /**
@@ -75,6 +76,31 @@ function uniqueExamItems<T extends { q: string }>(pool: T[]): T[] {
   return Array.from(new Map(pool.map((item) => [item.q.trim(), item])).values());
 }
 
+function createUnavailableDailyExam(lessonTitle: string, subject: string): DailyExamConfig {
+  return {
+    id: `exam-unavailable-${lessonTitle}`,
+    lessonTitle,
+    subject,
+    grade: 'السادس الإعدادي - الفرع العلمي',
+    durationMinutes: 0,
+    totalPoints: 0,
+    question1: {
+      id: 'q1',
+      title: 'الاختبار غير متوفر',
+      instruction: 'لا توجد أسئلة اختبارية متاحة لهذا الدرس حاليًا.',
+      branches: [],
+    },
+    question2: {
+      id: 'q2',
+      title: 'الاختبار غير متوفر',
+      instruction: 'يرجى رفع ملف المنهج الخاص بهذا الدرس أولًا.',
+      branches: [],
+    },
+    source: 'fallback',
+    isAvailable: false,
+  };
+}
+
 /**
  * Extracts 2 structured multi-part exam questions directly from Curriculum JSON
  */
@@ -83,7 +109,11 @@ export function extractDailyExamFromCurriculum(
   lessonTitle: string,
   subject: string = 'المادة التعليمية'
 ): DailyExamConfig {
-  const allItems: any[] = curriculum?.pages?.flatMap((p: any) => p.items || []) || [];
+  if (!curriculum?.pages?.length) {
+    return createUnavailableDailyExam(lessonTitle, subject);
+  }
+
+  const allItems: any[] = curriculum.pages.flatMap((p: any) => p.items || []);
 
   // Filter question items and lists
   const questionItems = allItems.filter(
@@ -312,7 +342,8 @@ export function extractDailyExamFromCurriculum(
       instruction: q2Instruction,
       branches: q2Branches,
     },
-    source: curriculum ? 'curriculum_json' : 'fallback',
+    source: 'curriculum_json',
+    isAvailable: true,
   };
 }
 

@@ -543,19 +543,16 @@ export async function fetchLessonCurriculum(
       }
     }
 
-    // 3. Fallback: Return chapter and lesson-specific curriculum booklet
-    const fallbackBooklet = getFallbackCurriculum(normKey, actualChapterNumber, actualLessonNumber, title);
-    curriculumCache[cacheKey] = fallbackBooklet;
-    return { data: fallbackBooklet };
+    // لا ننشئ منهجًا تجريبيًا لدرس لا يملك ملفًا فعليًا؛ يجب أن يظهر للمستخدم أنه غير متوفر.
+    return {
+      data: null,
+      error: `لا يوجد ملف منهج متاح للمادة ${subjectId}، الفصل ${actualChapterNumber}، الدرس ${actualLessonNumber}.`,
+    };
   } catch (err: any) {
     console.error('Error fetching curriculum:', err);
-    const normKey = getSubjectNormalizedKey(typeof contextOrSubjectId === 'string' ? contextOrSubjectId : contextOrSubjectId.subjectId);
-    const fallbackBooklet = getFallbackCurriculum(
-      normKey,
-      chapterNumber && chapterNumber > 0 ? chapterNumber : 1,
-      lessonNumber && lessonNumber > 0 ? lessonNumber : 1,
-      lessonId || 'الدرس'
-    );
-    return { data: fallbackBooklet };
+    return {
+      data: null,
+      error: 'تعذر جلب ملف المنهج لهذا الدرس.',
+    };
   }
 }

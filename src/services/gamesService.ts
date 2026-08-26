@@ -10,6 +10,7 @@ export interface LessonGamesBundle {
   mcqConfig: MillionaireGameConfig;
   trueFalseConfig: TrueFalseGameConfig;
   gibhaSahConfig: GibhaSahGameConfig;
+  dailyExamAvailable: boolean;
   source: 'database' | 'fallback';
   loadedAt: number;
 }
@@ -546,7 +547,7 @@ export async function fetchLessonGamesData(
     // Check if we can get data directly from bundle
     try {
       const bundle = await getLessonContentBundle(ctx);
-      if (bundle && (bundle.mcqData || bundle.trueFalseData || bundle.phData)) {
+      if (bundle && (bundle.curriculumData || bundle.mcqData || bundle.trueFalseData || bundle.phData)) {
         const exactDbSubjects = getDbSubjectIds(getSubjectNormalizedKey(ctx.subjectId));
         const [exactMcqData, exactTrueFalseData, exactPhData] = await Promise.all([
           bundle.mcqData || fetchExactSectionContent('mcq', exactDbSubjects, ctx.chapterNumber, ctx.lessonNumber, ctx.lessonId),
@@ -575,6 +576,7 @@ export async function fetchLessonGamesData(
           mcqConfig,
           trueFalseConfig,
           gibhaSahConfig,
+          dailyExamAvailable: Boolean(bundle.curriculumData?.pages?.length),
           source: 'database',
           loadedAt: Date.now(),
         };
@@ -653,6 +655,7 @@ export async function fetchLessonGamesData(
       mcqConfig,
       trueFalseConfig,
       gibhaSahConfig,
+      dailyExamAvailable: false,
       source: mcqRes || tfRes || phRes ? 'database' : 'fallback',
       loadedAt: Date.now(),
     };
@@ -665,6 +668,7 @@ export async function fetchLessonGamesData(
       mcqConfig: getMillionaireGameForLesson(actualLessonId, actualLessonTitle, actualCategory),
       trueFalseConfig: getTrueFalseGameForLesson(actualLessonId, actualLessonTitle, actualCategory),
       gibhaSahConfig: getGibhaSahGameForLesson(actualLessonId, actualLessonTitle, actualCategory),
+      dailyExamAvailable: false,
       source: 'fallback',
       loadedAt: Date.now(),
     };
