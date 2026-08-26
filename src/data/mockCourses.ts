@@ -18,6 +18,7 @@ export interface MockCourse {
   applicationDeadline?: string;
   requiredLevel?: number;
   requiredRating?: 'gold';
+  seatsPerGovernorate?: number;
 }
 
 /**
@@ -63,6 +64,7 @@ export const MOCK_COURSES: MockCourse[] = [
     applicationDeadline: '25 نوفمبر',
     requiredLevel: 80,
     requiredRating: 'gold',
+    seatsPerGovernorate: 400,
     includesOnlineExam: true,
     includesInPersonExam: true,
     badge: 'مجانية — إلكتروني وحضوري',

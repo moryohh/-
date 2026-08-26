@@ -419,11 +419,18 @@ export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack, co
             )}
 
             {selectedCourse.isFree && (
-              <div className={`mt-3 space-y-2 rounded-2xl border p-3 text-xs leading-6 ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder}`}>
-                <div className="font-black" style={{ color: theme.colors.secondary }}>شروط التقديم للدورة المجانية</div>
-                <div className={theme.classes.textMuted}>يجب أن يكون مستواك 80 أو أكثر، وأن يكون تقييمك ذهبيًا.</div>
-                <div className={theme.classes.textMuted}>آخر موعد للوصول إلى الشروط: {selectedCourse.applicationDeadline || '25 نوفمبر'}.</div>
-              </div>
+              <>
+                <div className={`mt-3 space-y-2 rounded-2xl border p-3 text-xs leading-6 ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder}`}>
+                  <div className="font-black" style={{ color: theme.colors.secondary }}>تفاصيل المقاعد</div>
+                  <div className={theme.classes.textMuted}>السعة: {selectedCourse.seatsPerGovernorate || 400} مقعد لكل محافظة.</div>
+                  <div className={theme.classes.textMuted}>تبدأ الدورة في 1/12، ويفتح الدخول مع بدء الدورة.</div>
+                </div>
+                <div className={`mt-3 space-y-2 rounded-2xl border p-3 text-xs leading-6 ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder}`}>
+                  <div className="font-black" style={{ color: theme.colors.secondary }}>شروط التقديم للدورة المجانية</div>
+                  <div className={theme.classes.textMuted}>يجب أن يكون مستواك 80 أو أكثر، وأن يكون تقييمك ذهبيًا.</div>
+                  <div className={theme.classes.textMuted}>آخر موعد للوصول إلى الشروط: {selectedCourse.applicationDeadline || '25 نوفمبر'}.</div>
+                </div>
+              </>
             )}
 
             {applicationMessage && (
@@ -451,7 +458,7 @@ export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack, co
                   className="flex items-center justify-center gap-1.5 rounded-2xl px-3 py-3 text-xs font-black text-slate-950 transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
                   style={{ background: `linear-gradient(135deg, ${theme.colors.secondary}, ${theme.colors.primary})` }}
                 >
-                  {applicationState === 'checking' ? 'جارٍ التحقق...' : applicationState === 'success' ? 'تم التحقق من الشروط' : 'قدّم الآن'}
+                  {applicationState === 'checking' ? 'جارٍ التحقق...' : applicationState === 'success' ? 'دخول الدورة' : 'قدّم الآن'}
                 </button>
               )}
               {selectedCourse.status === 'upcoming' && (
