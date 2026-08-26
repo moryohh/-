@@ -78,7 +78,7 @@ export function normalizeSectionId(sectionId: string): LessonSectionType | null 
   const s = (sectionId || '').toLowerCase().trim();
   if (s === 'curriculum' || s === 'منهج') return 'curriculum';
   if (s === 'lessons' || s === 'دروس' || s === 'lesson') return 'lessons';
-  if (s === 'mcq' || s === 'اختيارات') return 'mcq';
+  if (s === 'mcq' || s === 'mcqs' || s === 'اختيارات' || s === 'اختيار_من_متعدد') return 'mcq';
   if (s === 'ph' || s === 'فلاش_كاردز' || s === 'بطاقات') return 'ph';
   if (s === 'true_false' || s === 'tf' || s === 'صح_خطأ' || s === 'صح_ام_خطا') return 'true_false';
   return null;
@@ -784,7 +784,9 @@ export async function getLessonContentBundle(
             ? ['true_false', 'tf', 'صح_خطأ', 'صح_ام_خطا']
             : sec === 'ph'
               ? ['ph', 'فلاش_كاردز', 'بطاقات']
-              : [sec];
+              : sec === 'mcq'
+                ? ['mcq', 'MCQ', 'mcqs', 'اختيارات', 'اختيار_من_متعدد']
+                : [sec];
           let sectionQuery = supabase
             .from('educational_data')
             .select('id, subject_id, section_id, file_name, content')

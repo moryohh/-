@@ -43,6 +43,7 @@ function shuffleTrueFalse<T>(values: T[]): T[] {
 function buildTrueFalseRound(source: TrueFalseGameConfig): TrueFalseGameConfig {
   const rawPool = source.questionPool?.length ? source.questionPool : source.questions;
   const pool = Array.from(new Map(rawPool.map((question) => [question.question.trim(), question])).values());
+  if (pool.length === 0) return source;
   const target = 12;
   const selected = pool.length > target
     ? shuffleTrueFalse(pool).slice(0, target)

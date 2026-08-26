@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { buildLessonKey, fileNameMatchesLesson, getDbSubjectIds, getLessonContentBundle } from './lessonsService';
+import { buildLessonKey, fileNameMatchesLesson, getDbSubjectIds, getLessonContentBundle, normalizeSectionId } from './lessonsService';
 import { MillionaireGameConfig, MillionaireQuestion, OpenLessonContext } from '../types';
 import { TrueFalseGameConfig, TrueFalseQuestion, getTrueFalseGameForLesson } from '../data/mockTrueFalse';
 import { GibhaSahGameConfig, GibhaSahQuestion, GibhaSahCard, getGibhaSahGameForLesson } from '../data/mockGibhaSah';
@@ -49,7 +49,7 @@ async function fetchExactSectionContent(
     ? ['true_false', 'tf', 'صح_خطأ', 'صح_ام_خطا']
     : sectionId === 'ph'
       ? ['ph', 'فلاش_كاردز', 'بطاقات']
-      : [sectionId];
+      : ['mcq', 'MCQ', 'mcqs', 'اختيارات', 'اختيار_من_متعدد'];
   const baseQuery = () =>
     supabase
       .from('educational_data')
@@ -63,12 +63,11 @@ async function fetchExactSectionContent(
       .from('educational_content_index')
       .select('record_id, subject_id, section_id, file_name, lesson_id, chapter_number, lesson_number, has_content')
       .in('subject_id', dbSubjects)
-      .in('section_id', sectionAliases)
       .eq('chapter_number', chapterNumber)
       .eq('lesson_number', lessonNumber)
-      .limit(20);
+      .limit(100);
     const indexedRecordIds = (indexedRows || [])
-      .filter((row) => row.record_id && row.has_content !== false)
+      .filter((row) => row.record_id && row.has_content !== false && normalizeSectionId(row.section_id) === sectionId)
       .map((row) => row.record_id);
     if (indexedRecordIds.length > 0) {
       const { data: indexedContent } = await supabase
