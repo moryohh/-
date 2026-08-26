@@ -54,6 +54,35 @@ const STATUS_STYLES: Record<CourseStatus, { text: string; background: string; bo
 
 const formatPrice = (price?: number) => (price === undefined ? '' : `${price.toLocaleString('en-US')} د.ع`);
 
+const getPriceBoxStyle = (course: MockCourse): React.CSSProperties => {
+  if (course.isFree) {
+    return {
+      color: '#f0fdf4',
+      backgroundColor: '#166534',
+      borderColor: '#fbbf24',
+    };
+  }
+  if (course.status === 'upcoming') {
+    return {
+      color: '#eff6ff',
+      backgroundColor: '#075985',
+      borderColor: '#fbbf24',
+    };
+  }
+  if (course.status === 'full') {
+    return {
+      color: '#fff7ed',
+      backgroundColor: '#c2410c',
+      borderColor: '#fbbf24',
+    };
+  }
+  return {
+    color: '#0f172a',
+    backgroundColor: 'rgba(15,23,42,0.06)',
+    borderColor: 'rgba(15,23,42,0.2)',
+  };
+};
+
 const getStatusMessage = (course: MockCourse) => {
   if (course.status === 'upcoming') {
     return {
@@ -253,29 +282,29 @@ export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack, co
                   <ArrowRight className="h-3.5 w-3.5" />
                 </span>
 
-                <div className="rounded-2xl border px-3 py-2 text-left" style={{ borderColor: `${theme.colors.primary}35`, backgroundColor: `${theme.colors.primary}0D` }}>
+                <div className="rounded-2xl border px-3 py-2 text-left" style={getPriceBoxStyle(course)}>
                   {course.oldPrice !== undefined && (
                     <div className={`text-sm font-bold line-through ${theme.classes.textMuted}`}>{formatPrice(course.oldPrice)}</div>
                   )}
                   {course.isFree ? (
-                    <div className="flex items-center justify-end gap-1.5 text-2xl font-black" style={{ color: theme.colors.secondary }}>
+                    <div className="flex items-center justify-end gap-1.5 text-2xl font-black">
                       <span>مجانية</span>
-                      <CheckCircle2 className="h-5 w-5" />
+                      <CheckCircle2 className="h-5 w-5" style={{ color: '#fbbf24' }} />
                     </div>
                   ) : course.currentPrice !== undefined ? (
                     <div className="flex items-baseline justify-end gap-1.5">
-                      <span className="text-xs font-black" style={{ color: theme.colors.secondary }}>د.ع</span>
-                      <span className={`text-3xl font-black tracking-tight ${theme.classes.textMain}`}>{course.currentPrice.toLocaleString('en-US')}</span>
+                      <span className="text-xs font-black">د.ع</span>
+                      <span className="text-3xl font-black tracking-tight">{course.currentPrice.toLocaleString('en-US')}</span>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-1 text-xs font-black" style={{ color: theme.colors.secondary }}>
+                    <div className="flex items-center gap-1 text-xs font-black">
                       <Clock3 className="h-3.5 w-3.5" />
                       بدون سعر حالي
                     </div>
                   )}
                   {course.badge && (
-                    <div className="mt-0.5 flex items-center justify-end gap-1 text-[10px] font-black" style={{ color: theme.colors.secondary }}>
-                      <BadgePercent className="h-3.5 w-3.5" />
+                    <div className="mt-0.5 flex items-center justify-end gap-1 text-[10px] font-black">
+                      <BadgePercent className="h-3.5 w-3.5" style={{ color: '#fbbf24' }} />
                       {course.badge}
                     </div>
                   )}
