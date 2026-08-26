@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from './authService';
 import {
   validateImageFile,
   generateSecureRandomFileName,
@@ -196,10 +197,16 @@ export async function submitSolutionImageForEvaluation(
     const requestId = `eval_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
     const maxScore = request.branchPoints || 5;
 
+    const accessToken = await getSupabaseAccessToken();
+    if (!accessToken) {
+      throw new Error('يجب تسجيل الدخول إلى منصة نحن معك قبل إرسال صورة الإجابة إلى خادم OCR|connection');
+    }
+
     const response = await fetch(externalApiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
         'X-Secure-File-Name': secureFileName,
       },
       body: JSON.stringify({
