@@ -30,6 +30,9 @@ export interface ImageEvaluationResult {
   secureFileName: string;
   fileSize: string;
   evaluatedAt: string;
+  requestId?: string;
+  processingEngine?: string;
+  failureStage?: 'ocr' | 'deepseek' | 'comparison' | 'connection';
   error?: string;
 }
 
@@ -103,6 +106,44 @@ function generateCurriculumEvaluation(
   };
 }
 
+function getImageEvaluationEndpoint(): string {
+  const configured = String((import.meta as any).env?.VITE_IMAGE_EVALUATION_API_URL || '').trim();
+  const communityApi = String((import.meta as any).env?.VITE_COMMUNITY_API_URL || '').trim();
+  const fallbackBase = (communityApi || 'https://community-k8dy.onrender.com')
+    .replace(/\/api\/v1\/community\/?$/, '')
+    .replace(/\/+$/, '');
+  const candidate = configured || `${fallbackBase}/api/v1/ocr/process`;
+  if (/\/api\/(?:v1\/)?ocr\/process\/?$/i.test(candidate)) return candidate.replace(/\/+$/, '');
+  return `${candidate.replace(/\/+$/, '')}/api/v1/ocr/process`;
+}
+
+function createEvaluationFailure(
+  req: ImageEvaluationRequest,
+  secureFileName: string,
+  fileSize: string,
+  message: string,
+  failureStage: ImageEvaluationResult['failureStage'] = 'connection',
+  requestId?: string
+): ImageEvaluationResult {
+  return {
+    success: false,
+    score: 0,
+    maxScore: req.branchPoints || 5,
+    percentage: 0,
+    statusLabel: 'يحتاج مراجعة',
+    feedback: message,
+    identifiedTextOrSteps: [],
+    strengths: [],
+    recommendations: ['تحقق من حالة خدمة OCR وDeepSeek في موقع B ثم أعد المحاولة.'],
+    secureFileName,
+    fileSize,
+    evaluatedAt: new Date().toLocaleTimeString('ar-IQ'),
+    requestId,
+    failureStage,
+    error: message,
+  };
+}
+
 /**
  * Processes, verifies, and securely submits the student's solution image for external grading.
  */
@@ -150,63 +191,77 @@ export async function submitSolutionImageForEvaluation(
 
   // STEP 4: Encrypted / Secure Payload Transmission (HTTPS / API)
   try {
-    // Check if external analysis API endpoint is defined in environment
-    const externalApiUrl =
-      (typeof import.meta !== 'undefined' &&
-        (import.meta as any).env &&
-        (import.meta as any).env.VITE_IMAGE_EVALUATION_API_URL) ||
-      '';
+    const externalApiUrl = getImageEvaluationEndpoint();
+    const base64Data = await fileToBase64(processedFile);
+    const requestId = `eval_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+    const maxScore = request.branchPoints || 5;
 
-    if (externalApiUrl && externalApiUrl.startsWith('https://')) {
-      const base64Data = await fileToBase64(processedFile);
+    const response = await fetch(externalApiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Secure-File-Name': secureFileName,
+      },
+      body: JSON.stringify({
+        request_id: requestId,
+        fileName: secureFileName,
+        mimeType: processedFile.type,
+        imageBase64: base64Data,
+        questionText: questionPrompt,
+        modelAnswer,
+        subject: request.subject,
+        lesson: request.lessonTitle,
+        maxScore,
+        language: 'ara',
+      }),
+    });
 
-      // Perform secure HTTPS POST request to the external processing server
-      const response = await fetch(externalApiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Secure-File-Name': secureFileName,
-        },
-        body: JSON.stringify({
-          fileName: secureFileName,
-          mimeType: processedFile.type,
-          imageBase64: base64Data,
-          prompt: questionPrompt,
-          modelAnswer: modelAnswer,
-          subject: request.subject,
-          lesson: request.lessonTitle,
-          maxScore: request.branchPoints || 5,
-        }),
-      });
-
-      if (response.ok) {
-        const resultJson = await response.json();
-        return {
-          success: true,
-          score: resultJson.score ?? (request.branchPoints || 5),
-          maxScore: resultJson.maxScore ?? (request.branchPoints || 5),
-          percentage: resultJson.percentage ?? 100,
-          statusLabel: resultJson.statusLabel ?? 'ممتاز',
-          feedback: resultJson.feedback || 'تم تصحيح الإجابة بنجاح عبر المنصة الخارجية.',
-          identifiedTextOrSteps: resultJson.steps || ['تم التعرف على خطوات الحل بنجاح.'],
-          strengths: resultJson.strengths || ['تسلسل خطوات الحل سليم.'],
-          recommendations: resultJson.recommendations || ['تابع هذا المستوى المتميز.'],
-          secureFileName,
-          fileSize,
-          evaluatedAt: new Date().toLocaleTimeString('ar-IQ'),
-        };
-      }
+    const resultJson = await response.json().catch(() => ({}));
+    const result = resultJson?.result || resultJson;
+    if (!response.ok || resultJson?.success === false) {
+      const failureStage = resultJson?.failure_stage === 'deepseek' ? 'deepseek' : resultJson?.failure_stage === 'comparison' ? 'comparison' : 'ocr';
+      throw new Error(resultJson?.error || `فشل تقييم الصورة في موقع B (HTTP ${response.status})|${failureStage}`);
     }
 
-    // Step 4: Fallback / Integrated High-Fidelity Evaluator
-    // Provides immediate realistic simulation with artificial intelligence evaluation latency
-    await new Promise((resolve) => setTimeout(resolve, 1400));
+    const percentage = Math.min(100, Math.max(0, Number(result.percentage ?? result.similarity_score ?? 0)));
+    const safePercentage = Math.round(percentage);
+    const safeMaxScore = Number(result.max_score ?? result.maxScore ?? maxScore) || maxScore;
+    const safeScore = Number(result.score ?? Math.round((safeMaxScore * safePercentage) / 100));
+    const statusLabel: ImageEvaluationResult['statusLabel'] = safePercentage >= 90
+      ? 'ممتاز'
+      : safePercentage >= 75
+        ? 'جيد جداً'
+        : safePercentage >= 50
+          ? 'مقبول'
+          : 'يحتاج مراجعة';
 
-    return generateCurriculumEvaluation(request, secureFileName, fileSize);
+    return {
+      success: true,
+      score: safeScore,
+      maxScore: safeMaxScore,
+      percentage: safePercentage,
+      statusLabel,
+      feedback: result.feedback || result.explanation || 'تم تقييم الإجابة عبر موقع B.',
+      identifiedTextOrSteps: result.identifiedTextOrSteps || result.steps || (result.extracted_answer ? [result.extracted_answer] : []),
+      strengths: result.strengths || [],
+      recommendations: result.recommendations || [],
+      secureFileName,
+      fileSize,
+      evaluatedAt: new Date().toLocaleTimeString('ar-IQ'),
+      requestId: result.request_id || resultJson.request_id || requestId,
+      processingEngine: result.comparison_engine || resultJson.comparison_engine || resultJson.engine_used,
+    };
   } catch (err: any) {
     console.error('[Evaluation Service] Error sending image to external evaluator:', err);
 
-    // Provide friendly fallback with security validation acknowledged
-    return generateCurriculumEvaluation(request, secureFileName, fileSize);
+    const rawMessage = err?.message || 'تعذر الاتصال بخدمة تقييم الصورة في موقع B.';
+    const [message, stage] = rawMessage.split('|');
+    return createEvaluationFailure(
+      request,
+      secureFileName,
+      fileSize,
+      message,
+      stage === 'deepseek' ? 'deepseek' : stage === 'comparison' ? 'comparison' : 'connection'
+    );
   }
 }
