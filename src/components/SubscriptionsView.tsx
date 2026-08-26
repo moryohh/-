@@ -11,7 +11,6 @@ import {
   MapPin,
   MonitorCheck,
   UsersRound,
-  X,
 } from 'lucide-react';
 import { useAppTheme } from '../services/themeService';
 import { registerCourseReminder } from '../services/communityService';
@@ -190,36 +189,8 @@ export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack, co
           className="pointer-events-none absolute -left-12 -top-12 h-32 w-32 rounded-full blur-3xl"
           style={{ backgroundColor: `${theme.colors.primary}30` }}
         />
-        <div className="relative flex items-start justify-between gap-3">
-          {onBack ? (
-            <button
-              type="button"
-              onClick={onBack}
-              className={`flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-black transition-transform active:scale-95 ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder}`}
-              style={{ color: theme.colors.primary }}
-              aria-label="الرجوع"
-            >
-              <ArrowRight className="h-4 w-4" />
-              <span>رجوع</span>
-            </button>
-          ) : (
-            <span className="w-14" aria-hidden="true" />
-          )}
-
+        <div className="relative flex items-start justify-end gap-3">
           <div className="min-w-0">
-            <div className="mb-1 flex items-center justify-end gap-2">
-              <span className={`text-[10px] font-black ${theme.classes.textMuted}`}>مسارات تعليمية مختارة</span>
-              <span
-                className="flex h-9 w-9 items-center justify-center rounded-xl border"
-                style={{
-                  color: theme.colors.primary,
-                  backgroundColor: `${theme.colors.primary}18`,
-                  borderColor: `${theme.colors.primary}40`,
-                }}
-              >
-                <Layers className="h-5 w-5" />
-              </span>
-            </div>
             <h1 className={`text-xl font-black tracking-tight sm:text-2xl ${theme.classes.textMain}`}>الدورات التعليمية</h1>
             <p className={`mt-1 text-xs leading-6 sm:text-sm ${theme.classes.textMuted}`}>
               اختر الدورة المناسبة لك وابدأ رحلتك نحو التفوق
@@ -348,7 +319,7 @@ export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack, co
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
-              <div className="flex shrink-0 items-center gap-1.5">
+              <div className="flex shrink-0 items-center">
                 <button
                   type="button"
                   onClick={closeCourseDialog}
@@ -358,14 +329,6 @@ export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack, co
                 >
                   <ArrowRight className="h-4 w-4" />
                   <span>رجوع</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={closeCourseDialog}
-                  className={`rounded-xl border p-2 transition-transform active:scale-95 ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder} ${theme.classes.textMuted}`}
-                  aria-label="إغلاق النافذة"
-                >
-                  <X className="h-4 w-4" />
                 </button>
               </div>
               <div className="flex items-center gap-2">

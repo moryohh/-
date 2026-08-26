@@ -4,12 +4,7 @@ import { getCurriculumForSubject } from '../data/mockCurriculums';
 import { getSubjectIndex, getSubjectChapters, getChapterLessons, getLessonDetails, formatArabicLessonTitle, buildLessonKey } from '../services/lessonsService';
 import { MapRewardsModal } from './MapRewardsModal';
 import { MapLeaderboardModal } from './MapLeaderboardModal';
-
-const AdventureWorldMap = React.lazy(() =>
-  import('./AdventureWorldMap').then(({ AdventureWorldMap: LazyAdventureWorldMap }) => ({
-    default: LazyAdventureWorldMap,
-  }))
-);
+import { AdventureWorldMap } from './AdventureWorldMap';
 import { useAppTheme } from '../services/themeService';
 import {
   ArrowRight,
@@ -391,14 +386,7 @@ export const SubjectLearningPathView: React.FC<SubjectLearningPathViewProps> = (
       {viewMode === 'map' ? (
         /* ADVENTURE ISLANDS WORLD MAP VIEW */
         <div className="relative">
-          <React.Suspense
-            fallback={
-              <div className="min-h-[320px] rounded-3xl border border-sky-500/30 bg-[#020617] flex items-center justify-center text-sky-200 text-sm font-bold animate-pulse">
-                جارٍ تجهيز خريطة المغامرة…
-              </div>
-            }
-          >
-            <AdventureWorldMap
+          <AdventureWorldMap
             chapters={chapters}
             subjectName={subject.name}
             subjectColor={subject.color}
@@ -416,8 +404,7 @@ export const SubjectLearningPathView: React.FC<SubjectLearningPathViewProps> = (
             isLoadingLessons={isLoadingLessons}
             isLoadingChapters={isLoading}
             onBack={onBack}
-            />
-          </React.Suspense>
+          />
         </div>
       ) : (
         /* DETAILED CHAPTERS & LESSONS LIST VIEW */
