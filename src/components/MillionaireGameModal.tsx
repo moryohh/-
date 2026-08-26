@@ -61,6 +61,34 @@ const LADDER_LEVELS = [
   { level: 11, points: 1000000, label: '1 000 000 د.ع', isSafety: true },
 ];
 
+function shuffleMillionaire<T>(values: T[]): T[] {
+  const result = [...values];
+  for (let i = result.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
+function buildMillionaireRound(source: MillionaireGameConfig): MillionaireGameConfig {
+  const rawPool = source.questionPool?.length ? source.questionPool : source.questions;
+  const pool = Array.from(new Map(rawPool.map((question) => [question.question.trim(), question])).values());
+  if (pool.length === 0) return source;
+  const target = LADDER_LEVELS.length;
+  const selected = pool.length > target
+    ? shuffleMillionaire(pool).slice(0, target)
+    : Array.from({ length: target }, (_, idx) => pool[idx % pool.length]);
+  return {
+    ...source,
+    questions: selected.map((question, idx) => ({
+      ...question,
+      id: `${question.id}-round-${idx + 1}`,
+      points: LADDER_LEVELS[idx]?.points || question.points,
+      difficulty: idx < 4 ? 'easy' : idx < 9 ? 'medium' : 'hard',
+    })),
+  };
+}
+
 const MILLIONAIRE_WRONG_AUDIO_URL = `${import.meta.env.BASE_URL}audio/millionaire-wrong.mp3`;
 const MILLIONAIRE_CORRECT_AUDIO_URL = `${import.meta.env.BASE_URL}audio/millionaire-correct.mp3`;
 const MILLIONAIRE_THINKING_AUDIO_URL = `${import.meta.env.BASE_URL}audio/millionaire-thinking.mp3`;
@@ -263,18 +291,16 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
   onAssessmentResult,
   customConfig,
 }) => {
-  // Game Configuration & Load (11 questions standardized)
+  // Game Configuration & Load (fresh round from the exact lesson-file pool)
   const [gameConfig, setGameConfig] = useState<MillionaireGameConfig>(() =>
-    customConfig || getMillionaireGameForLesson(lessonId, lessonTitle, category)
+    buildMillionaireRound(customConfig || getMillionaireGameForLesson(lessonId, lessonTitle, category))
   );
 
   useEffect(() => {
-    if (customConfig) {
-      setGameConfig(customConfig);
-    } else {
-      setGameConfig(getMillionaireGameForLesson(lessonId, lessonTitle, category));
-    }
-  }, [customConfig, lessonId, lessonTitle, category]);
+    const source = customConfig || getMillionaireGameForLesson(lessonId, lessonTitle, category);
+    setGameConfig(buildMillionaireRound(source));
+    resetGame(false);
+  }, [isOpen, customConfig, lessonId, lessonTitle, category]);
 
   // Game Mode: 'single' | 'multiplayer'
   const [gameMode, setGameMode] = useState<'single' | 'multiplayer'>('single');
@@ -804,17 +830,13 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
     };
   }, [isOpen, showPrizeProgressionModal]);
 
-  // Update Game config whenever lessonId changes
+  // Keep the high score tied to the opened lesson without replacing its database config.
   useEffect(() => {
-    const config = getMillionaireGameForLesson(lessonId, lessonTitle, category);
-    setGameConfig(config);
-    resetGame();
-
     try {
       const saved = localStorage.getItem(`millionaire_hs_${lessonId}`);
       if (saved) setHighScore(Number(saved));
     } catch (e) {}
-  }, [lessonId, lessonTitle, category]);
+  }, [lessonId]);
 
   if (!isOpen) return null;
 
@@ -843,7 +865,8 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
   const currentLadder = LADDER_LEVELS[currentQuestionIndex] || LADDER_LEVELS[0];
 
   // Restart / Reset game state
-  const resetGame = () => {
+  const resetGame = (reshuffle = true) => {
+    if (reshuffle) setGameConfig(buildMillionaireRound(gameConfig));
     gameAudio.stopAllExternal();
     rewardIssuedRef.current = false;
     setGameState('start');

@@ -19,6 +19,7 @@ import {
 import {
   GibhaSahGameConfig,
   GibhaSahQuestion,
+  GibhaSahCard,
   getGibhaSahGameForLesson,
 } from '../data/mockGibhaSah';
 import { gameAudio } from '../utils/gameAudio';
@@ -44,6 +45,31 @@ function shuffleArray<T>(array: T[]): T[] {
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;
+}
+
+function buildGibhaRound(source: GibhaSahGameConfig): GibhaSahGameConfig {
+  const rawPool = source.questionPool?.length ? source.questionPool : source.questions;
+  const pool = Array.from(new Map(rawPool.map((question) => [question.question.trim(), question])).values());
+  if (pool.length === 0) return source;
+  const target = 10;
+  const selected = pool.length > target
+    ? shuffleArray(pool).slice(0, target)
+    : Array.from({ length: target }, (_, idx) => pool[idx % pool.length]);
+  const cards: GibhaSahCard[] = selected.map((question, idx) => ({
+    id: idx + 1,
+    number: idx + 1,
+    label: question.answerLabel || source.cards.find((card) => card.number === question.correctCardNumber)?.label || '',
+    sublabel: `المصطلح رقم ${idx + 1}`,
+    badge: 'بطاقة علمية',
+  }));
+  const questions: GibhaSahQuestion[] = selected.map((question, idx) => ({
+    ...question,
+    id: `${question.id}-round-${idx + 1}`,
+    questionNumber: idx + 1,
+    correctCardNumber: idx + 1,
+    explanation: `الإجابة الصحيحة هي بطاقة (${idx + 1}): ${cards[idx]?.label || question.answerLabel || ''}`,
+  }));
+  return { ...source, mode: 'cards_10', cards, questions };
 }
 
 export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
@@ -109,10 +135,10 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
   // Initialize or re-sync config & shuffle questions
   useEffect(() => {
     const loaded = customConfig || getGibhaSahGameForLesson(lessonId, lessonTitle, category);
-    setConfig(loaded);
-    setShuffledQuestions(shuffleArray(loaded.questions));
-    handleRestartInternal(loaded.questions);
-  }, [customConfig, lessonId, lessonTitle, category]);
+    const round = buildGibhaRound(loaded);
+    setConfig(round);
+    handleRestartInternal(round.questions);
+  }, [isOpen, customConfig, lessonId, lessonTitle, category]);
 
   // Play a short intro only when the game becomes visible; it remains silent while closed.
   useEffect(() => {
@@ -447,7 +473,9 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
 
   // Restart full game with new random shuffle
   const handleRestart = () => {
-    handleRestartInternal(config.questions);
+    const round = buildGibhaRound(config);
+    setConfig(round);
+    handleRestartInternal(round.questions);
   };
 
   // Start editing player name

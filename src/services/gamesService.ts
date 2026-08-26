@@ -244,7 +244,13 @@ function parseMcqToMillionaire(
         : Array.isArray(rawContent?.data)
           ? rawContent.data
           : [];
-  const validQuestions = items.filter((it: any) => it && it.question && Array.isArray(it.options) && it.options.length >= 2);
+  const validQuestions = Array.from(
+    new Map(
+      items
+        .filter((it: any) => it && it.question && Array.isArray(it.options) && it.options.length >= 2)
+        .map((item: any) => [String(item.question).trim(), item])
+    ).values()
+  );
 
   if (validQuestions.length < 5) {
     return {
@@ -263,17 +269,19 @@ function parseMcqToMillionaire(
     5000, 10000, 25000, 50000, 100000, 150000, 250000, 400000, 500000, 650000, 800000,
   ];
   const targetQuestionCount = 11;
-  const questionsForGame = Array.from({ length: targetQuestionCount }, (_, idx) => validQuestions[idx % validQuestions.length]);
-
-  const parsedQuestions: MillionaireQuestion[] = questionsForGame.map((item, idx) => {
-    // Standardize 4 options
-    const rawOpts = item.options.map((opt: string) => opt.replace(/^[A-D]\)\s*/i, '').trim());
-    while (rawOpts.length < 4) {
-      rawOpts.push(`خيار إضافي ${rawOpts.length + 1}`);
+  const shuffle = <T,>(values: T[]): T[] => {
+    const result = [...values];
+    for (let i = result.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [result[i], result[j]] = [result[j], result[i]];
     }
-    const cleanOpts = rawOpts.slice(0, 4) as [string, string, string, string];
+    return result;
+  };
 
-    // Determine correct option index
+  const normalizeQuestion = (item: any, idx: number): MillionaireQuestion => {
+    const rawOpts = item.options.map((opt: string) => opt.replace(/^[A-D]\)\s*/i, '').trim());
+    while (rawOpts.length < 4) rawOpts.push(`خيار إضافي ${rawOpts.length + 1}`);
+    const cleanOpts = rawOpts.slice(0, 4) as [string, string, string, string];
     let correctIdx = 0;
     if (item.correct_option) {
       const optLetter = String(item.correct_option).toUpperCase().trim();
@@ -286,21 +294,29 @@ function parseMcqToMillionaire(
       const matchIdx = cleanOpts.findIndex((o) => o === cleanAns || cleanAns.includes(o) || o.includes(cleanAns));
       if (matchIdx !== -1) correctIdx = matchIdx;
     }
-
-    const questionPoints = ladderPoints[idx] || 1000000;
-    const diff: 'easy' | 'medium' | 'hard' = idx < 4 ? 'easy' : idx < 9 ? 'medium' : 'hard';
-
     return {
       id: String(item.item_id || `mcq-${idx + 1}`),
-      difficulty: diff,
-      points: questionPoints,
+      difficulty: idx < 4 ? 'easy' : idx < 9 ? 'medium' : 'hard',
+      points: ladderPoints[Math.min(idx, ladderPoints.length - 1)] || 1000000,
       question: item.question,
       options: cleanOpts,
       correctAnswer: correctIdx,
       explanation: typeof item.answer === 'string' ? item.answer : `الإجابة النموذجية هي: ${cleanOpts[correctIdx]}`,
-      hint: `فكر في محور الدرس المنهجي المرتبط بالسؤال`,
+      hint: 'فكر في محور الدرس المنهجي المرتبط بالسؤال',
     };
-  });
+  };
+
+  // Keep every valid question from the exact lesson file as the source pool.
+  const questionPool = validQuestions.map(normalizeQuestion);
+  const selectedPool = questionPool.length > targetQuestionCount
+    ? shuffle(questionPool).slice(0, targetQuestionCount)
+    : Array.from({ length: targetQuestionCount }, (_, idx) => questionPool[idx % questionPool.length]);
+  const parsedQuestions = selectedPool.map((question, idx) => ({
+    ...question,
+    id: `${question.id}-round-${idx + 1}`,
+    points: ladderPoints[idx] || 1000000,
+    difficulty: idx < 4 ? 'easy' as const : idx < 9 ? 'medium' as const : 'hard' as const,
+  }));
 
   return {
     gameId: `game-mcq-${lessonId}`,
@@ -309,8 +325,9 @@ function parseMcqToMillionaire(
     subject: rawContent.lesson_info?.subject || category,
     grade: rawContent.lesson_info?.grade || 'السادس الإعدادي المنهج الوزاري',
     title: `من سيربح المليون - ${lessonTitle}`,
-    subtitle: rawContent.lesson_info?.grade || 'السادس الإعدادي المنهج الوزاري',
+    subtitle: rawContent.lesson_info?.grade || 'أسئلة من ملف الدرس المستهدف فقط',
     questions: parsedQuestions,
+    questionPool,
   };
 }
 
@@ -323,48 +340,79 @@ function parseTrueFalseConfig(
   lessonTitle: string,
   category: string
 ): TrueFalseGameConfig {
-  const items: any[] = rawContent.pages?.flatMap((p: any) => p.items || []) || [];
-  const validQuestions = items.filter((it: any) => it && it.question && it.type === 'question');
+  const items: any[] = Array.isArray(rawContent?.pages)
+    ? rawContent.pages.flatMap((p: any) => p.items || p.questions || [])
+    : Array.isArray(rawContent?.items)
+      ? rawContent.items
+      : Array.isArray(rawContent?.questions)
+        ? rawContent.questions
+        : [];
+  const validQuestions = Array.from(
+    new Map(
+      items
+        .filter((it: any) => it && it.question && (it.type === 'question' || it.question_type || it.correct_option !== undefined || it.answer !== undefined))
+        .map((item: any) => [String(item.question).trim(), item])
+    ).values()
+  );
 
   if (validQuestions.length < 4) {
-    return getTrueFalseGameForLesson(lessonId, lessonTitle, category);
+    return {
+      lessonId,
+      subject: category,
+      title: `تحدي صح أم خطأ - ${lessonTitle}`,
+      subtitle: 'لا تتوفر أسئلة صح وخطأ كافية لهذا الدرس حاليًا',
+      totalQuestions: 0,
+      totalPoints: 0,
+      questions: [],
+    };
   }
 
   const targetQuestionCount = 12;
-  const questionsForGame = Array.from({ length: targetQuestionCount }, (_, idx) => validQuestions[idx % validQuestions.length]);
-  const parsedQuestions: TrueFalseQuestion[] = questionsForGame.map((item, idx) => {
+  const shuffle = <T,>(values: T[]): T[] => {
+    const result = [...values];
+    for (let i = result.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [result[i], result[j]] = [result[j], result[i]];
+    }
+    return result;
+  };
+  const questionPool: TrueFalseQuestion[] = validQuestions.map((item, idx) => {
     let isCorrectVal = true;
     if (item.correct_option !== undefined) {
       const opt = String(item.correct_option).toLowerCase().trim();
       isCorrectVal = opt === 'true' || opt === 'صح' || opt === 'صحيح' || opt === 'نعم';
     } else if (item.answer) {
       const ansStr = String(item.answer).trim();
-      if (ansStr.startsWith('خطأ') || ansStr.startsWith('كلا') || ansStr.startsWith('لا') || ansStr.includes('غير صحيح')) {
-        isCorrectVal = false;
-      }
+      if (ansStr.startsWith('خطأ') || ansStr.startsWith('كلا') || ansStr.startsWith('لا') || ansStr.includes('غير صحيح')) isCorrectVal = false;
     }
-
-    const diff: 'سهل' | 'متوسط' | 'متقدم' = idx < 4 ? 'سهل' : idx < 8 ? 'متوسط' : 'متقدم';
-
     return {
-      id: String(item.item_id || `tf-${idx + 1}`),
+      id: String(item.item_id || `tf-pool-${idx + 1}`),
       question: item.question,
       isCorrect: isCorrectVal,
-      difficulty: diff,
+      difficulty: idx < 4 ? 'سهل' : idx < 8 ? 'متوسط' : 'متقدم',
       points: 100,
       explanation: typeof item.answer === 'string' ? item.answer : (isCorrectVal ? 'العبارة صحيحة منهجياً وفق الكتاب الوزاري.' : 'العبارة خاطئة منهجياً.'),
       category: rawContent.lesson_info?.subject || category,
     };
   });
+  const selectedPool = questionPool.length > targetQuestionCount
+    ? shuffle(questionPool).slice(0, targetQuestionCount)
+    : Array.from({ length: targetQuestionCount }, (_, idx) => questionPool[idx % questionPool.length]);
+  const parsedQuestions: TrueFalseQuestion[] = selectedPool.map((question, idx) => ({
+    ...question,
+    id: `${question.id}-round-${idx + 1}`,
+    difficulty: idx < 4 ? 'سهل' : idx < 8 ? 'متوسط' : 'متقدم',
+  }));
 
   return {
     lessonId,
     subject: rawContent.lesson_info?.subject || category,
     title: `تحدي صح أم خطأ - ${lessonTitle}`,
-    subtitle: '12 سؤالاً تفاعلياً لتقييم الاستيعاب والسرعة',
+    subtitle: 'أسئلة عشوائية من بنك الدرس المستهدف',
     totalQuestions: parsedQuestions.length,
     totalPoints: parsedQuestions.length * 100,
     questions: parsedQuestions,
+    questionPool,
   };
 }
 
@@ -398,8 +446,12 @@ function parsePhToGibhaSah(
 
 
   const getRoundAnswer = (round: any): string => String(round?.correct_answer ?? round?.answer ?? '').trim();
-  const validRounds = rawRounds.filter(
-    (round: any) => round && typeof round.question === 'string' && round.question.trim() && getRoundAnswer(round)
+  const validRounds = Array.from(
+    new Map(
+      rawRounds
+        .filter((round: any) => round && typeof round.question === 'string' && round.question.trim() && getRoundAnswer(round))
+        .map((round: any) => [round.question.trim(), round])
+    ).values()
   );
   // Fewer than five valid questions means this lesson cannot form a valid game.
   if (validRounds.length < 5) {
@@ -415,39 +467,51 @@ function parsePhToGibhaSah(
   }
 
   const cardsCount = 10;
-  // Repeat only rounds from this same PH file until ten question/card slots exist.
-  // Each question owns its numbered slot, so duplicate labels never point to the first duplicate.
-  const roundsForGame = Array.from({ length: cardsCount }, (_, idx) => validRounds[idx % validRounds.length]);
-  const cards: GibhaSahCard[] = roundsForGame.map((round, idx) => ({
+  const shuffle = <T,>(values: T[]): T[] => {
+    const result = [...values];
+    for (let i = result.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [result[i], result[j]] = [result[j], result[i]];
+    }
+    return result;
+  };
+  const questionPool: GibhaSahQuestion[] = validRounds.map((round, idx) => ({
+    id: `gs-pool-${idx + 1}`,
+    questionNumber: idx + 1,
+    question: round.question,
+    correctCardNumber: 0,
+    explanation: '',
+    points: 100,
+    answerLabel: getRoundAnswer(round),
+  }));
+  const selectedPool = questionPool.length > cardsCount
+    ? shuffle(questionPool).slice(0, cardsCount)
+    : Array.from({ length: cardsCount }, (_, idx) => questionPool[idx % questionPool.length]);
+  const cards: GibhaSahCard[] = selectedPool.map((question, idx) => ({
     id: idx + 1,
     number: idx + 1,
-    label: getRoundAnswer(round),
+    label: question.answerLabel || '',
     sublabel: `المصطلح رقم ${idx + 1}`,
     badge: 'بطاقة علمية',
   }));
 
-  const questions: GibhaSahQuestion[] = roundsForGame.map((round, idx) => {
-    const correctCardNumber = idx + 1;
-    const correctAns = getRoundAnswer(round);
-
-    return {
-      id: `gs-${idx + 1}`,
-      questionNumber: idx + 1,
-      question: round.question,
-      correctCardNumber,
-      explanation: `الإجابة الصحيحة هي بطاقة (${correctCardNumber}): ${cards[idx]?.label || correctAns}`,
-      points: 100,
-    };
-  });
+  const questions: GibhaSahQuestion[] = selectedPool.map((question, idx) => ({
+    ...question,
+    id: `gs-round-${idx + 1}`,
+    questionNumber: idx + 1,
+    correctCardNumber: idx + 1,
+    explanation: `الإجابة الصحيحة هي بطاقة (${idx + 1}): ${cards[idx]?.label || question.answerLabel || ''}`,
+  }));
 
   return {
     lessonId,
     subject: rawContent.lesson_info?.subject || category,
     title: `لعبة جِيبْهَا صَح 🎯 - ${lessonTitle}`,
-    subtitle: 'شبكة 10 بطاقات من بنك هذا الدرس',
+    subtitle: 'شبكة 10 بطاقات من بنك الدرس المستهدف فقط',
     mode: 'cards_10',
     cards,
     questions,
+    questionPool,
   };
 }
 

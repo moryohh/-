@@ -50,6 +50,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
   const { theme } = useAppTheme();
   const [exam, setExam] = useState<DailyExamConfig | null>(customExam || null);
   const [isLoading, setIsLoading] = useState(false);
+  const [examRound, setExamRound] = useState(0);
 
   // Student Drafts (textual notes per branch)
   const [studentDrafts, setStudentDrafts] = useState<Record<string, string>>({});
@@ -91,10 +92,12 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
   useEffect(() => {
     if (customExam) {
       setExam(customExam);
+      setIsLoading(false);
       return;
     }
 
     if (isOpen) {
+      setExam(null);
       setIsLoading(true);
       if (openLessonContext) {
         fetchDailyExamForLesson(openLessonContext)
@@ -122,7 +125,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
           });
       }
     }
-  }, [isOpen, customExam, category, lessonId, lessonTitle, openLessonContext?.subjectId, openLessonContext?.chapterNumber, openLessonContext?.lessonNumber, openLessonContext?.lessonId]);
+  }, [isOpen, customExam, examRound, category, lessonId, lessonTitle, openLessonContext?.subjectId, openLessonContext?.chapterNumber, openLessonContext?.lessonNumber, openLessonContext?.lessonId]);
 
   // Countdown timer
   useEffect(() => {
@@ -265,6 +268,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
     setTimeLeft(900);
     setIsTimerRunning(true);
     setIsSubmitted(false);
+    setExamRound((prev) => prev + 1);
     setStudentDrafts({});
     setQuestionImages({ q1: null, q2: null });
     setEvaluatedQuestions({ q1: null, q2: null });

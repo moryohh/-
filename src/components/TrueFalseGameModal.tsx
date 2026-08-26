@@ -31,6 +31,34 @@ interface TrueFalseGameModalProps {
   customConfig?: TrueFalseGameConfig;
 }
 
+function shuffleTrueFalse<T>(values: T[]): T[] {
+  const result = [...values];
+  for (let i = result.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
+function buildTrueFalseRound(source: TrueFalseGameConfig): TrueFalseGameConfig {
+  const rawPool = source.questionPool?.length ? source.questionPool : source.questions;
+  const pool = Array.from(new Map(rawPool.map((question) => [question.question.trim(), question])).values());
+  const target = 12;
+  const selected = pool.length > target
+    ? shuffleTrueFalse(pool).slice(0, target)
+    : Array.from({ length: target }, (_, idx) => pool[idx % pool.length]);
+  return {
+    ...source,
+    questions: selected.map((question, idx) => ({
+      ...question,
+      id: `${question.id}-round-${idx + 1}`,
+      difficulty: idx < 4 ? 'سهل' : idx < 8 ? 'متوسط' : 'متقدم',
+    })),
+    totalQuestions: selected.length,
+    totalPoints: selected.length * 100,
+  };
+}
+
 export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
   isOpen,
   onClose,
@@ -70,9 +98,9 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
   // Reload config if lessonId or customConfig changes
   useEffect(() => {
     const loadedConfig = customConfig || getTrueFalseGameForLesson(lessonId, lessonTitle, category);
-    setConfig(loadedConfig);
-    resetGame();
-  }, [customConfig, lessonId, lessonTitle, category]);
+    setConfig(buildTrueFalseRound(loadedConfig));
+    resetGame(false);
+  }, [isOpen, customConfig, lessonId, lessonTitle, category]);
 
   useEffect(() => {
     if (isCompleted && !rewardIssuedRef.current) {
@@ -220,7 +248,8 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
     }
   };
 
-  const resetGame = () => {
+  const resetGame = (reshuffle = true) => {
+    if (reshuffle && config.questions.length > 0) setConfig(buildTrueFalseRound(config));
     rewardIssuedRef.current = false;
     setCurrentIndex(0);
     setSelectedChoice(null);

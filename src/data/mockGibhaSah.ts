@@ -16,6 +16,8 @@ export interface GibhaSahQuestion {
   explanation: string;
   points: number;
   hint?: string;
+  /** Internal answer label used when rebuilding a fresh round. */
+  answerLabel?: string;
 }
 
 export interface GibhaSahGameConfig {
@@ -26,6 +28,8 @@ export interface GibhaSahGameConfig {
   mode: 'cards_10' | 'visual_4';
   cards: GibhaSahCard[];
   questions: GibhaSahQuestion[];
+  /** Full lesson-file pool used to build a fresh non-repeating round. */
+  questionPool?: GibhaSahQuestion[];
 }
 
 export const GIBHA_SAH_GAMES: Record<string, GibhaSahGameConfig> = {

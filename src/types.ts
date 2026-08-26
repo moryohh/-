@@ -151,6 +151,8 @@ export interface MillionaireGameConfig {
   title: string;
   subtitle: string;
   questions: MillionaireQuestion[];
+  /** Full lesson-file pool used to build a fresh non-repeating round. */
+  questionPool?: MillionaireQuestion[];
   backupQuestion?: MillionaireQuestion;
 }
 

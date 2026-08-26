@@ -54,6 +54,27 @@ function toCleanString(val: any): string {
   return String(val).trim();
 }
 
+function shuffleExamItems<T>(values: T[]): T[] {
+  const result = [...values];
+  for (let i = result.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
+function selectExamItems<T>(pool: T[], target: number): T[] {
+  if (pool.length === 0) return [];
+  const selected = pool.length > target
+    ? shuffleExamItems(pool).slice(0, target)
+    : Array.from({ length: target }, (_, idx) => pool[idx % pool.length]);
+  return selected;
+}
+
+function uniqueExamItems<T extends { q: string }>(pool: T[]): T[] {
+  return Array.from(new Map(pool.map((item) => [item.q.trim(), item])).values());
+}
+
 /**
  * Extracts 2 structured multi-part exam questions directly from Curriculum JSON
  */
@@ -142,7 +163,7 @@ export function extractDailyExamFromCurriculum(
 
   if (definitions.length >= 2) {
     q1Instruction = 'عرّف ما يأتي بدقة علمية ومنهجية (فرعان فقط):';
-    const pair = definitions.slice(0, 2);
+    const pair = selectExamItems(uniqueExamItems(definitions), 2);
     pair.forEach((item, idx) => {
       let promptClean = item.q
         .replace(/^(س\d*[:\-.]?\s*)/i, '')
@@ -158,7 +179,7 @@ export function extractDailyExamFromCurriculum(
     });
   } else if (explanations.length >= 2) {
     q1Instruction = 'علل ما يأتي بدقة واختصار علمي (فرعان فقط):';
-    const pair = explanations.slice(0, 2);
+    const pair = selectExamItems(uniqueExamItems(explanations), 2);
     pair.forEach((item, idx) => {
       let promptClean = item.q.replace(/^(س\d*[:\-.]?\s*)/i, '').trim();
       q1Branches.push({
@@ -171,7 +192,7 @@ export function extractDailyExamFromCurriculum(
     });
   } else if (blanks.length >= 2) {
     q1Instruction = 'امـلأ الفراغـين الآتيـين بما يناسبهما علمياً:';
-    const pair = blanks.slice(0, 2);
+    const pair = selectExamItems(uniqueExamItems(blanks), 2);
     pair.forEach((item, idx) => {
       q1Branches.push({
         id: `q1-b${idx + 1}`,
@@ -183,10 +204,10 @@ export function extractDailyExamFromCurriculum(
     });
   } else {
     // Mixed pool to guarantee exactly 2 items
-    const pool = [...definitions, ...explanations, ...blanks, ...generalQuestions];
-    if (pool.length >= 2) {
+    const pool = uniqueExamItems([...definitions, ...explanations, ...blanks, ...generalQuestions]);
+    if (pool.length >= 1) {
       q1Instruction = 'أجب عن الفرعين الآتيين باختصار علمي ومنهجي:';
-      const pair = pool.slice(0, 2);
+      const pair = selectExamItems(pool, 2);
       pair.forEach((item, idx) => {
         let promptClean = item.q.replace(/^(س\d*[:\-.]?\s*)/i, '').trim();
         q1Branches.push({
@@ -227,7 +248,7 @@ export function extractDailyExamFromCurriculum(
   let q2Instruction = 'أجب عن السؤال التالي على السبورة الورقية بالتفصيل:';
 
   if (comprehensivePrompts.length > 0) {
-    const comp = comprehensivePrompts[0];
+    const comp = selectExamItems(uniqueExamItems(comprehensivePrompts), 1)[0];
     if (comp.type === 'count') {
       q2Instruction = 'عدّد واشرح بالتفصيل:';
     } else if (comp.type === 'explain') {

@@ -18,6 +18,8 @@ export interface TrueFalseGameConfig {
   totalQuestions: number;
   totalPoints: number;
   questions: TrueFalseQuestion[];
+  /** Full lesson-file pool used to build a fresh non-repeating round. */
+  questionPool?: TrueFalseQuestion[];
 }
 
 export const TRUE_FALSE_GAMES: Record<string, TrueFalseGameConfig> = {
