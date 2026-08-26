@@ -427,7 +427,7 @@ export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack, co
                 </div>
                 {selectedCourse.sponsorNote && (
                   <div className={`mt-3 rounded-2xl border p-3 text-xs leading-6 ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder}`}>
-                    <div className="font-black" style={{ color: theme.colors.secondary }}>الجهة الداعمة</div>
+                    <div className="font-black" style={{ color: theme.colors.secondary }}>الداعم الرسمي</div>
                     <div className={theme.classes.textMuted}>{selectedCourse.sponsorNote}</div>
                   </div>
                 )}

@@ -66,7 +66,7 @@ export const MOCK_COURSES: MockCourse[] = [
     requiredLevel: 80,
     requiredRating: 'gold',
     seatsPerGovernorate: 400,
-    sponsorNote: 'هذه الدورة مدفوعة من قبل المجلس الثقافي البريطاني ومنظمة معًا وجمعية Thomson للتنمية الدولية في الشرق الأوسط.',
+    sponsorNote: 'Thompson للأمور التعليمية في الشرق الأوسط هي الداعم الرسمي للدورة، مع مساندة من جهة محلية شريكة.',
     includesOnlineExam: true,
     includesInPersonExam: true,
     badge: 'مجانية — إلكتروني وحضوري',
