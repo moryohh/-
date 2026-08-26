@@ -988,6 +988,7 @@ function AppContent() {
           onScoreUpdate={handleScoreUpdate}
           onAssessmentResult={handleAssessmentResult}
           playerAvatarUrl={currentUser?.avatarUrl}
+          playerId={currentUser?.id}
         />
       </React.Suspense>
     </div>

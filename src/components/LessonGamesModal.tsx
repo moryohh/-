@@ -37,6 +37,7 @@ interface LessonGamesModalProps {
   onScoreUpdate?: (points: number) => void;
   onAssessmentResult?: (correctPoints: number, totalPoints: number) => void;
   playerAvatarUrl?: string;
+  playerId?: string;
 }
 
 export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
@@ -50,6 +51,7 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
   onScoreUpdate,
   onAssessmentResult,
   playerAvatarUrl,
+  playerId,
 }) => {
   const { theme } = useAppTheme();
   // Mode: 'menu' | 'millionaire' | 'true_false' | 'gibha_sah' | 'daily_exam' | 'quick'
@@ -62,6 +64,27 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
   const [isLoadingBundle, setIsLoadingBundle] = useState(false);
   const [bundleLoadError, setBundleLoadError] = useState(false);
   const canOpenInteractiveGame = Boolean(gamesBundle) && !isLoadingBundle && !bundleLoadError;
+
+  const lessonRewardIdentity = [
+    playerId || 'anonymous',
+    openLessonContext?.subjectId || category,
+    openLessonContext?.chapterNumber ?? 'unknown-chapter',
+    openLessonContext?.lessonNumber ?? 'unknown-lesson',
+    openLessonContext?.lessonId || lessonId,
+  ].map((part) => encodeURIComponent(String(part).trim().toLowerCase())).join(':');
+
+  const awardLessonReward = (gameType: 'millionaire' | 'true_false' | 'gibha_sah' | 'daily_exam', points: number) => {
+    const safePoints = Math.max(0, Math.floor(Number(points) || 0));
+    const storageKey = `nahnu_maek:first-reward:v1:${lessonRewardIdentity}:${gameType}`;
+    let isFirstCompletion = false;
+    try {
+      isFirstCompletion = localStorage.getItem(storageKey) !== '1';
+      if (isFirstCompletion) localStorage.setItem(storageKey, '1');
+    } catch (error) {
+      console.debug('Unable to save first-completion reward state:', error);
+    }
+    onScoreUpdate?.(isFirstCompletion ? safePoints * 2 : safePoints);
+  };
 
   useEffect(() => {
     let isCancelled = false;
@@ -176,7 +199,7 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
         lessonTitle={openLessonContext?.lessonTitle || lessonTitle}
         category={openLessonContext?.subjectId || category}
         customConfig={gamesBundle?.mcqConfig}
-        onScoreUpdate={onScoreUpdate}
+        onScoreUpdate={(points) => awardLessonReward('millionaire', points)}
         onAssessmentResult={onAssessmentResult}
       />
     );
@@ -192,7 +215,7 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
         lessonTitle={openLessonContext?.lessonTitle || lessonTitle}
         category={openLessonContext?.subjectId || category}
         customConfig={gamesBundle?.trueFalseConfig}
-        onScoreUpdate={onScoreUpdate}
+        onScoreUpdate={(points) => awardLessonReward('true_false', points)}
         onAssessmentResult={onAssessmentResult}
       />
     );
@@ -208,7 +231,7 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
         lessonTitle={openLessonContext?.lessonTitle || lessonTitle}
         category={openLessonContext?.subjectId || category}
         customConfig={gamesBundle?.gibhaSahConfig}
-        onScoreUpdate={onScoreUpdate}
+        onScoreUpdate={(points) => awardLessonReward('gibha_sah', points)}
         onAssessmentResult={onAssessmentResult}
         playerAvatarUrl={playerAvatarUrl}
       />
@@ -225,7 +248,7 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
         lessonTitle={openLessonContext?.lessonTitle || lessonTitle}
         category={openLessonContext?.subjectId || category}
         openLessonContext={openLessonContext}
-        onScoreUpdate={onScoreUpdate}
+        onScoreUpdate={(points) => awardLessonReward('daily_exam', points)}
         onAssessmentResult={onAssessmentResult}
       />
     );
