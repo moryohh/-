@@ -4,11 +4,12 @@ import {
   BadgePercent,
   BookOpen,
   CalendarDays,
-  Check,
+  CheckCircle2,
   Clock3,
   GraduationCap,
   Layers,
   MapPin,
+  MonitorCheck,
   UsersRound,
   X,
 } from 'lucide-react';
@@ -49,21 +50,20 @@ const STATUS_STYLES: Record<CourseStatus, { text: string; background: string; bo
   },
 };
 
+const formatPrice = (price?: number) => (price === undefined ? '' : `${price.toLocaleString('en-US')} د.ع`);
+
 const getStatusMessage = (course: MockCourse) => {
   if (course.status === 'upcoming') {
     return {
-      title: 'التسجيل قريبًا',
-      description: 'سيتم فتح التقديم على هذه الدورة قريبًا.',
+      title: 'التقديم يبدأ في الشهر الحادي عشر',
+      description: 'سيبدأ التقديم على هذه الدورة في الشهر الحادي عشر.',
     };
   }
 
   if (course.status === 'full') {
     return {
-      title: course.id === 'all-subjects' ? 'التسجيل ممتلئ حاليًا' : 'الدورة ممتلئة',
-      description:
-        course.id === 'all-subjects'
-          ? 'تم اكتمال المقاعد لهذه الدورة.'
-          : 'اكتملت المقاعد المتاحة حاليًا.',
+      title: 'المقاعد ممتلئة',
+      description: 'اكتملت المقاعد المتاحة لهذه الدورة حاليًا.',
     };
   }
 
@@ -137,8 +137,6 @@ export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack }) 
       <div className="space-y-3">
         {MOCK_COURSES.map((course) => {
           const statusStyle = STATUS_STYLES[course.status];
-          const visibleTeachers = course.teachers.slice(0, 4);
-          const remainingTeachers = course.teachers.length - visibleTeachers.length;
 
           return (
             <button
@@ -167,7 +165,7 @@ export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack }) 
                     borderColor: statusStyle.border,
                   }}
                 >
-                  {course.status === 'full' ? <Clock3 className="h-3.5 w-3.5" /> : <CalendarDays className="h-3.5 w-3.5" />}
+                  {course.status === 'full' ? <UsersRound className="h-3.5 w-3.5" /> : <CalendarDays className="h-3.5 w-3.5" />}
                   {COURSE_STATUS_LABELS[course.status]}
                 </span>
 
@@ -181,25 +179,15 @@ export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack }) 
               </div>
 
               <div className="mt-3 flex flex-wrap justify-end gap-1.5">
-                {visibleTeachers.map((teacher) => (
+                {course.subjects.map((subject) => (
                   <span
-                    key={teacher}
-                    className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[9px] font-bold ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder}`}
+                    key={subject}
+                    className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-bold ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder}`}
                   >
-                    <span
-                      className="flex h-4 w-4 items-center justify-center rounded-full"
-                      style={{ backgroundColor: `${theme.colors.primary}25`, color: theme.colors.primary }}
-                    >
-                      <GraduationCap className="h-2.5 w-2.5" />
-                    </span>
-                    <span className={theme.classes.textMuted}>{teacher}</span>
+                    <GraduationCap className="h-3 w-3" style={{ color: theme.colors.primary }} />
+                    <span className={theme.classes.textMuted}>{subject}</span>
                   </span>
                 ))}
-                {remainingTeachers > 0 && (
-                  <span className={`rounded-full border px-2 py-1 text-[9px] font-black ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder} ${theme.classes.textMuted}`}>
-                    +{remainingTeachers} مدرسين
-                  </span>
-                )}
               </div>
 
               <div className={`mt-4 flex items-end justify-between gap-3 border-t pt-3 ${theme.classes.cardBorder}`}>
@@ -211,41 +199,48 @@ export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack }) 
                   <ArrowRight className="h-3.5 w-3.5" />
                 </span>
 
-                {course.currentPrice ? (
-                  <div>
-                    <div className={`text-[10px] font-bold line-through ${theme.classes.textMuted}`}>{course.oldPrice}</div>
+                <div className="rounded-2xl border px-3 py-2 text-left" style={{ borderColor: `${theme.colors.primary}35`, backgroundColor: `${theme.colors.primary}0D` }}>
+                  {course.oldPrice !== undefined && (
+                    <div className={`text-sm font-bold line-through ${theme.classes.textMuted}`}>{formatPrice(course.oldPrice)}</div>
+                  )}
+                  {course.currentPrice !== undefined ? (
                     <div className="flex items-baseline justify-end gap-1.5">
-                      <span className="text-[10px] font-bold" style={{ color: theme.colors.secondary }}>د.ع</span>
-                      <span className={`text-2xl font-black ${theme.classes.textMain}`}>{course.currentPrice.replace(' د.ع', '')}</span>
+                      <span className="text-xs font-black" style={{ color: theme.colors.secondary }}>د.ع</span>
+                      <span className={`text-3xl font-black tracking-tight ${theme.classes.textMain}`}>{course.currentPrice.toLocaleString('en-US')}</span>
                     </div>
-                    <div className="flex items-center justify-end gap-1 text-[10px] font-black" style={{ color: theme.colors.secondary }}>
+                  ) : (
+                    <div className="flex items-center gap-1 text-xs font-black" style={{ color: theme.colors.secondary }}>
+                      <Clock3 className="h-3.5 w-3.5" />
+                      بدون سعر حالي
+                    </div>
+                  )}
+                  {course.badge && (
+                    <div className="mt-0.5 flex items-center justify-end gap-1 text-[10px] font-black" style={{ color: theme.colors.secondary }}>
                       <BadgePercent className="h-3.5 w-3.5" />
                       {course.badge}
                     </div>
-                  </div>
-                ) : (
-                  <div className="text-left">
-                    <div className="flex items-center gap-1 text-xs font-black" style={{ color: theme.colors.secondary }}>
-                      <Clock3 className="h-3.5 w-3.5" />
-                      التسجيل قريبًا
-                    </div>
-                    <div className={`mt-1 text-[10px] ${theme.classes.textMuted}`}>لا يوجد شراء حاليًا</div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
-              {course.registrationMonth && (
-                <div className="mt-2 flex items-center justify-end gap-1 text-[10px] font-bold" style={{ color: statusStyle.text }}>
-                  <CalendarDays className="h-3.5 w-3.5" />
-                  التسجيل الجديد في {course.registrationMonth}
-                </div>
-              )}
-              {course.includesExam && (
-                <div className="mt-2 flex items-center justify-end gap-1 text-[10px] font-black" style={{ color: theme.colors.primary }}>
-                  <MapPin className="h-3.5 w-3.5" />
-                  يشمل امتحان حضوري
-                </div>
-              )}
+              <div className="mt-3 flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-[10px] font-bold">
+                <span className="flex items-center gap-1" style={{ color: theme.colors.primary }}>
+                  <MonitorCheck className="h-3.5 w-3.5" />
+                  امتحان إلكتروني
+                </span>
+                {course.includesInPersonExam && (
+                  <span className="flex items-center gap-1" style={{ color: theme.colors.secondary }}>
+                    <MapPin className="h-3.5 w-3.5" />
+                    امتحان حضوري
+                  </span>
+                )}
+                {course.registrationMonth && (
+                  <span className="flex items-center gap-1" style={{ color: statusStyle.text }}>
+                    <CalendarDays className="h-3.5 w-3.5" />
+                    يبدأ في {course.registrationMonth}
+                  </span>
+                )}
+              </div>
             </button>
           );
         })}
@@ -253,7 +248,7 @@ export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack }) 
 
       <div className={`flex items-center justify-center gap-2 rounded-2xl border p-3 text-center text-[10px] leading-5 ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder} ${theme.classes.textMuted}`}>
         <BookOpen className="h-4 w-4 shrink-0" style={{ color: theme.colors.primary }} />
-        <span>هذه الدورات معروضة حاليًا كبيانات تجريبية للواجهة، ولا يوجد دفع إلكتروني أو تعاقد فعلي داخل المنصة.</span>
+        <span>هذه الدورات بيانات تجريبية للواجهة فقط، ولا يوجد دفع إلكتروني أو تعاقد فعلي داخل المنصة.</span>
       </div>
 
       {selectedCourse && (
@@ -266,7 +261,7 @@ export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack }) 
             role="dialog"
             aria-modal="true"
             aria-labelledby="course-status-title"
-            className={`w-full max-w-sm rounded-3xl border p-5 text-right shadow-2xl animate-in zoom-in-95 duration-150 ${theme.classes.cardBg} ${theme.classes.cardBorder}`}
+            className={`w-full max-w-md rounded-3xl border p-5 text-right shadow-2xl animate-in zoom-in-95 duration-150 ${theme.classes.cardBg} ${theme.classes.cardBorder}`}
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
@@ -302,11 +297,41 @@ export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack }) 
               {getStatusMessage(selectedCourse).description}
             </p>
 
-            {selectedCourse.status === 'full' && selectedCourse.registrationMonth && (
+            <div className={`mt-3 rounded-2xl border p-3 ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder}`}>
+              <div className={`mb-2 text-xs font-black ${theme.classes.textMain}`}>المواد التي تغطيها</div>
+              <div className="flex flex-wrap justify-end gap-1.5">
+                {selectedCourse.subjects.map((subject) => (
+                  <span key={subject} className="rounded-full px-2 py-1 text-[10px] font-bold" style={{ color: theme.colors.primary, backgroundColor: `${theme.colors.primary}18` }}>
+                    {subject}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className={`mt-3 space-y-2 rounded-2xl border p-3 text-xs ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder}`}>
+              <div className="flex items-center justify-end gap-2" style={{ color: theme.colors.primary }}>
+                <span>تشمل جدول المواد التي تغطيها</span>
+                <CheckCircle2 className="h-4 w-4" />
+              </div>
+              <div className="flex items-center justify-end gap-2" style={{ color: theme.colors.primary }}>
+                <span>تشمل الامتحان الإلكتروني</span>
+                <MonitorCheck className="h-4 w-4" />
+              </div>
+              {selectedCourse.includesInPersonExam && (
+                <div className="flex items-center justify-end gap-2" style={{ color: theme.colors.secondary }}>
+                  <span>تشمل الامتحان الحضوري</span>
+                  <MapPin className="h-4 w-4" />
+                </div>
+              )}
+              {!selectedCourse.includesInPersonExam && (
+                <div className={`text-[10px] ${theme.classes.textMuted}`}>لا تشمل الامتحان الحضوري</div>
+              )}
+            </div>
+
+            {selectedCourse.status === 'upcoming' && selectedCourse.registrationMonth && (
               <div className="mt-3 flex items-center justify-end gap-1.5 text-xs font-black" style={{ color: theme.colors.secondary }}>
                 <CalendarDays className="h-4 w-4" />
-                سيفتح التسجيل الجديد في {selectedCourse.registrationMonth
-                }
+                يبدأ التقديم في {selectedCourse.registrationMonth}
               </div>
             )}
 

@@ -4,12 +4,13 @@ export interface MockCourse {
   id: string;
   title: string;
   description: string;
-  teachers: string[];
-  oldPrice?: string;
-  currentPrice?: string;
+  subjects: string[];
+  oldPrice?: number;
+  currentPrice?: number;
   status: CourseStatus;
   registrationMonth?: string;
-  includesExam?: boolean;
+  includesOnlineExam: boolean;
+  includesInPersonExam: boolean;
   badge?: string;
   featured?: boolean;
 }
@@ -20,54 +21,47 @@ export interface MockCourse {
  */
 export const MOCK_COURSES: MockCourse[] = [
   {
-    id: 'all-subjects',
+    id: 'comprehensive-online',
     title: 'الدورة الشاملة — جميع المواد',
     description: 'برنامج متكامل يشمل جميع المواد الدراسية للسادس الإعدادي',
-    teachers: [
-      'أ. حيدر وليد — الرياضيات',
-      'أ. حسين محمد — الفيزياء',
-      'أ. حسين الهاشمي — الكيمياء',
-      'أ. سالم آل منصور — الأحياء',
-      'أ. حمزة الجابري — العربي',
-      'أ. محمد العبيدي — الإنجليزي',
-      'أ. ساجد العكيلي — التربية الإسلامية',
-    ],
-    oldPrice: '750,000 د.ع',
-    currentPrice: '180,000 د.ع',
+    subjects: ['التربية الإسلامية', 'العربي', 'الإنجليزي', 'الرياضيات', 'الأحياء', 'الفيزياء', 'الكيمياء'],
+    oldPrice: 750000,
+    currentPrice: 108000,
     status: 'full',
-    registrationMonth: 'الشهر العاشر',
-    badge: 'خصم خاص',
+    includesOnlineExam: true,
+    includesInPersonExam: false,
+    badge: 'تشمل الامتحان الإلكتروني',
     featured: true,
   },
   {
-    id: 'all-subjects-with-exam',
-    title: 'الدورة الشاملة + الامتحان الحضوري',
-    description: 'الدورة الكاملة لجميع المواد مع اختبار حضوري شامل',
-    teachers: [
-      'أ. حيدر وليد — الرياضيات',
-      'أ. حسين محمد — الفيزياء',
-      'أ. حسين الهاشمي — الكيمياء',
-      'أ. سالم آل منصور — الأحياء',
-    ],
-    oldPrice: '1,000,000 د.ع',
-    currentPrice: '220,000 د.ع',
-    status: 'full',
-    registrationMonth: 'الشهر العاشر',
-    includesExam: true,
-    badge: 'يشمل امتحان حضوري',
+    id: 'comprehensive-online-upcoming',
+    title: 'الدورة الشاملة — التقديم القادم',
+    description: 'جميع المواد الدراسية مع امتحان إلكتروني شامل ومتابعة منظمة',
+    subjects: ['التربية الإسلامية', 'العربي', 'الإنجليزي', 'الرياضيات', 'الأحياء', 'الفيزياء', 'الكيمياء'],
+    oldPrice: 1000000,
+    currentPrice: 200000,
+    status: 'upcoming',
+    registrationMonth: 'الشهر الحادي عشر',
+    includesOnlineExam: true,
+    includesInPersonExam: false,
+    badge: 'تشمل الامتحان الإلكتروني فقط',
   },
   {
-    id: 'intensive-review',
-    title: 'الدورة المكثفة',
-    description: 'مراجعة مكثفة ومتابعة شاملة استعدادًا للامتحانات',
-    teachers: ['فريق مراجعة السادس الإعدادي'],
-    status: 'upcoming',
+    id: 'comprehensive-with-exams',
+    title: 'الدورة الشاملة + الامتحان الحضوري',
+    description: 'جميع المواد الدراسية مع امتحان إلكتروني وامتحان حضوري شامل',
+    subjects: ['التربية الإسلامية', 'العربي', 'الإنجليزي', 'الرياضيات', 'الأحياء', 'الفيزياء', 'الكيمياء'],
+    currentPrice: 220000,
+    status: 'full',
+    includesOnlineExam: true,
+    includesInPersonExam: true,
+    badge: 'إلكتروني وحضوري',
   },
 ];
 
 export const COURSE_STATUS_LABELS: Record<CourseStatus, string> = {
-  upcoming: 'التسجيل قريبًا',
+  upcoming: 'التقديم في الشهر الحادي عشر',
   open: 'متاح للتسجيل',
-  full: 'ممتلئة حاليًا',
+  full: 'المقاعد ممتلئة',
   closed: 'التسجيل مغلق',
 };
