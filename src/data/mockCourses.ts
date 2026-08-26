@@ -20,6 +20,7 @@ export interface MockCourse {
   requiredRating?: 'gold';
   seatsPerGovernorate?: number;
   sponsorNote?: string;
+  sponsorLogo?: string;
 }
 
 /**
@@ -67,6 +68,7 @@ export const MOCK_COURSES: MockCourse[] = [
     requiredRating: 'gold',
     seatsPerGovernorate: 400,
     sponsorNote: 'Thompson للأمور التعليمية في الشرق الأوسط هي الداعم الرسمي للدورة، مع مساندة من جهة محلية شريكة.',
+    sponsorLogo: '/-/partners/thompson-sponsor.webp',
     includesOnlineExam: true,
     includesInPersonExam: true,
     badge: 'مجانية — إلكتروني وحضوري',

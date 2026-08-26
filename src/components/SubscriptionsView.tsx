@@ -427,8 +427,20 @@ export const SubscriptionsView: React.FC<SubscriptionsViewProps> = ({ onBack, co
                 </div>
                 {selectedCourse.sponsorNote && (
                   <div className={`mt-3 rounded-2xl border p-3 text-xs leading-6 ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder}`}>
-                    <div className="font-black" style={{ color: theme.colors.secondary }}>الداعم الرسمي</div>
-                    <div className={theme.classes.textMuted}>{selectedCourse.sponsorNote}</div>
+                    <div className="flex items-center justify-end gap-3">
+                      {selectedCourse.sponsorLogo && (
+                        <img
+                          src={selectedCourse.sponsorLogo}
+                          alt="شعار Thompson"
+                          loading="lazy"
+                          className="h-14 w-14 rounded-xl bg-white object-contain p-1"
+                        />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="font-black" style={{ color: theme.colors.secondary }}>الداعم الرسمي</div>
+                        <div className={theme.classes.textMuted}>{selectedCourse.sponsorNote}</div>
+                      </div>
+                    </div>
                   </div>
                 )}
                 <div className={`mt-3 space-y-2 rounded-2xl border p-3 text-xs leading-6 ${theme.classes.cardSubtleBg} ${theme.classes.cardBorder}`}>
