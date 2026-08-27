@@ -34,6 +34,14 @@ interface DailyExamModalProps {
   openLessonContext?: OpenLessonContext | null;
   onScoreUpdate?: (points: number) => void;
   onAssessmentResult?: (correctPoints: number, totalPoints: number) => void;
+  onDailyExamCompleted?: (result: {
+    score: number;
+    totalScore: number;
+    percentage: number;
+    subject: string;
+    lessonTitle: string;
+    completedAt: string;
+  }) => void;
 }
 
 export const DailyExamModal: React.FC<DailyExamModalProps> = ({
@@ -46,6 +54,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
   openLessonContext,
   onScoreUpdate,
   onAssessmentResult,
+  onDailyExamCompleted,
 }) => {
   const { theme } = useAppTheme();
   const [exam, setExam] = useState<DailyExamConfig | null>(customExam || null);
@@ -85,6 +94,8 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
   const [timeLeft, setTimeLeft] = useState(900);
   const [isTimerRunning, setIsTimerRunning] = useState(true);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submitState, setSubmitState] = useState<'idle' | 'confirming' | 'processing' | 'completed'>('idle');
+  const [completedAt, setCompletedAt] = useState<string | null>(null);
   const rewardIssuedRef = useRef(false);
   const assessmentReportedRef = useRef(false);
 
@@ -133,11 +144,11 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
 
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
-        if (prev <= 1) {
+            if (prev <= 1) {
           clearInterval(timer);
-          awardDailyExamReward();
-          setIsSubmitted(true);
-          gameAudio.playVictoryFanfare();
+          setIsTimerRunning(false);
+          setSubmitState('confirming');
+          gameAudio.playClick();
           return 0;
         }
         return prev - 1;
@@ -157,6 +168,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
   };
 
   const handleImageSelected = (qKey: 'q1' | 'q2', file: File) => {
+    if (submitState !== 'idle' || isSubmitted) return;
     if (!file.type.startsWith('image/')) {
       setQuestionErrors((prev) => ({
         ...prev,
@@ -175,6 +187,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
   };
 
   const handleRemoveImage = (qKey: 'q1' | 'q2') => {
+    if (submitState !== 'idle') return;
     gameAudio.playClick();
     setQuestionImages((prev) => ({
       ...prev,
@@ -186,22 +199,19 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
     }));
   };
 
-  const handleEvaluateQ1Image = async () => {
-    if (!exam || !questionImages.q1) return;
+  const evaluateUploadedImage = async (qKey: 'q1' | 'q2'): Promise<ImageEvaluationResult | null> => {
+    if (!exam || !questionImages[qKey]) return null;
 
-    setEvaluatingQuestions((prev) => ({ ...prev, q1: true }));
-    gameAudio.playClick();
+    if (qKey === 'q1') {
+      const q1TotalPoints = exam.question1.branches.reduce((acc, b) => acc + b.points, 0);
+      const combinedPrompt = exam.question1.branches
+        .map((b, idx) => `الفرع ${idx + 1} (${b.label}): ${b.prompt}`)
+        .join('\n');
+      const combinedModelAnswer = exam.question1.branches
+        .map((b, idx) => `جواب الفرع ${idx + 1} (${b.label}):\n${b.modelAnswer}`)
+        .join('\n\n');
 
-    const q1TotalPoints = exam.question1.branches.reduce((acc, b) => acc + b.points, 0);
-    const combinedPrompt = exam.question1.branches
-      .map((b, idx) => `الفرع ${idx + 1} (${b.label}): ${b.prompt}`)
-      .join('\n');
-    const combinedModelAnswer = exam.question1.branches
-      .map((b, idx) => `جواب الفرع ${idx + 1} (${b.label}):\n${b.modelAnswer}`)
-      .join('\n\n');
-
-    try {
-      const result = await submitSolutionImageForEvaluation({
+      return submitSolutionImageForEvaluation({
         imageFile: questionImages.q1.file,
         branchId: 'q1_unified',
         source: 'daily_exam',
@@ -211,56 +221,122 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
         subject: exam.subject,
         lessonTitle: exam.lessonTitle,
       });
-
-      setEvaluatedQuestions((prev) => ({ ...prev, q1: result }));
-      setEvaluatingQuestions((prev) => ({ ...prev, q1: false }));
-      gameAudio.playPrizeClimb();
-    } catch {
-      setEvaluatingQuestions((prev) => ({ ...prev, q1: false }));
-      setQuestionErrors((prev) => ({
-        ...prev,
-        q1: 'تعذر تصحيح الصورة. يرجى المحاولة مجدداً.',
-      }));
     }
+
+    const branch = exam.question2.branches[0];
+    if (!branch) return null;
+
+    return submitSolutionImageForEvaluation({
+      imageFile: questionImages.q2.file,
+      branchId: branch.id,
+      source: 'daily_exam',
+      questionPrompt: branch.prompt,
+      modelAnswer: branch.modelAnswer,
+      branchPoints: branch.points,
+      subject: exam.subject,
+      lessonTitle: exam.lessonTitle,
+    });
   };
 
-  const handleEvaluateQ2Image = async () => {
-    if (!exam || !questionImages.q2) return;
-    const branch = exam.question2.branches[0];
-    if (!branch) return;
+  const handleEvaluateImage = async (qKey: 'q1' | 'q2') => {
+    if (submitState !== 'idle' || !questionImages[qKey] || evaluatedQuestions[qKey]) return;
 
-    setEvaluatingQuestions((prev) => ({ ...prev, q2: true }));
+    setEvaluatingQuestions((prev) => ({ ...prev, [qKey]: true }));
+    setQuestionErrors((prev) => ({ ...prev, [qKey]: '' }));
     gameAudio.playClick();
 
     try {
-      const result = await submitSolutionImageForEvaluation({
-        imageFile: questionImages.q2.file,
-        branchId: branch.id,
-        source: 'daily_exam',
-        questionPrompt: branch.prompt,
-        modelAnswer: branch.modelAnswer,
-        branchPoints: branch.points,
-        subject: exam.subject,
-        lessonTitle: exam.lessonTitle,
-      });
+      const result = await evaluateUploadedImage(qKey);
+      if (!result?.success) {
+        setQuestionErrors((prev) => ({
+          ...prev,
+          [qKey]: result?.error || result?.feedback || 'تعذر تصحيح الصورة. يرجى المحاولة مجددًا.',
+        }));
+        return;
+      }
 
-      setEvaluatedQuestions((prev) => ({ ...prev, q2: result }));
-      setEvaluatingQuestions((prev) => ({ ...prev, q2: false }));
+      setEvaluatedQuestions((prev) => ({ ...prev, [qKey]: result }));
       gameAudio.playPrizeClimb();
     } catch {
-      setEvaluatingQuestions((prev) => ({ ...prev, q2: false }));
       setQuestionErrors((prev) => ({
         ...prev,
-        q2: 'تعذر تصحيح الصورة. يرجى المحاولة مجدداً.',
+        [qKey]: 'تعذر تصحيح الصورة. يرجى المحاولة مجددًا.',
       }));
+    } finally {
+      setEvaluatingQuestions((prev) => ({ ...prev, [qKey]: false }));
     }
   };
 
+  const handleEvaluateQ1Image = () => handleEvaluateImage('q1');
+  const handleEvaluateQ2Image = () => handleEvaluateImage('q2');
+
   const handleSubmitExam = () => {
-    awardDailyExamReward();
-    gameAudio.playVictoryFanfare();
-    setIsSubmitted(true);
+    if (submitState !== 'idle' || isSubmitted) return;
+    setSubmitState('confirming');
+  };
+
+  const getResultsTotal = (results: Record<'q1' | 'q2', ImageEvaluationResult | null>) =>
+    ([results.q1, results.q2].filter((result): result is ImageEvaluationResult => Boolean(result?.success)))
+      .reduce((sum, result) => sum + (result.score || 0), 0);
+
+  const confirmSubmitExam = async () => {
+    if (submitState !== 'confirming' || !exam) return;
+
+    setSubmitState('processing');
+    setQuestionErrors({ q1: '', q2: '' });
     setIsTimerRunning(false);
+
+    const nextEvaluations: Record<'q1' | 'q2', ImageEvaluationResult | null> = {
+      q1: evaluatedQuestions.q1,
+      q2: evaluatedQuestions.q2,
+    };
+
+    try {
+      for (const qKey of ['q1', 'q2'] as const) {
+        if (questionImages[qKey] && !nextEvaluations[qKey]) {
+          const result = await evaluateUploadedImage(qKey);
+          if (!result?.success) {
+            setQuestionErrors((prev) => ({
+              ...prev,
+              [qKey]: result?.error || result?.feedback || 'تعذر تصحيح الصورة. حاول رفع صورة أوضح.',
+            }));
+            setSubmitState('idle');
+            setIsTimerRunning(true);
+            return;
+          }
+          nextEvaluations[qKey] = result;
+        }
+      }
+
+      setEvaluatedQuestions(nextEvaluations);
+      const score = getResultsTotal(nextEvaluations);
+      const totalScore = Number(exam.totalPoints) || 1;
+      const finishedAt = new Date().toISOString();
+      setCompletedAt(finishedAt);
+      setIsSubmitted(true);
+      setSubmitState('completed');
+      onDailyExamCompleted?.({
+        score,
+        totalScore,
+        percentage: Math.round((score / totalScore) * 100),
+        subject: exam.subject,
+        lessonTitle: exam.lessonTitle,
+        completedAt: finishedAt,
+      });
+      if (!rewardIssuedRef.current && [nextEvaluations.q1, nextEvaluations.q2].every((result) => result?.success)) {
+        rewardIssuedRef.current = true;
+        onScoreUpdate?.(getDailyExamReward((score / totalScore) * 100));
+        if (!assessmentReportedRef.current) {
+          assessmentReportedRef.current = true;
+          onAssessmentResult?.(score, totalScore);
+        }
+      }
+      gameAudio.playVictoryFanfare();
+    } catch {
+      setSubmitState('idle');
+      setIsTimerRunning(true);
+      setQuestionErrors({ q1: 'تعذر إكمال معالجة صورة السؤال الأول.', q2: 'تعذر إكمال معالجة صورة السؤال الثاني.' });
+    }
   };
 
   const handleRestartExam = () => {
@@ -270,6 +346,8 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
     setTimeLeft(900);
     setIsTimerRunning(true);
     setIsSubmitted(false);
+    setSubmitState('idle');
+    setCompletedAt(null);
     setExamRound((prev) => prev + 1);
     setStudentDrafts({});
     setQuestionImages({ q1: null, q2: null });
@@ -288,18 +366,6 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
   );
   const totalEarnedPoints = validEvaluations.reduce((sum, res) => sum + (res.score || 0), 0);
   const totalEvaluatedCount = validEvaluations.length;
-
-  const awardDailyExamReward = () => {
-    if (rewardIssuedRef.current || !exam?.isAvailable || totalEvaluatedCount < 2) return;
-    rewardIssuedRef.current = true;
-    const totalExamPoints = Number(exam.totalPoints) || 1;
-    const percentage = (totalEarnedPoints / totalExamPoints) * 100;
-    onScoreUpdate?.(getDailyExamReward(percentage));
-    if (!assessmentReportedRef.current) {
-      assessmentReportedRef.current = true;
-      onAssessmentResult?.(totalEarnedPoints, totalExamPoints);
-    }
-  };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-end sm:items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200 font-cairo select-none">
@@ -364,7 +430,8 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
 
             <button
               onClick={onClose}
-              className={`p-1.5 rounded-full ${theme.classes.cardSubtleBg} text-gray-300 hover:text-white border ${theme.classes.cardBorder} transition-colors cursor-pointer`}
+              disabled={submitState === 'processing'}
+              className={`p-1.5 rounded-full ${theme.classes.cardSubtleBg} text-gray-300 hover:text-white border ${theme.classes.cardBorder} transition-colors cursor-pointer disabled:pointer-events-none disabled:opacity-40`}
             >
               <X className="w-5 h-5" />
             </button>
@@ -372,9 +439,81 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
         </div>
 
         {/* ======================================================== */}
+        {/* SUBMISSION STATES */}
+        {/* ======================================================== */}
+        {submitState === 'confirming' && (
+          <div className="absolute inset-0 z-40 flex items-center justify-center rounded-3xl bg-slate-950/90 p-5 text-center backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-3xl border border-amber-300/40 bg-slate-900 p-6 shadow-2xl">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-400/15 text-amber-300">
+                <FileCheck2 className="h-7 w-7" />
+              </div>
+              <h3 className="text-lg font-black text-white">تأكيد تسليم الامتحان</h3>
+              <p className="mt-3 text-sm leading-7 text-slate-300">
+                بعد التأكيد ستبدأ معالجة صور الإجابات، ولن تستطيع إرسال الامتحان مرة أخرى أثناء المعالجة.
+              </p>
+              <p className="mt-2 text-xs font-bold text-amber-200">
+                الصور المختارة: {[questionImages.q1, questionImages.q2].filter(Boolean).length}
+              </p>
+              <div className="mt-5 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSubmitState('idle');
+                    setIsTimerRunning(true);
+                  }}
+                  className="rounded-2xl border border-slate-500/60 bg-slate-800 px-3 py-3 text-xs font-black text-slate-200 transition hover:bg-slate-700"
+                >
+                  مراجعة الإجابات
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmSubmitExam}
+                  className="rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 px-3 py-3 text-xs font-black text-slate-950 transition hover:brightness-110"
+                >
+                  تأكيد وإرسال
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {submitState === 'processing' && (
+          <div className="absolute inset-0 z-40 flex items-center justify-center rounded-3xl bg-slate-950/95 p-5 text-center backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-3xl border border-cyan-300/30 bg-slate-900 p-7 shadow-2xl">
+              <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-cyan-400/15 text-cyan-300">
+                <Loader2 className="h-8 w-8 animate-spin" />
+              </div>
+              <h3 className="text-xl font-black text-white">جارٍ جلب النتيجة</h3>
+              <p className="mt-3 text-sm leading-7 text-slate-300">
+                تم استلام إجابتك. يجري الآن استخراج النص وتصحيح الصورة، يرجى الانتظار وعدم إغلاق الاختبار.
+              </p>
+              <div className="mt-5 h-2 overflow-hidden rounded-full bg-slate-700">
+                <div className="h-full w-2/3 animate-pulse rounded-full bg-gradient-to-r from-cyan-400 to-teal-300" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ======================================================== */}
         {/* MODAL MAIN CONTENT BODY */}
         {/* ======================================================== */}
         <div className="flex-1 overflow-y-auto py-3.5 space-y-5 pr-1 no-scrollbar">
+          {submitState === 'completed' && exam && (
+            <div className="rounded-2xl border border-emerald-300/40 bg-emerald-500/10 p-4 text-center text-emerald-50 shadow-lg">
+              <div className="flex items-center justify-center gap-2 text-base font-black">
+                <CheckCircle2 className="h-5 w-5 text-emerald-300" />
+                تم استلام نتيجة الامتحان
+              </div>
+              <p className="mt-2 text-lg font-black text-white">
+                درجتك {getResultsTotal(evaluatedQuestions)} من {Number(exam.totalPoints) || 1}
+              </p>
+              <p className="mt-1 text-xs text-emerald-100/80">
+                تاريخ الامتحان: {completedAt ? new Date(completedAt).toLocaleString('ar-IQ') : 'الآن'}
+              </p>
+              <p className="mt-2 text-xs font-bold text-emerald-100">تم تسجيل النتيجة في إشعارات الحساب.</p>
+            </div>
+          )}
+
           {isLoading || !exam ? (
             <div className="py-20 text-center space-y-3">
               <div className="w-10 h-10 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto" />
@@ -884,11 +1023,12 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
 
             <button
               onClick={handleSubmitExam}
-              className="flex-1 py-2.5 px-4 bg-gradient-to-r from-purple-600 via-indigo-500 to-purple-600 hover:from-purple-500 hover:to-indigo-400 text-white font-black rounded-xl shadow-lg shadow-purple-600/30 flex items-center justify-center gap-2 text-xs transition-all active:scale-98 cursor-pointer"
+              disabled={submitState !== 'idle' || isSubmitted || evaluatingQuestions.q1 || evaluatingQuestions.q2}
+              className="flex-1 py-2.5 px-4 bg-gradient-to-r from-purple-600 via-indigo-500 to-purple-600 hover:from-purple-500 hover:to-indigo-400 text-white font-black rounded-xl shadow-lg shadow-purple-600/30 flex items-center justify-center gap-2 text-xs transition-all active:scale-98 cursor-pointer disabled:pointer-events-none disabled:opacity-50"
             >
               <PenTool className="w-4 h-4" />
               <span>
-                {isSubmitted
+                {submitState === 'completed'
                   ? 'تم تسليم الامتحان وإنهاء الاختبار ✍️'
                   : 'تسليم الامتحان وإنهاء الاختبار ✍️'}
               </span>

@@ -114,11 +114,7 @@ function getImageEvaluationEndpoint(): string {
   const env = (import.meta as any).env || {};
   const cOcrApi = String(env.VITE_C_OCR_API_URL || '').trim();
   const configured = cOcrApi || String(env.VITE_IMAGE_EVALUATION_API_URL || '').trim();
-  const communityApi = String(env.VITE_COMMUNITY_API_URL || '').trim();
-  const fallbackBase = (communityApi || 'https://community-k8dy.onrender.com')
-    .replace(/\/api\/v1\/community\/?$/, '')
-    .replace(/\/+$/, '');
-  const candidate = configured || `${fallbackBase}/api/v1/ocr/process`;
+  const candidate = configured || 'https://c-ocr-gateway.88kk66ff33.workers.dev/api/v1/ocr/process';
   if (/\/api\/(?:v1\/)?ocr\/process\/?$/i.test(candidate)) return candidate.replace(/\/+$/, '');
   return `${candidate.replace(/\/+$/, '')}/api/v1/ocr/process`;
 }
@@ -140,7 +136,7 @@ function createEvaluationFailure(
     feedback: message,
     identifiedTextOrSteps: [],
     strengths: [],
-    recommendations: ['تحقق من حالة خدمة OCR وDeepSeek في موقع B ثم أعد المحاولة.'],
+      recommendations: ['تحقق من حالة خدمة C-OCR وDeepSeek ثم أعد المحاولة.'],
     secureFileName,
     fileSize,
     evaluatedAt: new Date().toLocaleTimeString('ar-IQ'),

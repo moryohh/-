@@ -36,6 +36,14 @@ interface LessonGamesModalProps {
   openLessonContext?: OpenLessonContext | null;
   onScoreUpdate?: (points: number) => void;
   onAssessmentResult?: (correctPoints: number, totalPoints: number) => void;
+  onDailyExamCompleted?: (result: {
+    score: number;
+    totalScore: number;
+    percentage: number;
+    subject: string;
+    lessonTitle: string;
+    completedAt: string;
+  }) => void;
   playerAvatarUrl?: string;
   playerId?: string;
 }
@@ -50,6 +58,7 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
   openLessonContext,
   onScoreUpdate,
   onAssessmentResult,
+  onDailyExamCompleted,
   playerAvatarUrl,
   playerId,
 }) => {
@@ -259,6 +268,7 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
         openLessonContext={openLessonContext}
         onScoreUpdate={(points) => awardLessonReward('daily_exam', points)}
         onAssessmentResult={onAssessmentResult}
+        onDailyExamCompleted={onDailyExamCompleted}
       />
     );
   }

@@ -124,6 +124,20 @@ class GamesLoadBoundary extends Component<GamesLoadBoundaryProps, { hasError: bo
 }
 
 const LEARNING_POSITIONS_STORAGE_KEY = 'nahnu_maek_learning_positions_v2';
+const NOTIFICATIONS_STORAGE_KEY = 'nahnu_maek_notifications_v1';
+
+function loadStoredNotifications(): AppNotification[] {
+  try {
+    const raw = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed as AppNotification[];
+    }
+  } catch (error) {
+    console.debug('Failed to load notifications:', error);
+  }
+  return NOTIFICATIONS_DATA;
+}
 
 function loadStoredPositions(): Record<string, LearningPosition> {
   try {
@@ -158,7 +172,15 @@ function AppContent() {
   const [selectedSubject, setSelectedSubject] = useState<(typeof GRADE_6_SUBJECTS)[0] | null>(GRADE_6_SUBJECTS[0]);
   const [stories, setStories] = useState<TeacherStory[]>(INITIAL_STORIES);
   const [lesson, setLesson] = useState<EducationalLesson>(FEATURED_LESSON);
-  const [notifications, setNotifications] = useState<AppNotification[]>(NOTIFICATIONS_DATA);
+  const [notifications, setNotifications] = useState<AppNotification[]>(loadStoredNotifications);
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(notifications));
+    } catch (error) {
+      console.debug('Failed to save notifications:', error);
+    }
+  }, [notifications]);
   const [competitionSnapshot, setCompetitionSnapshot] = useState<CompetitionSnapshot | null>(null);
   const lastActivityPointsRef = React.useRef<number | null>(null);
   const activityBlockStartedAtRef = React.useRef<number | null>(null);
@@ -461,6 +483,34 @@ function AppContent() {
   const handleAssessmentResult = async (correctPoints: number, totalPoints: number) => {
     const snapshot = await recordAssessmentResult(correctPoints, totalPoints);
     if (snapshot) applyCompetitionSnapshot(snapshot);
+  };
+
+  const handleDailyExamCompleted = (result: {
+    score: number;
+    totalScore: number;
+    percentage: number;
+    subject: string;
+    lessonTitle: string;
+    completedAt: string;
+  }) => {
+    const completedDate = new Date(result.completedAt).toLocaleDateString('ar-IQ', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+    const notification: AppNotification = {
+      id: `daily-exam-result-${result.completedAt}`,
+      title: 'نتيجة الامتحان اليومي',
+      message: `درجتك ${result.score} من ${result.totalScore} في الامتحان اليومي لمادة ${result.subject} — ${result.lessonTitle}. تاريخ الامتحان: ${completedDate}.`,
+      time: 'الآن',
+      isRead: false,
+      type: 'system',
+    };
+    setNotifications((previous) => [
+      notification,
+      ...previous.filter((item) => item.id !== notification.id),
+    ].slice(0, 50));
+    showToast(`تم حفظ نتيجتك: ${result.score} من ${result.totalScore}`);
   };
 
   // Count only visible, recently active time. The database function enforces the 5-point daily cap.
@@ -1045,6 +1095,7 @@ function AppContent() {
           openLessonContext={openLessonContext}
           onScoreUpdate={handleScoreUpdate}
           onAssessmentResult={handleAssessmentResult}
+          onDailyExamCompleted={handleDailyExamCompleted}
           playerAvatarUrl={currentUser?.avatarUrl}
             playerId={currentUser?.id}
           />
