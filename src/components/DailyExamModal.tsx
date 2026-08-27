@@ -4,7 +4,6 @@ import {
   Clock,
   CheckCircle2,
   RotateCcw,
-  Sparkles,
   Award,
   PenTool,
   Camera,
@@ -70,10 +69,6 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
   >({
     q1: null,
     q2: null,
-  });
-  const [evaluatingQuestions, setEvaluatingQuestions] = useState<Record<'q1' | 'q2', boolean>>({
-    q1: false,
-    q2: false,
   });
   const [evaluatedQuestions, setEvaluatedQuestions] = useState<
     Record<'q1' | 'q2', ImageEvaluationResult | null>
@@ -238,38 +233,6 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
       lessonTitle: exam.lessonTitle,
     });
   };
-
-  const handleEvaluateImage = async (qKey: 'q1' | 'q2') => {
-    if (submitState !== 'idle' || !questionImages[qKey] || evaluatedQuestions[qKey]) return;
-
-    setEvaluatingQuestions((prev) => ({ ...prev, [qKey]: true }));
-    setQuestionErrors((prev) => ({ ...prev, [qKey]: '' }));
-    gameAudio.playClick();
-
-    try {
-      const result = await evaluateUploadedImage(qKey);
-      if (!result?.success) {
-        setQuestionErrors((prev) => ({
-          ...prev,
-          [qKey]: result?.error || result?.feedback || 'تعذر تصحيح الصورة. يرجى المحاولة مجددًا.',
-        }));
-        return;
-      }
-
-      setEvaluatedQuestions((prev) => ({ ...prev, [qKey]: result }));
-      gameAudio.playPrizeClimb();
-    } catch {
-      setQuestionErrors((prev) => ({
-        ...prev,
-        [qKey]: 'تعذر تصحيح الصورة. يرجى المحاولة مجددًا.',
-      }));
-    } finally {
-      setEvaluatingQuestions((prev) => ({ ...prev, [qKey]: false }));
-    }
-  };
-
-  const handleEvaluateQ1Image = () => handleEvaluateImage('q1');
-  const handleEvaluateQ2Image = () => handleEvaluateImage('q2');
 
   const handleSubmitExam = () => {
     if (submissionLockRef.current || submitState !== 'idle' || isSubmitted) return;
@@ -499,25 +462,126 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
           </div>
         )}
 
+        {submitState === 'completed' && exam && (
+          <div className="absolute inset-0 z-50 flex flex-col rounded-3xl bg-slate-950/98 p-4 sm:p-6 text-right text-white backdrop-blur-md">
+            {(() => {
+              const finalScore = getResultsTotal(evaluatedQuestions);
+              const finalTotal = Number(exam.totalPoints) || 1;
+              const finalPercentage = Math.round((finalScore / finalTotal) * 100);
+              const q1Evaluation = evaluatedQuestions.q1;
+              const q2Evaluation = evaluatedQuestions.q2;
+              const q1Max = exam.question1.branches.reduce((acc, branch) => acc + branch.points, 0);
+              const q2Max = exam.question2.branches.reduce((acc, branch) => acc + branch.points, 0);
+              const formatStudentAnswer = (branchId: string, evaluation: ImageEvaluationResult | null) => {
+                const draft = studentDrafts[branchId]?.trim();
+                if (draft) return draft;
+                if (evaluation?.identifiedTextOrSteps?.length) return evaluation.identifiedTextOrSteps.join(' ');
+                return 'تم استلام صورة الحل وتحليلها ضمن إجابة الطالب.';
+              };
+              return (
+                <>
+                  <div className="flex items-start justify-between gap-3 border-b border-white/10 pb-4">
+                    <div>
+                      <p className="text-xs font-bold text-cyan-300">النتيجة النهائية للاختبار اليومي</p>
+                      <h2 className="mt-1 text-xl font-black">{exam.subject} — {exam.lessonTitle}</h2>
+                      <p className="mt-1 text-xs text-slate-400">
+                        تاريخ التسليم: {completedAt ? new Date(completedAt).toLocaleString('ar-IQ') : 'الآن'}
+                      </p>
+                    </div>
+                    <div className="flex h-20 w-20 shrink-0 flex-col items-center justify-center rounded-full border-4 border-emerald-300 bg-emerald-400/15 text-center shadow-lg shadow-emerald-500/20">
+                      <span className="text-xl font-black text-emerald-200">{finalPercentage}</span>
+                      <span className="text-[10px] font-bold text-emerald-100">من 100</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-3 text-center">
+                      <p className="text-[11px] font-bold text-amber-200">درجتك في الامتحان</p>
+                      <p className="mt-1 text-xl font-black text-white">{finalScore} / {finalTotal}</p>
+                    </div>
+                    <div className="rounded-2xl border border-cyan-300/30 bg-cyan-300/10 p-3 text-center">
+                      <p className="text-[11px] font-bold text-cyan-200">نسبة الإنجاز</p>
+                      <p className="mt-1 text-xl font-black text-white">{finalPercentage}%</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex-1 space-y-3 overflow-y-auto pr-1">
+                    <div className="rounded-3xl border border-indigo-300/30 bg-indigo-400/10 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-indigo-200 bg-indigo-300/20 text-sm font-black text-indigo-100">س1</div>
+                          <div>
+                            <h3 className="text-base font-black">{exam.question1.title}</h3>
+                            <p className="text-[11px] text-indigo-200">إجابة الفروع والصورة الأولى</p>
+                          </div>
+                        </div>
+                        <div className="flex h-12 w-12 flex-col items-center justify-center rounded-full border-2 border-emerald-300 bg-emerald-300/15 text-center">
+                          <span className="text-sm font-black text-emerald-100">{q1Evaluation?.success ? q1Evaluation.score : 0}</span>
+                          <span className="text-[9px] text-emerald-200">/{q1Max}</span>
+                        </div>
+                      </div>
+                      <div className="mt-3 space-y-2">
+                        {exam.question1.branches.map((branch) => (
+                          <div key={branch.id} className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs font-black text-indigo-100">الفرع {branch.label}: {branch.prompt}</span>
+                              <span className="shrink-0 rounded-full bg-white/10 px-2 py-1 text-[10px] font-black text-amber-200">{branch.points} درجات</span>
+                            </div>
+                            <p className="mt-2 text-xs leading-6 text-slate-200">جواب الطالب: {formatStudentAnswer(branch.id, q1Evaluation)}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="mt-3 rounded-2xl bg-black/20 p-3 text-xs leading-6 text-slate-300">التشخيص: {q1Evaluation?.feedback || 'لم تكتمل معالجة صورة السؤال الأول.'}</p>
+                    </div>
+
+                    <div className="rounded-3xl border border-cyan-300/30 bg-cyan-400/10 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-cyan-200 bg-cyan-300/20 text-sm font-black text-cyan-100">س2</div>
+                          <div>
+                            <h3 className="text-base font-black">{exam.question2.title}</h3>
+                            <p className="text-[11px] text-cyan-200">إجابة السؤال والصورة الثانية</p>
+                          </div>
+                        </div>
+                        <div className="flex h-12 w-12 flex-col items-center justify-center rounded-full border-2 border-emerald-300 bg-emerald-300/15 text-center">
+                          <span className="text-sm font-black text-emerald-100">{q2Evaluation?.success ? q2Evaluation.score : 0}</span>
+                          <span className="text-[9px] text-emerald-200">/{q2Max}</span>
+                        </div>
+                      </div>
+                      {exam.question2.branches.map((branch) => (
+                        <div key={branch.id} className="mt-3 rounded-2xl border border-white/10 bg-black/20 p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-black text-cyan-100">الفرع {branch.label}: {branch.prompt}</span>
+                            <span className="shrink-0 rounded-full bg-white/10 px-2 py-1 text-[10px] font-black text-amber-200">{branch.points} درجات</span>
+                          </div>
+                          <p className="mt-2 text-xs leading-6 text-slate-200">جواب الطالب: {formatStudentAnswer(branch.id, q2Evaluation)}</p>
+                        </div>
+                      ))}
+                      <p className="mt-3 rounded-2xl bg-black/20 p-3 text-xs leading-6 text-slate-300">التشخيص: {q2Evaluation?.feedback || 'لم تكتمل معالجة صورة السؤال الثاني.'}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-between gap-3 border-t border-white/10 pt-4">
+                    <p className="text-xs font-bold text-emerald-200">تم تسجيل النتيجة في إشعارات الحساب.</p>
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="rounded-2xl bg-gradient-to-r from-emerald-400 to-cyan-300 px-5 py-3 text-xs font-black text-slate-950 transition hover:brightness-110"
+                    >
+                      إغلاق والعودة
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        )}
+
         {/* ======================================================== */}
         {/* MODAL MAIN CONTENT BODY */}
         {/* ======================================================== */}
         <div className="flex-1 overflow-y-auto py-3.5 space-y-5 pr-1 no-scrollbar">
-          {submitState === 'completed' && exam && (
-            <div className="rounded-2xl border border-emerald-300/40 bg-emerald-500/10 p-4 text-center text-emerald-50 shadow-lg">
-              <div className="flex items-center justify-center gap-2 text-base font-black">
-                <CheckCircle2 className="h-5 w-5 text-emerald-300" />
-                تم استلام نتيجة الامتحان
-              </div>
-              <p className="mt-2 text-lg font-black text-white">
-                درجتك {getResultsTotal(evaluatedQuestions)} من {Number(exam.totalPoints) || 1}
-              </p>
-              <p className="mt-1 text-xs text-emerald-100/80">
-                تاريخ الامتحان: {completedAt ? new Date(completedAt).toLocaleString('ar-IQ') : 'الآن'}
-              </p>
-              <p className="mt-2 text-xs font-bold text-emerald-100">تم تسجيل النتيجة في إشعارات الحساب.</p>
-            </div>
-          )}
+
 
           {isLoading || !exam ? (
             <div className="py-20 text-center space-y-3">
@@ -764,47 +828,9 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
                         />
                       </div>
 
-                      <div className="pt-1">
-                        {!evaluatedQuestions.q1 ? (
-                          <button
-                            type="button"
-                            disabled={evaluatingQuestions.q1}
-                            onClick={handleEvaluateQ1Image}
-                            className="w-full py-2 bg-indigo-700 hover:bg-indigo-800 text-white rounded-xl text-xs font-black flex items-center justify-center gap-2 shadow cursor-pointer transition-all disabled:opacity-50"
-                          >
-                            {evaluatingQuestions.q1 ? (
-                              <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                <span>جاري التدقيق والتصحيح الذكي...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Sparkles className="w-4 h-4 text-amber-300" />
-                                <span>
-                                  تصحيح إجابة السؤال الأول بالذكاء الاصطناعي (
-                                  {exam.question1.branches.reduce((acc, b) => acc + b.points, 0)} درجات)
-                                </span>
-                              </>
-                            )}
-                          </button>
-                        ) : (
-                          <div className="w-full bg-emerald-50 border border-emerald-300 rounded-xl p-2.5 text-xs text-emerald-900 space-y-1">
-                            <div className="flex items-center justify-between font-black">
-                              <span className="flex items-center gap-1 text-emerald-800">
-                                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                                <span>تم تصحيح السؤال الأول بنجاح</span>
-                              </span>
-                              <span className="bg-emerald-600 text-white px-2 py-0.5 rounded-md">
-                                {evaluatedQuestions.q1.score} /{' '}
-                                {exam.question1.branches.reduce((acc, b) => acc + b.points, 0)} درجات
-                              </span>
-                            </div>
-                            <p className="text-[11px] text-emerald-700 font-medium">
-                              {evaluatedQuestions.q1.feedback}
-                            </p>
-                          </div>
-                        )}
-                      </div>
+                      <p className="text-center text-[11px] font-bold text-slate-500">
+                        تم حفظ الصورة. سيتم تصحيحها مع بقية الإجابات عند تسليم الامتحان.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -952,45 +978,9 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
                             />
                           </div>
 
-                          <div className="pt-1">
-                            {!evaluatedQuestions.q2 ? (
-                              <button
-                                type="button"
-                                disabled={evaluatingQuestions.q2}
-                                onClick={handleEvaluateQ2Image}
-                                className="w-full py-2 bg-indigo-700 hover:bg-indigo-800 text-white rounded-xl text-xs font-black flex items-center justify-center gap-2 shadow cursor-pointer transition-all disabled:opacity-50"
-                              >
-                                {evaluatingQuestions.q2 ? (
-                                  <>
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                    <span>جاري التدقيق والتصحيح الذكي...</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Sparkles className="w-4 h-4 text-amber-300" />
-                                    <span>
-                                      تصحيح إجابة الصورة بالذكاء الاصطناعي ({branch.points} درجات)
-                                    </span>
-                                  </>
-                                )}
-                              </button>
-                            ) : (
-                              <div className="w-full bg-emerald-50 border border-emerald-300 rounded-xl p-2.5 text-xs text-emerald-900 space-y-1">
-                                <div className="flex items-center justify-between font-black">
-                                  <span className="flex items-center gap-1 text-emerald-800">
-                                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                                    <span>تم تصحيح الحل الورقي بنجاح</span>
-                                  </span>
-                                  <span className="bg-emerald-600 text-white px-2 py-0.5 rounded-md">
-                                    {evaluatedQuestions.q2.score} / {branch.points} درجات
-                                  </span>
-                                </div>
-                                <p className="text-[11px] text-emerald-700 font-medium">
-                                  {evaluatedQuestions.q2.feedback}
-                                </p>
-                              </div>
-                            )}
-                          </div>
+                          <p className="text-center text-[11px] font-bold text-slate-500">
+                            تم حفظ الصورة. سيتم تصحيحها مع بقية الإجابات عند تسليم الامتحان.
+                          </p>
                         </div>
                       )}
 
@@ -1028,10 +1018,10 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
 
             <button
               onClick={handleSubmitExam}
-              disabled={submitState !== 'idle' || isSubmitted || evaluatingQuestions.q1 || evaluatingQuestions.q2}
+              disabled={submitState !== 'idle' || isSubmitted}
               className="flex-1 py-2.5 px-4 bg-gradient-to-r from-purple-600 via-indigo-500 to-purple-600 hover:from-purple-500 hover:to-indigo-400 text-white font-black rounded-xl shadow-lg shadow-purple-600/30 flex items-center justify-center gap-2 text-xs transition-all active:scale-98 cursor-pointer disabled:pointer-events-none disabled:opacity-50"
             >
-              <PenTool className="w-4 h-4" />
+              {submitState === 'processing' ? <Loader2 className="w-4 h-4 animate-spin" /> : <PenTool className="w-4 h-4" />}
               <span>
                 {submitState === 'completed'
                   ? 'تم تسليم الامتحان وإنهاء الاختبار ✍️'
