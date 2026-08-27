@@ -203,6 +203,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
       ...prev,
       [qKey]: null,
     }));
+    setQuestionErrors((prev) => ({ ...prev, [qKey]: '' }));
   };
 
   const evaluateUploadedImage = async (qKey: 'q1' | 'q2'): Promise<ImageEvaluationResult | null> => {
@@ -274,12 +275,10 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
           if (!result?.success) {
             setQuestionErrors((prev) => ({
               ...prev,
-              [qKey]: result?.error || result?.feedback || 'تعذر تصحيح الصورة. حاول رفع صورة أوضح.',
+              [qKey]: result?.error || result?.feedback || 'تعذر تصحيح الصورة. ستُسجل الإجابة دون درجة لهذا السؤال.',
             }));
-            submissionLockRef.current = false;
-            setSubmitState('idle');
-            setIsTimerRunning(true);
-            return;
+            nextEvaluations[qKey] = result;
+            continue;
           }
           nextEvaluations[qKey] = result;
         }
@@ -313,7 +312,10 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
       submissionLockRef.current = false;
       setSubmitState('idle');
       setIsTimerRunning(true);
-      setQuestionErrors({ q1: 'تعذر إكمال معالجة صورة السؤال الأول.', q2: 'تعذر إكمال معالجة صورة السؤال الثاني.' });
+      setQuestionErrors({
+        q1: questionImages.q1 ? 'تعذر إكمال معالجة صورة السؤال الأول.' : '',
+        q2: questionImages.q2 ? 'تعذر إكمال معالجة صورة السؤال الثاني.' : '',
+      });
     }
   };
 
@@ -494,7 +496,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
                 const draft = studentDrafts[branchId]?.trim();
                 if (draft) return draft;
                 if (evaluation?.identifiedTextOrSteps?.length) return evaluation.identifiedTextOrSteps.join(' ');
-                return 'تم استلام صورة الحل وتحليلها ضمن إجابة الطالب.';
+                return 'لم يكتب الطالب إجابة ولم يرفع صورة لهذا الفرع.';
               };
               return (
                 <>
@@ -549,7 +551,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
                           </div>
                         ))}
                       </div>
-                      <p className="mt-3 rounded-2xl bg-black/20 p-3 text-xs leading-6 text-slate-300">التشخيص: {q1Evaluation?.feedback || 'لم تكتمل معالجة صورة السؤال الأول.'}</p>
+                      <p className="mt-3 rounded-2xl bg-black/20 p-3 text-xs leading-6 text-slate-300">التشخيص: {q1Evaluation?.feedback || 'لا توجد صورة أو إجابة مرفوعة لهذا السؤال.'}</p>
                     </div>
 
                     <div className="rounded-3xl border border-cyan-300/30 bg-cyan-400/10 p-4">
@@ -575,7 +577,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
                           <p className="mt-2 text-xs leading-6 text-slate-200">جواب الطالب: {formatStudentAnswer(branch.id, q2Evaluation)}</p>
                         </div>
                       ))}
-                      <p className="mt-3 rounded-2xl bg-black/20 p-3 text-xs leading-6 text-slate-300">التشخيص: {q2Evaluation?.feedback || 'لم تكتمل معالجة صورة السؤال الثاني.'}</p>
+                      <p className="mt-3 rounded-2xl bg-black/20 p-3 text-xs leading-6 text-slate-300">التشخيص: {q2Evaluation?.feedback || 'لا توجد صورة أو إجابة مرفوعة لهذا السؤال.'}</p>
                     </div>
                   </div>
 

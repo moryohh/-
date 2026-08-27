@@ -119,6 +119,31 @@ function getImageEvaluationEndpoint(): string {
   return `${candidate.replace(/\/+$/, '')}/api/v1/ocr/process`;
 }
 
+function localizeEvaluationError(rawMessage: unknown): string {
+  const message = String(rawMessage || '').trim();
+  const normalized = message.toLowerCase();
+
+  if (!message || normalized.includes('failed to fetch') || normalized.includes('networkerror') || normalized.includes('load failed')) {
+    return 'تعذر الاتصال ببوابة C-OCR. تحقق من تسجيل الدخول واتصال الإنترنت ثم حاول مرة أخرى.';
+  }
+  if (normalized.includes('401') || normalized.includes('unauthorized') || normalized.includes('authentication')) {
+    return 'لم يتم التحقق من جلسة الحساب. سجّل الدخول إلى منصة A ثم أعد المحاولة.';
+  }
+  if (normalized.includes('403') || normalized.includes('forbidden')) {
+    return 'الطلب غير مسموح من جلسة الحساب الحالية. سجّل الدخول إلى منصة A ثم أعد المحاولة.';
+  }
+  if (normalized.includes('timeout') || normalized.includes('timed out')) {
+    return 'استغرقت معالجة الصورة وقتًا أطول من المتوقع. حاول بصورة أوضح أو أعد المحاولة.';
+  }
+  if (normalized.includes('image is required')) {
+    return 'لم تصل صورة صالحة إلى بوابة OCR. ارفع الصورة مرة أخرى ثم أرسل الامتحان.';
+  }
+  if (normalized.includes('secondary ocr service failed')) {
+    return 'تعذر تشغيل مسار OCR الاحتياطي. سيحاول النظام المسار الآخر عند إعادة الإرسال.';
+  }
+  return message;
+}
+
 function createEvaluationFailure(
   req: ImageEvaluationRequest,
   secureFileName: string,
@@ -282,7 +307,7 @@ export async function submitSolutionImageForEvaluation(
       request,
       secureFileName,
       fileSize,
-      message,
+      localizeEvaluationError(message),
       stage === 'deepseek' ? 'deepseek' : stage === 'comparison' ? 'comparison' : 'connection'
     );
   }
