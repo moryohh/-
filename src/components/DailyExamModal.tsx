@@ -96,6 +96,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [submitState, setSubmitState] = useState<'idle' | 'confirming' | 'processing' | 'completed'>('idle');
   const [completedAt, setCompletedAt] = useState<string | null>(null);
+  const submissionLockRef = useRef(false);
   const rewardIssuedRef = useRef(false);
   const assessmentReportedRef = useRef(false);
 
@@ -271,7 +272,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
   const handleEvaluateQ2Image = () => handleEvaluateImage('q2');
 
   const handleSubmitExam = () => {
-    if (submitState !== 'idle' || isSubmitted) return;
+    if (submissionLockRef.current || submitState !== 'idle' || isSubmitted) return;
     setSubmitState('confirming');
   };
 
@@ -280,8 +281,9 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
       .reduce((sum, result) => sum + (result.score || 0), 0);
 
   const confirmSubmitExam = async () => {
-    if (submitState !== 'confirming' || !exam) return;
+    if (submissionLockRef.current || submitState !== 'confirming' || !exam) return;
 
+    submissionLockRef.current = true;
     setSubmitState('processing');
     setQuestionErrors({ q1: '', q2: '' });
     setIsTimerRunning(false);
@@ -300,6 +302,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
               ...prev,
               [qKey]: result?.error || result?.feedback || 'تعذر تصحيح الصورة. حاول رفع صورة أوضح.',
             }));
+            submissionLockRef.current = false;
             setSubmitState('idle');
             setIsTimerRunning(true);
             return;
@@ -333,6 +336,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
       }
       gameAudio.playVictoryFanfare();
     } catch {
+      submissionLockRef.current = false;
       setSubmitState('idle');
       setIsTimerRunning(true);
       setQuestionErrors({ q1: 'تعذر إكمال معالجة صورة السؤال الأول.', q2: 'تعذر إكمال معالجة صورة السؤال الثاني.' });
@@ -341,6 +345,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
 
   const handleRestartExam = () => {
     gameAudio.playClick();
+    submissionLockRef.current = false;
     rewardIssuedRef.current = false;
     assessmentReportedRef.current = false;
     setTimeLeft(900);
