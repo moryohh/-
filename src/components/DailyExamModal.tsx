@@ -526,6 +526,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
                 const draft = studentDrafts[branchId]?.trim();
                 if (draft) return draft;
                 if (evaluation?.identifiedTextOrSteps?.length) return evaluation.identifiedTextOrSteps.join(' ');
+                if (evaluation && !evaluation.success) return 'تم رفع صورة لهذا الفرع، لكن لم يُستخرج منها نص قابل للتقييم.';
                 return 'لم يكتب الطالب إجابة ولم يرفع صورة لهذا الفرع.';
               };
               return (
