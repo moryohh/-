@@ -177,39 +177,19 @@ export async function signInWithGoogle(): Promise<{ error?: string }> {
 /**
  * 2. Sign In With Email & Password (with strict verification)
  */
-export async function signInAsGuest(): Promise<{ user?: UserProfile; error?: string }> {
-  const client = getSupabaseClient();
-  if (!client) {
-    return { error: 'خدمة Supabase غير متوفرة.' };
-  }
-
-  try {
-    const { data, error } = await client.auth.signInAnonymously({
-      options: {
-        data: {
-          full_name: 'ضيف تجريبي',
-          name: 'ضيف تجريبي',
-          is_guest: true,
-        },
-      },
-    });
-
-    if (error) {
-      const normalized = error.message.toLowerCase();
-      if (normalized.includes('anonymous') || normalized.includes('disabled')) {
-        return { error: 'دخول الضيف غير مفعّل في Supabase بعد. فعّل Anonymous Sign-Ins ثم حاول مرة أخرى.' };
-      }
-      return { error: error.message };
-    }
-
-    if (!data?.user || !data.session) {
-      return { error: 'لم تُنشأ جلسة الضيف. حاول مرة أخرى.' };
-    }
-
-    return { user: await syncUserProfile(data.user) };
-  } catch (err: any) {
-    return { error: err.message || 'تعذر إنشاء جلسة الضيف.' };
-  }
+export function createGuestProfile(): UserProfile {
+  return {
+    id: `guest-test-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+    isGuest: true,
+    name: 'ضيف التجربة',
+    avatarUrl: FALLBACK_DEFAULT_AVATAR,
+    grade: 'السادس الإعدادي',
+    branch: 'الفرع العلمي',
+    level: 1,
+    points: 0,
+    studyHours: 0,
+    streakDays: 0,
+  };
 }
 
 export async function signInWithEmailPassword(

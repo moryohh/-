@@ -20,7 +20,7 @@ import {
 import { useAppTheme } from '../services/themeService';
 import {
   signInWithGoogle,
-  signInAsGuest,
+  createGuestProfile,
   signInWithEmailPassword,
   signUpWithEmailPassword,
   validateStudentEmail,
@@ -97,14 +97,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     setIsGuestLoading(true);
 
     try {
-      const res = await signInAsGuest();
-      if (res.error) {
-        setErrorMessage(res.error);
-      } else if (res.user) {
-        onLoginSuccess(res.user);
-      } else {
-        setErrorMessage('تعذر إنشاء جلسة الضيف. حاول مرة أخرى.');
-      }
+      // This temporary mode intentionally does not contact Supabase.
+      // C-OCR receives the explicit guest_test marker and remains separately rate-limited.
+      onLoginSuccess(createGuestProfile());
     } catch (err: any) {
       setErrorMessage(err.message || 'تعذر إنشاء جلسة الضيف.');
     } finally {
@@ -655,7 +650,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 <span>{isGuestLoading ? 'جاري فتح حساب التجربة...' : 'الدخول كضيف للتجربة'}</span>
               </button>
               <p className={`mt-2 text-center text-[10px] leading-5 ${theme.classes.textMuted}`}>
-                حساب مؤقت بلا بريد لاختبار رفع الصور فقط، ويمكن حذفه بعد انتهاء التجربة.
+                دخول محلي مؤقت بلا بريد أو كلمة مرور لاختبار رفع الصور فقط.
               </p>
             </div>
           </>

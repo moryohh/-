@@ -46,6 +46,7 @@ interface LessonGamesModalProps {
   }) => void;
   playerAvatarUrl?: string;
   playerId?: string;
+  guestTest?: boolean;
 }
 
 export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
@@ -61,6 +62,7 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
   onDailyExamCompleted,
   playerAvatarUrl,
   playerId,
+  guestTest = false,
 }) => {
   const { theme } = useAppTheme();
   // Mode: 'menu' | 'millionaire' | 'true_false' | 'gibha_sah' | 'daily_exam' | 'quick'
@@ -269,6 +271,7 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
         onScoreUpdate={(points) => awardLessonReward('daily_exam', points)}
         onAssessmentResult={onAssessmentResult}
         onDailyExamCompleted={onDailyExamCompleted}
+        guestTest={guestTest}
       />
     );
   }
