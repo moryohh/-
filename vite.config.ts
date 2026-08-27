@@ -7,7 +7,7 @@ export default defineConfig(() => {
   const isGitHubPagesBuild = process.env.GITHUB_ACTIONS === 'true';
 
   return {
-    base: isGitHubPagesBuild ? '/-/' : '/',
+    base: isGitHubPagesBuild ? '/A/' : '/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
