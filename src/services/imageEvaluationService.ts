@@ -8,11 +8,14 @@ import {
   MAX_TARGET_IMAGE_FILE_SIZE_BYTES,
 } from '../utils/fileSecurity';
 
+export type ImageEvaluationSource = 'daily_exam' | 'educational_test';
+
 export interface ImageEvaluationRequest {
   imageFile: File;
   branchId: string;
   questionPrompt: string;
   modelAnswer: string;
+  source: ImageEvaluationSource;
   branchPoints?: number;
   subject?: string;
   lessonTitle?: string;
@@ -155,6 +158,19 @@ export async function submitSolutionImageForEvaluation(
 ): Promise<ImageEvaluationResult> {
   const { imageFile, questionPrompt, modelAnswer } = request;
 
+  // C-OCR is intentionally reachable only from image-upload controls inside
+  // educational tests and the daily exam. Keep this guard at the shared
+  // service boundary so unrelated platform features cannot submit images.
+  if (request.source !== 'daily_exam' && request.source !== 'educational_test') {
+    return createEvaluationFailure(
+      request,
+      '',
+      '0 MB',
+      'رفع الصور للتقييم متاح فقط من الاختبارات التعليمية والاختبار اليومي.',
+      'connection'
+    );
+  }
+
   // STEP 1: Strict Security & MIME Type Check
   const validation: ValidationResult = await validateImageFile(imageFile);
   if (!validation.isValid) {
@@ -213,6 +229,7 @@ export async function submitSolutionImageForEvaluation(
       },
       body: JSON.stringify({
         request_id: requestId,
+        source: request.source,
         fileName: secureFileName,
         mimeType: processedFile.type,
         imageBase64: base64Data,

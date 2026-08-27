@@ -17,11 +17,13 @@ import {
 import {
   submitSolutionImageForEvaluation,
   ImageEvaluationResult,
+  ImageEvaluationSource,
 } from '../services/imageEvaluationService';
 import { gameAudio } from '../utils/gameAudio';
 
 interface SolutionImageUploaderProps {
   branchId: string;
+  source: ImageEvaluationSource;
   questionPrompt: string;
   modelAnswer: string;
   branchPoints?: number;
@@ -32,6 +34,7 @@ interface SolutionImageUploaderProps {
 
 export const SolutionImageUploader: React.FC<SolutionImageUploaderProps> = ({
   branchId,
+  source,
   questionPrompt,
   modelAnswer,
   branchPoints = 5,
@@ -101,6 +104,7 @@ export const SolutionImageUploader: React.FC<SolutionImageUploaderProps> = ({
       const result = await submitSolutionImageForEvaluation({
         imageFile: selectedFile,
         branchId,
+        source,
         questionPrompt,
         modelAnswer,
         branchPoints,

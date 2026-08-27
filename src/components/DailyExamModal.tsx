@@ -204,6 +204,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
       const result = await submitSolutionImageForEvaluation({
         imageFile: questionImages.q1.file,
         branchId: 'q1_unified',
+        source: 'daily_exam',
         questionPrompt: combinedPrompt,
         modelAnswer: combinedModelAnswer,
         branchPoints: q1TotalPoints,
@@ -235,6 +236,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
       const result = await submitSolutionImageForEvaluation({
         imageFile: questionImages.q2.file,
         branchId: branch.id,
+        source: 'daily_exam',
         questionPrompt: branch.prompt,
         modelAnswer: branch.modelAnswer,
         branchPoints: branch.points,
