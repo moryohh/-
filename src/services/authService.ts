@@ -370,12 +370,21 @@ export async function getInitialAuthState(): Promise<UserProfile | null> {
 export async function getSupabaseAccessToken(): Promise<string | null> {
   const client = getSupabaseClient();
   if (!client) return null;
+
   try {
     const { data, error } = await client.auth.getSession();
-    if (error) return null;
-    return data.session?.access_token || null;
+    if (!error && data.session?.access_token) {
+      return data.session.access_token;
+    }
+
+    // A mobile browser can briefly keep the user profile visible while the
+    // access token is being refreshed. Refresh only when getSession did not
+    // provide a usable token; never bypass authentication or create a token.
+    const { data: refreshed, error: refreshError } = await client.auth.refreshSession();
+    if (refreshError) return null;
+    return refreshed.session?.access_token || null;
   } catch (err) {
-    console.debug('Could not read Supabase access token:', err);
+    console.debug('Could not read or refresh Supabase access token:', err);
     return null;
   }
 }

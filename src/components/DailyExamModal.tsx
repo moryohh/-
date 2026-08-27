@@ -98,14 +98,31 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
 
   // Load exam data on mount / open
   useEffect(() => {
+    if (!isOpen) return;
+
+    // Each opening starts a clean submission state. This prevents a result
+    // from a previous round from being attached to an empty question.
+    submissionLockRef.current = false;
+    rewardIssuedRef.current = false;
+    assessmentReportedRef.current = false;
+    setEvaluatedQuestions({ q1: null, q2: null });
+    setQuestionErrors({ q1: '', q2: '' });
+    setQuestionImages({ q1: null, q2: null });
+    setStudentDrafts({});
+    setIsSubmitted(false);
+    setSubmitState('idle');
+    setCompletedAt(null);
+    setTimeLeft(900);
+    setIsTimerRunning(true);
+    setProcessingPhase(0);
+
     if (customExam) {
       setExam(customExam);
       setIsLoading(false);
       return;
     }
 
-    if (isOpen) {
-      setExam(null);
+    setExam(null);
       setIsLoading(true);
       if (openLessonContext) {
         fetchDailyExamForLesson(openLessonContext)
@@ -132,7 +149,6 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
             setIsLoading(false);
           });
       }
-    }
   }, [isOpen, customExam, examRound, category, lessonId, lessonTitle, openLessonContext?.subjectId, openLessonContext?.chapterNumber, openLessonContext?.lessonNumber, openLessonContext?.lessonId]);
 
   useEffect(() => {
@@ -184,6 +200,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
     }
 
     setQuestionErrors((prev) => ({ ...prev, [qKey]: '' }));
+    setEvaluatedQuestions((prev) => ({ ...prev, [qKey]: null }));
     const objectUrl = URL.createObjectURL(file);
     setQuestionImages((prev) => ({
       ...prev,
@@ -264,8 +281,10 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
     setIsTimerRunning(false);
 
     const nextEvaluations: Record<'q1' | 'q2', ImageEvaluationResult | null> = {
-      q1: evaluatedQuestions.q1,
-      q2: evaluatedQuestions.q2,
+      // Never carry a previous evaluation into a submission where that image
+      // is absent. Text-only or unanswered branches remain ungraded.
+      q1: questionImages.q1 ? evaluatedQuestions.q1 : null,
+      q2: questionImages.q2 ? evaluatedQuestions.q2 : null,
     };
 
     try {
@@ -551,7 +570,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
                           </div>
                         ))}
                       </div>
-                      <p className="mt-3 rounded-2xl bg-black/20 p-3 text-xs leading-6 text-slate-300">التشخيص: {q1Evaluation?.feedback || 'لا توجد صورة أو إجابة مرفوعة لهذا السؤال.'}</p>
+                      <p className="mt-3 rounded-2xl bg-black/20 p-3 text-xs leading-6 text-slate-300">التشخيص: {q1Evaluation ? q1Evaluation.feedback : 'لا توجد صورة مرفوعة لهذا السؤال؛ تُعرض الإجابة النصية دون تصحيح OCR.'}</p>
                     </div>
 
                     <div className="rounded-3xl border border-cyan-300/30 bg-cyan-400/10 p-4">
@@ -577,7 +596,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
                           <p className="mt-2 text-xs leading-6 text-slate-200">جواب الطالب: {formatStudentAnswer(branch.id, q2Evaluation)}</p>
                         </div>
                       ))}
-                      <p className="mt-3 rounded-2xl bg-black/20 p-3 text-xs leading-6 text-slate-300">التشخيص: {q2Evaluation?.feedback || 'لا توجد صورة أو إجابة مرفوعة لهذا السؤال.'}</p>
+                      <p className="mt-3 rounded-2xl bg-black/20 p-3 text-xs leading-6 text-slate-300">التشخيص: {q2Evaluation ? q2Evaluation.feedback : 'لا توجد صورة مرفوعة لهذا السؤال؛ تُعرض الإجابة النصية دون تصحيح OCR.'}</p>
                     </div>
                   </div>
 
