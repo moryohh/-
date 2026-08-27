@@ -108,8 +108,10 @@ function generateCurriculumEvaluation(
 }
 
 function getImageEvaluationEndpoint(): string {
-  const configured = String((import.meta as any).env?.VITE_IMAGE_EVALUATION_API_URL || '').trim();
-  const communityApi = String((import.meta as any).env?.VITE_COMMUNITY_API_URL || '').trim();
+  const env = (import.meta as any).env || {};
+  const cOcrApi = String(env.VITE_C_OCR_API_URL || '').trim();
+  const configured = cOcrApi || String(env.VITE_IMAGE_EVALUATION_API_URL || '').trim();
+  const communityApi = String(env.VITE_COMMUNITY_API_URL || '').trim();
   const fallbackBase = (communityApi || 'https://community-k8dy.onrender.com')
     .replace(/\/api\/v1\/community\/?$/, '')
     .replace(/\/+$/, '');
@@ -227,7 +229,7 @@ export async function submitSolutionImageForEvaluation(
     const result = resultJson?.result || resultJson;
     if (!response.ok || resultJson?.success === false) {
       const failureStage = resultJson?.failure_stage === 'deepseek' ? 'deepseek' : resultJson?.failure_stage === 'comparison' ? 'comparison' : 'ocr';
-      throw new Error(resultJson?.error || `فشل تقييم الصورة في موقع B (HTTP ${response.status})|${failureStage}`);
+      throw new Error(resultJson?.error || `فشل تقييم الصورة في بوابة OCR (HTTP ${response.status})|${failureStage}`);
     }
 
     const percentage = Math.min(100, Math.max(0, Number(result.percentage ?? result.similarity_score ?? 0)));
@@ -248,7 +250,7 @@ export async function submitSolutionImageForEvaluation(
       maxScore: safeMaxScore,
       percentage: safePercentage,
       statusLabel,
-      feedback: result.feedback || result.explanation || 'تم تقييم الإجابة عبر موقع B.',
+      feedback: result.feedback || result.explanation || 'تم تقييم الإجابة عبر بوابة OCR.',
       identifiedTextOrSteps: result.identifiedTextOrSteps || result.steps || (result.extracted_answer ? [result.extracted_answer] : []),
       strengths: result.strengths || [],
       recommendations: result.recommendations || [],
@@ -261,7 +263,7 @@ export async function submitSolutionImageForEvaluation(
   } catch (err: any) {
     console.error('[Evaluation Service] Error sending image to external evaluator:', err);
 
-    const rawMessage = err?.message || 'تعذر الاتصال بخدمة تقييم الصورة في موقع B.';
+    const rawMessage = err?.message || 'تعذر الاتصال ببوابة تقييم الصورة.';
     const [message, stage] = rawMessage.split('|');
     return createEvaluationFailure(
       request,

@@ -36,6 +36,8 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          VITE_C_OCR_API_URL: ${{ vars.VITE_C_OCR_API_URL }}
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
