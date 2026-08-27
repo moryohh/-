@@ -267,7 +267,13 @@ export async function submitSolutionImageForEvaluation(
     const result = resultJson?.result || resultJson;
     if (!response.ok || resultJson?.success === false) {
       const failureStage = resultJson?.failure_stage === 'deepseek' ? 'deepseek' : resultJson?.failure_stage === 'comparison' ? 'comparison' : 'ocr';
-      throw new Error(resultJson?.error || `فشل تقييم الصورة في بوابة OCR (HTTP ${response.status})|${failureStage}`);
+      const failureReasons = Array.isArray(resultJson?.failure_reasons)
+        ? resultJson.failure_reasons
+          .map((item: any) => `${item?.provider_slot || 'OCR'}: ${item?.reason || ''}`.trim())
+          .filter(Boolean)
+          .join(' | ')
+        : '';
+      throw new Error(`${failureReasons || resultJson?.error || `فشل تقييم الصورة في بوابة OCR (HTTP ${response.status})`}|${failureStage}`);
     }
 
     const percentage = Math.min(100, Math.max(0, Number(result.percentage ?? result.similarity_score ?? 0)));
