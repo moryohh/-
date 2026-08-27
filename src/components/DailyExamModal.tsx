@@ -504,11 +504,18 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
         {submitState === 'completed' && exam && (
           <div className="absolute inset-0 z-50 flex flex-col rounded-3xl bg-slate-950/98 p-4 sm:p-6 text-right text-white backdrop-blur-md">
             {(() => {
-              const finalScore = getResultsTotal(evaluatedQuestions);
+              // Only an evaluation tied to an image from this submission is
+              // allowed to affect the result screen. This is a final guard
+              // against displaying stale authentication/OCR errors.
+              const q1Evaluation = questionImages.q1 ? evaluatedQuestions.q1 : null;
+              const q2Evaluation = questionImages.q2 ? evaluatedQuestions.q2 : null;
+              const visibleEvaluations: Record<'q1' | 'q2', ImageEvaluationResult | null> = {
+                q1: q1Evaluation,
+                q2: q2Evaluation,
+              };
+              const finalScore = getResultsTotal(visibleEvaluations);
               const finalTotal = Number(exam.totalPoints) || 1;
               const finalPercentage = Math.round((finalScore / finalTotal) * 100);
-              const q1Evaluation = evaluatedQuestions.q1;
-              const q2Evaluation = evaluatedQuestions.q2;
               const q1Max = exam.question1.branches.reduce((acc, branch) => acc + branch.points, 0);
               const q2Max = exam.question2.branches.reduce((acc, branch) => acc + branch.points, 0);
               const formatStudentAnswer = (branchId: string, evaluation: ImageEvaluationResult | null) => {
