@@ -262,6 +262,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
       branchPoints: branch.points,
       subject: exam.subject,
       lessonTitle: exam.lessonTitle,
+      guestTest,
     });
   };
 
