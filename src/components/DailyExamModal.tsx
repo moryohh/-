@@ -90,6 +90,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
   const [isTimerRunning, setIsTimerRunning] = useState(true);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [submitState, setSubmitState] = useState<'idle' | 'confirming' | 'processing' | 'completed'>('idle');
+  const [processingPhase, setProcessingPhase] = useState(0);
   const [completedAt, setCompletedAt] = useState<string | null>(null);
   const submissionLockRef = useRef(false);
   const rewardIssuedRef = useRef(false);
@@ -133,6 +134,15 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
       }
     }
   }, [isOpen, customExam, examRound, category, lessonId, lessonTitle, openLessonContext?.subjectId, openLessonContext?.chapterNumber, openLessonContext?.lessonNumber, openLessonContext?.lessonId]);
+
+  useEffect(() => {
+    if (submitState !== 'processing') return;
+    setProcessingPhase(0);
+    const phaseTimer = setInterval(() => {
+      setProcessingPhase((previous) => (previous + 1) % 3);
+    }, 1400);
+    return () => clearInterval(phaseTimer);
+  }, [submitState]);
 
   // Countdown timer
   useEffect(() => {
@@ -247,6 +257,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
     if (submissionLockRef.current || submitState !== 'confirming' || !exam) return;
 
     submissionLockRef.current = true;
+    setProcessingPhase(0);
     setSubmitState('processing');
     setQuestionErrors({ q1: '', q2: '' });
     setIsTimerRunning(false);
@@ -451,12 +462,19 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
               <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-cyan-400/15 text-cyan-300">
                 <Loader2 className="h-8 w-8 animate-spin" />
               </div>
-              <h3 className="text-xl font-black text-white">جارٍ جلب النتيجة</h3>
+              <h3 className="text-xl font-black text-white">{['جارٍ جلب النتيجة', 'جارٍ التدقيق في الصور', 'جارٍ التصحيح وحساب الدرجة'][processingPhase]}</h3>
               <p className="mt-3 text-sm leading-7 text-slate-300">
-                تم استلام إجابتك. يجري الآن استخراج النص وتصحيح الصورة، يرجى الانتظار وعدم إغلاق الاختبار.
+                تم استلام إجابتك. يرجى الانتظار وعدم إغلاق الاختبار حتى تكتمل المراحل الثلاث.
               </p>
-              <div className="mt-5 h-2 overflow-hidden rounded-full bg-slate-700">
-                <div className="h-full w-2/3 animate-pulse rounded-full bg-gradient-to-r from-cyan-400 to-teal-300" />
+              <div className="mt-5 space-y-2 text-right">
+                {['جلب النتيجة', 'التدقيق في الصور', 'التصحيح وحساب الدرجة'].map((phase, index) => (
+                  <div key={phase} className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition ${index === processingPhase ? 'bg-cyan-300/20 text-cyan-100' : index < processingPhase ? 'bg-emerald-300/10 text-emerald-200' : 'bg-white/5 text-slate-500'}`}>
+                    <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] ${index <= processingPhase ? 'bg-cyan-300 text-slate-950' : 'bg-slate-700 text-slate-400'}`}>
+                      {index < processingPhase ? '✓' : index + 1}
+                    </span>
+                    {index === processingPhase ? `جارٍ ${phase}` : index < processingPhase ? `اكتمل ${phase}` : phase}
+                  </div>
+                ))}
               </div>
             </div>
           </div>
