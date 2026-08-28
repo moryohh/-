@@ -20,6 +20,7 @@ import {
 import { useAppTheme } from '../services/themeService';
 import {
   signInWithGoogle,
+  createGuestProfile,
   signInWithEmailPassword,
   signUpWithEmailPassword,
   validateStudentEmail,
@@ -29,6 +30,7 @@ import { UserProfile } from '../types';
 
 interface LoginPageProps {
   onLoginSuccess: (user: UserProfile) => void;
+  onBypassAsGuest?: () => void;
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
@@ -40,6 +42,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const [fullName, setFullName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isGuestLoading, setIsGuestLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [showGoogleSetupGuide, setShowGoogleSetupGuide] = useState(false);
@@ -84,6 +87,23 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     } catch (err: any) {
       setErrorMessage(err.message || 'حدث خطأ أثناء الاتصال بمزود Google');
       setIsGoogleLoading(false);
+    }
+  };
+
+  // Temporary guest session for safe OCR testing without an email account.
+  const handleGuestLogin = async () => {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setIsGuestLoading(true);
+
+    try {
+      // This temporary mode intentionally does not contact Supabase.
+      // C-OCR receives the explicit guest_test marker and remains separately rate-limited.
+      onLoginSuccess(createGuestProfile());
+    } catch (err: any) {
+      setErrorMessage(err.message || 'تعذر إنشاء جلسة الضيف.');
+    } finally {
+      setIsGuestLoading(false);
     }
   };
 
@@ -356,7 +376,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               <button
                 type="button"
                 onClick={handleGoogleLogin}
-                disabled={isGoogleLoading || isLoading}
+                disabled={isGoogleLoading || isGuestLoading || isLoading}
                 className={`w-full py-3.5 px-4 rounded-2xl border font-bold text-xs sm:text-sm flex items-center justify-center gap-3 transition-all duration-200 active:scale-[0.98] shadow-md cursor-pointer ${
                   theme.isLight
                     ? 'bg-white hover:bg-slate-50 border-slate-300 text-slate-800'
@@ -596,7 +616,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
               <button
                 type="submit"
-                disabled={isLoading || isGoogleLoading}
+                disabled={isLoading || isGoogleLoading || isGuestLoading}
                 className="w-full py-3 rounded-2xl text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all cursor-pointer mt-2 disabled:opacity-50"
                 style={{
                   backgroundColor: theme.colors.primary,
@@ -614,6 +634,25 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               </button>
             </form>
 
+            {/* Temporary guest access for testing the protected OCR flow. */}
+            <div className={`mt-4 pt-4 border-t ${theme.classes.cardBorder}`}>
+              <button
+                type="button"
+                onClick={handleGuestLogin}
+                disabled={isGuestLoading || isLoading || isGoogleLoading}
+                className={`w-full py-3 rounded-2xl border font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 ${
+                  theme.isLight
+                    ? 'bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-800'
+                    : 'bg-amber-400/10 hover:bg-amber-400/15 border-amber-300/40 text-amber-200'
+                }`}
+              >
+                {isGuestLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <User className="w-4 h-4" />}
+                <span>{isGuestLoading ? 'جاري فتح حساب التجربة...' : 'الدخول كضيف للتجربة'}</span>
+              </button>
+              <p className={`mt-2 text-center text-[10px] leading-5 ${theme.classes.textMuted}`}>
+                دخول محلي مؤقت بلا بريد أو كلمة مرور لاختبار رفع الصور فقط.
+              </p>
+            </div>
           </>
         )}
       </div>
