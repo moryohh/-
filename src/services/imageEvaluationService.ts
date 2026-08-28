@@ -18,6 +18,8 @@ export interface ImageEvaluationRequest {
   branchPoints?: number;
   subject?: string;
   lessonTitle?: string;
+  submissionId?: string;
+  questionId?: string;
 }
 
 export interface ImageEvaluationResult {
@@ -39,7 +41,7 @@ export interface ImageEvaluationResult {
   providerSlot?: string;
   failureCode?: string;
   failureReasons?: string[];
-  failureStage?: 'ocr' | 'connection';
+  failureStage?: 'ocr' | 'comparison' | 'connection';
   error?: string;
 }
 
@@ -192,7 +194,8 @@ function createEvaluationFailure(
   requestId?: string,
   failureCode?: string,
   failureReasons: string[] = [],
-  providerSlot?: string
+  providerSlot?: string,
+  extractedText?: string
 ): ImageEvaluationResult {
   return {
     success: false,
@@ -201,7 +204,8 @@ function createEvaluationFailure(
     percentage: 0,
     statusLabel: 'يحتاج مراجعة',
     feedback: message,
-    identifiedTextOrSteps: [],
+    identifiedTextOrSteps: extractedText ? [extractedText.slice(0, 2000)] : [],
+    extractedText: extractedText || undefined,
     strengths: [],
       recommendations: ['تحقق من حالة مساري OCR ثم أعد المحاولة بصورة واضحة.'],
     secureFileName,
@@ -293,9 +297,16 @@ export async function submitSolutionImageForEvaluation(
       body: JSON.stringify({
         request_id: requestId,
         source: request.source,
+        submission_id: request.submissionId,
+        question_id: request.questionId,
         fileName: secureFileName,
         mimeType: processedFile.type,
         imageBase64: base64Data,
+        questionText: questionPrompt,
+        modelAnswer,
+        subject: request.subject,
+        lesson: request.lessonTitle,
+        maxScore,
         language: 'ara',
       }),
     });
@@ -305,7 +316,9 @@ export async function submitSolutionImageForEvaluation(
     if (!response.ok || resultJson?.success === false) {
       const failureStage: ImageEvaluationResult['failureStage'] = resultJson?.failure_stage === 'authentication'
         ? 'connection'
-        : 'ocr';
+        : resultJson?.failure_stage === 'comparison'
+          ? 'comparison'
+          : 'ocr';
       const failureReasons = Array.isArray(resultJson?.failure_reasons)
         ? resultJson.failure_reasons
           .map((item: any) => `${item?.provider_slot || 'OCR'}: ${item?.reason || ''}`.trim())
@@ -314,6 +327,7 @@ export async function submitSolutionImageForEvaluation(
         : [];
       const responseCode = typeof resultJson?.code === 'string' ? resultJson.code : undefined;
       const providerSlot = typeof resultJson?.provider_slot === 'string' ? resultJson.provider_slot : undefined;
+      const failedExtractedText = typeof resultJson?.extracted_text === 'string' ? resultJson.extracted_text : undefined;
       const safeMessage = localizeEvaluationError(resultJson?.error || `فشل تقييم الصورة في بوابة OCR (HTTP ${response.status})`);
       return createEvaluationFailure(
         request,
@@ -324,7 +338,8 @@ export async function submitSolutionImageForEvaluation(
         resultJson?.request_id || requestId,
         responseCode,
         failureReasons,
-        providerSlot
+        providerSlot,
+        failedExtractedText
       );
     }
 

@@ -97,6 +97,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
   const submissionLockRef = useRef(false);
   const rewardIssuedRef = useRef(false);
   const assessmentReportedRef = useRef(false);
+  const submissionIdRef = useRef<string | null>(null);
 
   // Load exam data on mount / open
   useEffect(() => {
@@ -107,6 +108,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
     submissionLockRef.current = false;
     rewardIssuedRef.current = false;
     assessmentReportedRef.current = false;
+    submissionIdRef.current = null;
     setEvaluatedQuestions({ q1: null, q2: null });
     setQuestionErrors({ q1: '', q2: '' });
     setQuestionImages({ q1: null, q2: null });
@@ -225,7 +227,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
     setQuestionErrors((prev) => ({ ...prev, [qKey]: '' }));
   };
 
-  const evaluateUploadedImage = async (qKey: 'q1' | 'q2'): Promise<ImageEvaluationResult | null> => {
+  const evaluateUploadedImage = async (qKey: 'q1' | 'q2', submissionId: string): Promise<ImageEvaluationResult | null> => {
     if (!exam || !questionImages[qKey]) return null;
 
     if (qKey === 'q1') {
@@ -246,6 +248,8 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
         branchPoints: q1TotalPoints,
         subject: exam.subject,
         lessonTitle: exam.lessonTitle,
+        submissionId,
+        questionId: 'q1',
       });
     }
 
@@ -261,6 +265,8 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
       branchPoints: branch.points,
       subject: exam.subject,
       lessonTitle: exam.lessonTitle,
+      submissionId,
+      questionId: 'q2',
     });
   };
 
@@ -277,6 +283,8 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
     if (submissionLockRef.current || submitState !== 'confirming' || !exam) return;
 
     submissionLockRef.current = true;
+    const submissionId = `submission_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+    submissionIdRef.current = submissionId;
     setProcessingPhase(0);
     setSubmitState('processing');
     setQuestionErrors({ q1: '', q2: '' });
@@ -292,7 +300,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
     try {
       for (const qKey of ['q1', 'q2'] as const) {
         if (questionImages[qKey] && !nextEvaluations[qKey]) {
-          const result = await evaluateUploadedImage(qKey);
+          const result = await evaluateUploadedImage(qKey, submissionId);
           if (!result?.success) {
             setQuestionErrors((prev) => ({
               ...prev,
@@ -345,6 +353,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
     submissionLockRef.current = false;
     rewardIssuedRef.current = false;
     assessmentReportedRef.current = false;
+    submissionIdRef.current = null;
     setTimeLeft(900);
     setIsTimerRunning(true);
     setIsSubmitted(false);
