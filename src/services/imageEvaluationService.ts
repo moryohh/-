@@ -40,6 +40,8 @@ export interface ImageEvaluationResult {
   requestId?: string;
   processingEngine?: string;
   providerSlot?: string;
+  failureCode?: string;
+  failureReasons?: string[];
   failureStage?: 'ocr' | 'deepseek' | 'comparison' | 'connection';
   error?: string;
 }
@@ -157,7 +159,10 @@ function createEvaluationFailure(
   fileSize: string,
   message: string,
   failureStage: ImageEvaluationResult['failureStage'] = 'connection',
-  requestId?: string
+  requestId?: string,
+  failureCode?: string,
+  failureReasons: string[] = [],
+  providerSlot?: string
 ): ImageEvaluationResult {
   return {
     success: false,
@@ -173,6 +178,9 @@ function createEvaluationFailure(
     fileSize,
     evaluatedAt: new Date().toLocaleTimeString('ar-IQ'),
     requestId,
+    providerSlot,
+    failureCode,
+    failureReasons,
     failureStage,
     error: message,
   };
@@ -277,15 +285,33 @@ export async function submitSolutionImageForEvaluation(
     const resultJson = await response.json().catch(() => ({}));
     const result = resultJson?.result || resultJson;
     if (!response.ok || resultJson?.success === false) {
-      const failureStage = resultJson?.failure_stage === 'deepseek' ? 'deepseek' : resultJson?.failure_stage === 'comparison' ? 'comparison' : resultJson?.failure_stage === 'authentication' ? 'connection' : 'ocr';
+      const failureStage: ImageEvaluationResult['failureStage'] = resultJson?.failure_stage === 'deepseek'
+        ? 'deepseek'
+        : resultJson?.failure_stage === 'comparison'
+          ? 'comparison'
+          : resultJson?.failure_stage === 'authentication'
+            ? 'connection'
+            : 'ocr';
       const failureReasons = Array.isArray(resultJson?.failure_reasons)
         ? resultJson.failure_reasons
           .map((item: any) => `${item?.provider_slot || 'OCR'}: ${item?.reason || ''}`.trim())
           .filter(Boolean)
-          .join(' | ')
-        : '';
-      const responseCode = typeof resultJson?.code === 'string' ? resultJson.code : '';
-      throw new Error(`${responseCode} ${failureReasons || resultJson?.error || `فشل تقييم الصورة في بوابة OCR (HTTP ${response.status})`}|${failureStage}`.trim());
+          .slice(0, 4)
+        : [];
+      const responseCode = typeof resultJson?.code === 'string' ? resultJson.code : undefined;
+      const providerSlot = typeof resultJson?.provider_slot === 'string' ? resultJson.provider_slot : undefined;
+      const safeMessage = localizeEvaluationError(resultJson?.error || `فشل تقييم الصورة في بوابة OCR (HTTP ${response.status})`);
+      return createEvaluationFailure(
+        request,
+        secureFileName,
+        fileSize,
+        safeMessage,
+        failureStage,
+        resultJson?.request_id || requestId,
+        responseCode,
+        failureReasons,
+        providerSlot
+      );
     }
 
     const percentage = Math.min(100, Math.max(0, Number(result.percentage ?? result.similarity_score ?? 0)));

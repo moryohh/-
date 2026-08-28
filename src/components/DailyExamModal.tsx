@@ -580,7 +580,15 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
               };
               const getEvaluationDiagnosis = (evaluation: ImageEvaluationResult | null) => {
                 if (!evaluation) return 'لم تُرفع صورة لهذا السؤال؛ لا توجد قراءة OCR.';
-                if (!evaluation.success) return evaluation.feedback || 'تم رفع الصورة، لكن لم تبدأ قراءة OCR.';
+                if (!evaluation.success) {
+                  const details = [
+                    evaluation.feedback || 'تم رفع الصورة، لكن لم تبدأ قراءة OCR.',
+                    getProviderLabel(evaluation),
+                    evaluation.failureCode ? `رمز التشخيص: ${evaluation.failureCode}` : '',
+                    evaluation.failureReasons?.length ? `المحاولات: ${evaluation.failureReasons.join(' | ')}` : '',
+                  ].filter(Boolean);
+                  return details.join(' — ');
+                }
                 return `${evaluation.feedback || 'تمت قراءة الصورة وتقييمها.'}${getProviderLabel(evaluation) ? ` — ${getProviderLabel(evaluation)}` : ''}`;
               };
               return (
