@@ -29,6 +29,7 @@ export interface ImageEvaluationResult {
   statusLabel: 'ممتاز' | 'جيد جداً' | 'مقبول' | 'يحتاج مراجعة';
   feedback: string;
   identifiedTextOrSteps: string[];
+  extractedText?: string;
   strengths: string[];
   recommendations: string[];
   secureFileName: string;
@@ -299,6 +300,7 @@ export async function submitSolutionImageForEvaluation(
       statusLabel,
       feedback: result.feedback || result.explanation || 'تم تقييم الإجابة عبر بوابة OCR.',
       identifiedTextOrSteps: result.identifiedTextOrSteps || result.steps || (result.extracted_answer ? [result.extracted_answer] : []),
+      extractedText: typeof result.extracted_text === 'string' ? result.extracted_text : typeof result.extractedText === 'string' ? result.extractedText : '',
       strengths: result.strengths || [],
       recommendations: result.recommendations || [],
       secureFileName,

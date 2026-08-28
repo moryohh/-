@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
+  ArrowRight,
   Clock,
   CheckCircle2,
   RotateCcw,
@@ -11,6 +12,7 @@ import {
   Loader2,
   FileCheck2,
   ImageIcon,
+  MessageSquareText,
 } from 'lucide-react';
 import { DailyExamConfig, fetchDailyExamForLesson } from '../services/dailyExamService';
 import { DailyExamAuthenticIcon } from './GameIcons';
@@ -518,13 +520,54 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
               const finalPercentage = Math.round((finalScore / finalTotal) * 100);
               const q1Max = exam.question1.branches.reduce((acc, branch) => acc + branch.points, 0);
               const q2Max = exam.question2.branches.reduce((acc, branch) => acc + branch.points, 0);
+              const cleanAnswerText = (value: string) => value
+                .replace(/--- OCR Start ---|--- OCR End ---/g, '')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .slice(0, 1800);
               const formatStudentAnswer = (branchId: string, evaluation: ImageEvaluationResult | null) => {
                 const draft = studentDrafts[branchId]?.trim();
                 if (draft) return draft;
-                if (evaluation?.identifiedTextOrSteps?.length) return evaluation.identifiedTextOrSteps.join(' ');
-                if (evaluation && !evaluation.success) return 'تم رفع صورة لهذا الفرع، لكن لم يُستخرج منها نص قابل للتقييم.';
-                return 'لم يكتب الطالب إجابة ولم يرفع صورة لهذا الفرع.';
+                if (evaluation?.identifiedTextOrSteps?.length) return cleanAnswerText(evaluation.identifiedTextOrSteps.join(' '));
+                if (evaluation?.extractedText?.trim()) return cleanAnswerText(evaluation.extractedText);
+                if (evaluation && !evaluation.success) return 'تم رفع الصورة، لكن لم يُستخرج منها نص قابل للتقييم.';
+                return 'لم تُرفع صورة أو إجابة لهذا السؤال.';
               };
+              const getEvaluationPercentage = (evaluation: ImageEvaluationResult | null, max: number) => {
+                if (!evaluation) return 0;
+                if (Number.isFinite(evaluation.percentage)) return Math.max(0, Math.min(100, Math.round(evaluation.percentage)));
+                return Math.max(0, Math.min(100, Math.round(((evaluation.score || 0) / Math.max(1, max)) * 100)));
+              };
+              const getScoreTone = (percentage: number) => {
+                if (percentage < 50) {
+                  return {
+                    border: '#fb7185',
+                    background: 'rgba(127, 29, 29, 0.28)',
+                    accent: '#fecdd3',
+                    iconBackground: 'rgba(244, 63, 94, 0.2)',
+                    label: 'يحتاج مراجعة',
+                  };
+                }
+                if (percentage <= 75) {
+                  return {
+                    border: '#facc15',
+                    background: 'rgba(113, 63, 18, 0.28)',
+                    accent: '#fef08a',
+                    iconBackground: 'rgba(234, 179, 8, 0.2)',
+                    label: 'متوسط',
+                  };
+                }
+                return {
+                  border: '#4ade80',
+                  background: 'rgba(20, 83, 45, 0.3)',
+                  accent: '#bbf7d0',
+                  iconBackground: 'rgba(34, 197, 94, 0.2)',
+                  label: 'جيد',
+                };
+              };
+              const finalTone = getScoreTone(finalPercentage);
+              const q1Tone = getScoreTone(getEvaluationPercentage(q1Evaluation, q1Max));
+              const q2Tone = getScoreTone(getEvaluationPercentage(q2Evaluation, q2Max));
               return (
                 <>
                   <div className="flex items-start justify-between gap-3 border-b border-white/10 pb-4">
@@ -535,9 +578,22 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
                         تاريخ التسليم: {completedAt ? new Date(completedAt).toLocaleString('ar-IQ') : 'الآن'}
                       </p>
                     </div>
-                    <div className="flex h-20 w-20 shrink-0 flex-col items-center justify-center rounded-full border-4 border-emerald-300 bg-emerald-400/15 text-center shadow-lg shadow-emerald-500/20">
-                      <span className="text-xl font-black text-emerald-200">{finalPercentage}</span>
-                      <span className="text-[10px] font-bold text-emerald-100">من 100</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={onClose}
+                        className="flex items-center gap-1.5 rounded-2xl border border-cyan-300/40 bg-cyan-300/10 px-3 py-2 text-xs font-black text-cyan-100 transition hover:bg-cyan-300/20"
+                      >
+                        <ArrowRight className="h-4 w-4" />
+                        <span>العودة</span>
+                      </button>
+                      <div
+                        className="flex h-20 w-20 shrink-0 flex-col items-center justify-center rounded-full border-4 text-center shadow-lg"
+                        style={{ borderColor: finalTone.border, backgroundColor: finalTone.background, boxShadow: `0 0 18px ${finalTone.border}55` }}
+                      >
+                        <span className="text-xl font-black" style={{ color: finalTone.accent }}>{finalPercentage}</span>
+                        <span className="text-[10px] font-bold" style={{ color: finalTone.accent }}>من 100</span>
+                      </div>
                     </div>
                   </div>
 
@@ -553,55 +609,67 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
                   </div>
 
                   <div className="mt-4 flex-1 space-y-3 overflow-y-auto pr-1">
-                    <div className="rounded-3xl border border-indigo-300/30 bg-indigo-400/10 p-4">
+                      <div className="rounded-3xl border-2 p-4 transition-colors" style={{ borderColor: q1Tone.border, backgroundColor: q1Tone.background }}>
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
                           <div className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-indigo-200 bg-indigo-300/20 text-sm font-black text-indigo-100">س1</div>
                           <div>
                             <h3 className="text-base font-black">{exam.question1.title}</h3>
-                            <p className="text-[11px] text-indigo-200">إجابة الفروع والصورة الأولى</p>
+                            <p className="text-[11px]" style={{ color: q1Tone.accent }}>السؤال والجواب</p>
                           </div>
                         </div>
-                        <div className="flex h-12 w-12 flex-col items-center justify-center rounded-full border-2 border-emerald-300 bg-emerald-300/15 text-center">
-                          <span className="text-sm font-black text-emerald-100">{q1Evaluation?.success ? q1Evaluation.score : 0}</span>
-                          <span className="text-[9px] text-emerald-200">/{q1Max}</span>
+                        <div className="flex h-12 w-12 flex-col items-center justify-center rounded-full border-2 text-center" style={{ borderColor: q1Tone.border, backgroundColor: q1Tone.iconBackground }}>
+                          <span className="text-sm font-black" style={{ color: q1Tone.accent }}>{q1Evaluation?.success ? q1Evaluation.score : 0}</span>
+                          <span className="text-[9px]" style={{ color: q1Tone.accent }}>/{q1Max}</span>
                         </div>
                       </div>
                       <div className="mt-3 space-y-2">
                         {exam.question1.branches.map((branch) => (
                           <div key={branch.id} className="rounded-2xl border border-white/10 bg-black/20 p-3">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-xs font-black text-indigo-100">الفرع {branch.label}: {branch.prompt}</span>
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-start gap-2 text-xs font-black text-indigo-100">
+                                <MessageSquareText className="mt-0.5 h-4 w-4 shrink-0 text-indigo-200" />
+                                <span>السؤال: {branch.prompt}</span>
+                              </div>
                               <span className="shrink-0 rounded-full bg-white/10 px-2 py-1 text-[10px] font-black text-amber-200">{branch.points} درجات</span>
                             </div>
-                            <p className="mt-2 text-xs leading-6 text-slate-200">جواب الطالب: {formatStudentAnswer(branch.id, q1Evaluation)}</p>
+                            <div className="mt-2 flex items-start gap-2 text-xs leading-6" style={{ color: q1Tone.accent }}>
+                              <MessageSquareText className="mt-1 h-4 w-4 shrink-0" />
+                              <span>جواب الطالب: {formatStudentAnswer(branch.id, q1Evaluation)}</span>
+                            </div>
                           </div>
                         ))}
                       </div>
                       <p className="mt-3 rounded-2xl bg-black/20 p-3 text-xs leading-6 text-slate-300">التشخيص: {q1Evaluation ? q1Evaluation.feedback : 'لا توجد صورة مرفوعة لهذا السؤال؛ تُعرض الإجابة النصية دون تصحيح OCR.'}</p>
                     </div>
 
-                    <div className="rounded-3xl border border-cyan-300/30 bg-cyan-400/10 p-4">
+                      <div className="rounded-3xl border-2 p-4 transition-colors" style={{ borderColor: q2Tone.border, backgroundColor: q2Tone.background }}>
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
                           <div className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-cyan-200 bg-cyan-300/20 text-sm font-black text-cyan-100">س2</div>
                           <div>
                             <h3 className="text-base font-black">{exam.question2.title}</h3>
-                            <p className="text-[11px] text-cyan-200">إجابة السؤال والصورة الثانية</p>
+                            <p className="text-[11px]" style={{ color: q2Tone.accent }}>السؤال والجواب</p>
                           </div>
                         </div>
-                        <div className="flex h-12 w-12 flex-col items-center justify-center rounded-full border-2 border-emerald-300 bg-emerald-300/15 text-center">
-                          <span className="text-sm font-black text-emerald-100">{q2Evaluation?.success ? q2Evaluation.score : 0}</span>
-                          <span className="text-[9px] text-emerald-200">/{q2Max}</span>
+                        <div className="flex h-12 w-12 flex-col items-center justify-center rounded-full border-2 text-center" style={{ borderColor: q2Tone.border, backgroundColor: q2Tone.iconBackground }}>
+                          <span className="text-sm font-black" style={{ color: q2Tone.accent }}>{q2Evaluation?.success ? q2Evaluation.score : 0}</span>
+                          <span className="text-[9px]" style={{ color: q2Tone.accent }}>/{q2Max}</span>
                         </div>
                       </div>
                       {exam.question2.branches.map((branch) => (
-                        <div key={branch.id} className="mt-3 rounded-2xl border border-white/10 bg-black/20 p-3">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-xs font-black text-cyan-100">الفرع {branch.label}: {branch.prompt}</span>
+                          <div key={branch.id} className="mt-3 rounded-2xl border border-white/10 bg-black/20 p-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-start gap-2 text-xs font-black text-cyan-100">
+                              <MessageSquareText className="mt-0.5 h-4 w-4 shrink-0 text-cyan-200" />
+                              <span>السؤال: {branch.prompt}</span>
+                            </div>
                             <span className="shrink-0 rounded-full bg-white/10 px-2 py-1 text-[10px] font-black text-amber-200">{branch.points} درجات</span>
                           </div>
-                          <p className="mt-2 text-xs leading-6 text-slate-200">جواب الطالب: {formatStudentAnswer(branch.id, q2Evaluation)}</p>
+                          <div className="mt-2 flex items-start gap-2 text-xs leading-6" style={{ color: q2Tone.accent }}>
+                            <MessageSquareText className="mt-1 h-4 w-4 shrink-0" />
+                            <span>جواب الطالب: {formatStudentAnswer(branch.id, q2Evaluation)}</span>
+                          </div>
                         </div>
                       ))}
                       <p className="mt-3 rounded-2xl bg-black/20 p-3 text-xs leading-6 text-slate-300">التشخيص: {q2Evaluation ? q2Evaluation.feedback : 'لا توجد صورة مرفوعة لهذا السؤال؛ تُعرض الإجابة النصية دون تصحيح OCR.'}</p>
