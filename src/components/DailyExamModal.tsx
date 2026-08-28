@@ -43,7 +43,6 @@ interface DailyExamModalProps {
     lessonTitle: string;
     completedAt: string;
   }) => void;
-  guestTest?: boolean;
 }
 
 export const DailyExamModal: React.FC<DailyExamModalProps> = ({
@@ -57,7 +56,6 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
   onScoreUpdate,
   onAssessmentResult,
   onDailyExamCompleted,
-  guestTest = false,
 }) => {
   const { theme } = useAppTheme();
   const [exam, setExam] = useState<DailyExamConfig | null>(customExam || null);
@@ -248,7 +246,6 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
         branchPoints: q1TotalPoints,
         subject: exam.subject,
         lessonTitle: exam.lessonTitle,
-        guestTest,
       });
     }
 
@@ -264,7 +261,6 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
       branchPoints: branch.points,
       subject: exam.subject,
       lessonTitle: exam.lessonTitle,
-      guestTest,
     });
   };
 
