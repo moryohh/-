@@ -1,4 +1,3 @@
-import { getSupabaseAccessToken } from './authService';
 import {
   validateImageFile,
   generateSecureRandomFileName,
@@ -40,7 +39,7 @@ export interface ImageEvaluationResult {
   providerSlot?: string;
   failureCode?: string;
   failureReasons?: string[];
-  failureStage?: 'ocr' | 'deepseek' | 'comparison' | 'connection';
+  failureStage?: 'ocr' | 'connection';
   error?: string;
 }
 
@@ -114,6 +113,45 @@ function generateCurriculumEvaluation(
   };
 }
 
+function normalizeForLocalComparison(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[\u064B-\u065F\u0670]/g, '')
+    .replace(/[إأآا]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/ى/g, 'ي')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function compareExtractedText(extracted: string, modelAnswer: string, maxScore: number): {
+  score: number;
+  percentage: number;
+  feedback: string;
+  identifiedTextOrSteps: string[];
+  strengths: string[];
+  recommendations: string[];
+} {
+  const ignoredWords = new Set(['من', 'في', 'على', 'الى', 'إلى', 'عن', 'مع', 'هو', 'هي', 'هذا', 'هذه', 'ذلك', 'تكون', 'يكون', 'و', 'أو', 'ثم', 'أن', 'إن']);
+  const expectedTokens = new Set(normalizeForLocalComparison(modelAnswer).split(' ').filter((token) => token.length > 2 && !ignoredWords.has(token)));
+  const actualTokens = new Set(normalizeForLocalComparison(extracted).split(' ').filter((token) => token.length > 2 && !ignoredWords.has(token)));
+  let matches = 0;
+  for (const token of expectedTokens) if (actualTokens.has(token)) matches += 1;
+  const percentage = expectedTokens.size ? Math.min(100, Math.round((matches / expectedTokens.size) * 100)) : 0;
+  const score = Math.round((maxScore * percentage) / 100);
+  return {
+    score,
+    percentage,
+    feedback: percentage >= 75
+      ? 'تم استخراج النص ومقارنته مع عناصر الإجابة النموذجية داخل منصة A.'
+      : 'تم استخراج النص، لكن التطابق مع عناصر الإجابة النموذجية محدود أو غير موجود.',
+    identifiedTextOrSteps: extracted.trim() ? [extracted.trim().slice(0, 2000)] : [],
+    strengths: matches > 0 ? ['تم العثور على كلمات مفتاحية مشتركة مع الإجابة النموذجية.'] : [],
+    recommendations: ['تأكد من وضوح الصورة واكتمال عناصر الإجابة المطلوبة.'],
+  };
+}
+
 function getImageEvaluationEndpoint(): string {
   const env = (import.meta as any).env || {};
   const cOcrApi = String(env.VITE_C_OCR_API_URL || '').trim();
@@ -128,16 +166,10 @@ function localizeEvaluationError(rawMessage: unknown): string {
   const normalized = message.toLowerCase();
 
   if (!message || normalized.includes('failed to fetch') || normalized.includes('networkerror') || normalized.includes('load failed')) {
-    return 'تعذر الاتصال ببوابة C-OCR. تحقق من تسجيل الدخول واتصال الإنترنت ثم حاول مرة أخرى.';
+    return 'تعذر الاتصال ببوابة C-OCR. تحقق من اتصال الإنترنت ثم حاول مرة أخرى.';
   }
-  if (normalized.includes('auth_token_missing') || normalized.includes('لم يصل رمز جلسة الحساب')) {
-    return 'لم يصل رمز جلسة الحساب إلى C-OCR؛ لم تبدأ قراءة الصورة. سجّل الدخول إلى منصة A ثم أعد المحاولة.';
-  }
-  if (normalized.includes('auth_token_invalid') || normalized.includes('رفض c-ocr رمز') || normalized.includes('401') || normalized.includes('unauthorized') || normalized.includes('authentication') || normalized.includes('يجب تسجيل الدخول') || normalized.includes('جلسة المستخدم غير صالحة')) {
-    return 'رفض C-OCR رمز جلسة الحساب؛ لم تبدأ قراءة الصورة. سجّل الخروج ثم الدخول إلى A وأعد المحاولة.';
-  }
-  if (normalized.includes('403') || normalized.includes('forbidden')) {
-    return 'الطلب غير مسموح من جلسة الحساب الحالية. سجّل الدخول إلى منصة A ثم أعد المحاولة.';
+  if (normalized.includes('403') || normalized.includes('forbidden') || normalized.includes('source_not_allowed')) {
+    return 'الطلب غير مسموح لهذا المسار. استخدم رفع الصور من الاختبار اليومي أو الاختبار التعليمي فقط.';
   }
   if (normalized.includes('timeout') || normalized.includes('timed out')) {
     return 'استغرقت معالجة الصورة وقتًا أطول من المتوقع. حاول بصورة أوضح أو أعد المحاولة.';
@@ -171,7 +203,7 @@ function createEvaluationFailure(
     feedback: message,
     identifiedTextOrSteps: [],
     strengths: [],
-      recommendations: ['تحقق من حالة خدمة C-OCR وDeepSeek ثم أعد المحاولة.'],
+      recommendations: ['تحقق من حالة مساري OCR ثم أعد المحاولة بصورة واضحة.'],
     secureFileName,
     fileSize,
     evaluatedAt: new Date().toLocaleTimeString('ar-IQ'),
@@ -249,16 +281,10 @@ export async function submitSolutionImageForEvaluation(
     const requestId = `eval_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
     const maxScore = request.branchPoints || 5;
 
-    const accessToken = await getSupabaseAccessToken();
-    if (!accessToken) {
-      throw new Error('يجب تسجيل الدخول إلى منصة نحن معك قبل إرسال صورة الإجابة إلى خادم OCR|connection');
-    }
-
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'X-Secure-File-Name': secureFileName,
     };
-    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
 
     const response = await fetch(externalApiUrl, {
       method: 'POST',
@@ -270,11 +296,6 @@ export async function submitSolutionImageForEvaluation(
         fileName: secureFileName,
         mimeType: processedFile.type,
         imageBase64: base64Data,
-        questionText: questionPrompt,
-        modelAnswer,
-        subject: request.subject,
-        lesson: request.lessonTitle,
-        maxScore,
         language: 'ara',
       }),
     });
@@ -282,13 +303,9 @@ export async function submitSolutionImageForEvaluation(
     const resultJson = await response.json().catch(() => ({}));
     const result = resultJson?.result || resultJson;
     if (!response.ok || resultJson?.success === false) {
-      const failureStage: ImageEvaluationResult['failureStage'] = resultJson?.failure_stage === 'deepseek'
-        ? 'deepseek'
-        : resultJson?.failure_stage === 'comparison'
-          ? 'comparison'
-          : resultJson?.failure_stage === 'authentication'
-            ? 'connection'
-            : 'ocr';
+      const failureStage: ImageEvaluationResult['failureStage'] = resultJson?.failure_stage === 'authentication'
+        ? 'connection'
+        : 'ocr';
       const failureReasons = Array.isArray(resultJson?.failure_reasons)
         ? resultJson.failure_reasons
           .map((item: any) => `${item?.provider_slot || 'OCR'}: ${item?.reason || ''}`.trim())
@@ -311,10 +328,23 @@ export async function submitSolutionImageForEvaluation(
       );
     }
 
-    const percentage = Math.min(100, Math.max(0, Number(result.percentage ?? result.similarity_score ?? 0)));
+    const extractedText = typeof result.extracted_text === 'string'
+      ? result.extracted_text
+      : typeof result.extractedText === 'string'
+        ? result.extractedText
+        : typeof resultJson.extracted_text === 'string'
+          ? resultJson.extracted_text
+          : '';
+    const isOcrOnlyResponse = !result.score && !result.percentage && Boolean(extractedText.trim());
+    const localEvaluation = compareExtractedText(extractedText, modelAnswer, maxScore);
+    const percentage = isOcrOnlyResponse
+      ? localEvaluation.percentage
+      : Math.min(100, Math.max(0, Number(result.percentage ?? result.similarity_score ?? 0)));
     const safePercentage = Math.round(percentage);
     const safeMaxScore = Number(result.max_score ?? result.maxScore ?? maxScore) || maxScore;
-    const safeScore = Number(result.score ?? Math.round((safeMaxScore * safePercentage) / 100));
+    const safeScore = isOcrOnlyResponse
+      ? Math.min(safeMaxScore, localEvaluation.score)
+      : Number(result.score ?? Math.round((safeMaxScore * safePercentage) / 100));
     const statusLabel: ImageEvaluationResult['statusLabel'] = safePercentage >= 90
       ? 'ممتاز'
       : safePercentage >= 75
@@ -329,18 +359,18 @@ export async function submitSolutionImageForEvaluation(
       maxScore: safeMaxScore,
       percentage: safePercentage,
       statusLabel,
-      feedback: result.feedback || result.explanation || 'تم تقييم الإجابة عبر بوابة OCR.',
-      identifiedTextOrSteps: result.identifiedTextOrSteps || result.steps || (result.extracted_answer ? [result.extracted_answer] : []),
-      extractedText: typeof result.extracted_text === 'string' ? result.extracted_text : typeof result.extractedText === 'string' ? result.extractedText : '',
-      strengths: result.strengths || [],
-      recommendations: result.recommendations || [],
+      feedback: isOcrOnlyResponse ? localEvaluation.feedback : result.feedback || result.explanation || 'تم استخراج النص عبر بوابة OCR.',
+      identifiedTextOrSteps: isOcrOnlyResponse ? localEvaluation.identifiedTextOrSteps : result.identifiedTextOrSteps || result.steps || (result.extracted_answer ? [result.extracted_answer] : []),
+      extractedText,
+      strengths: isOcrOnlyResponse ? localEvaluation.strengths : result.strengths || [],
+      recommendations: isOcrOnlyResponse ? localEvaluation.recommendations : result.recommendations || [],
       secureFileName,
       fileSize,
       evaluatedAt: new Date().toLocaleTimeString('ar-IQ'),
       requestId: result.request_id || resultJson.request_id || requestId,
-      processingEngine: result.comparison_engine || resultJson.comparison_engine || resultJson.engine_used,
+      processingEngine: isOcrOnlyResponse ? 'local-keyword-comparison' : result.comparison_engine || resultJson.comparison_engine || resultJson.engine_used,
       providerSlot: result.ocr_provider || result.provider_slot || resultJson.ocr_provider || resultJson.provider_slot,
-      failureStage: resultJson.failure_stage === 'deepseek' ? 'deepseek' : resultJson.failure_stage === 'comparison' ? 'comparison' : undefined,
+      failureStage: undefined,
     };
   } catch (err: any) {
     console.error('[Evaluation Service] Error sending image to external evaluator:', err);
@@ -352,7 +382,7 @@ export async function submitSolutionImageForEvaluation(
       secureFileName,
       fileSize,
       localizeEvaluationError(message),
-      stage === 'deepseek' ? 'deepseek' : stage === 'comparison' ? 'comparison' : 'connection'
+      stage === 'ocr' ? 'ocr' : 'connection'
     );
   }
 }
