@@ -128,8 +128,11 @@ function localizeEvaluationError(rawMessage: unknown): string {
   if (!message || normalized.includes('failed to fetch') || normalized.includes('networkerror') || normalized.includes('load failed')) {
     return 'تعذر الاتصال ببوابة C-OCR. تحقق من تسجيل الدخول واتصال الإنترنت ثم حاول مرة أخرى.';
   }
-  if (normalized.includes('401') || normalized.includes('unauthorized') || normalized.includes('authentication') || normalized.includes('يجب تسجيل الدخول') || normalized.includes('جلسة المستخدم غير صالحة')) {
-    return 'لم يتم التحقق من جلسة الحساب؛ لم تبدأ قراءة الصورة. سجّل الدخول إلى منصة A ثم أعد المحاولة.';
+  if (normalized.includes('auth_token_missing') || normalized.includes('لم يصل رمز جلسة الحساب')) {
+    return 'لم يصل رمز جلسة الحساب إلى C-OCR؛ لم تبدأ قراءة الصورة. سجّل الدخول إلى منصة A ثم أعد المحاولة.';
+  }
+  if (normalized.includes('auth_token_invalid') || normalized.includes('رفض c-ocr رمز') || normalized.includes('401') || normalized.includes('unauthorized') || normalized.includes('authentication') || normalized.includes('يجب تسجيل الدخول') || normalized.includes('جلسة المستخدم غير صالحة')) {
+    return 'رفض C-OCR رمز جلسة الحساب؛ لم تبدأ قراءة الصورة. سجّل الخروج ثم الدخول إلى A وأعد المحاولة.';
   }
   if (normalized.includes('403') || normalized.includes('forbidden')) {
     return 'الطلب غير مسموح من جلسة الحساب الحالية. سجّل الدخول إلى منصة A ثم أعد المحاولة.';
@@ -271,14 +274,15 @@ export async function submitSolutionImageForEvaluation(
     const resultJson = await response.json().catch(() => ({}));
     const result = resultJson?.result || resultJson;
     if (!response.ok || resultJson?.success === false) {
-      const failureStage = resultJson?.failure_stage === 'deepseek' ? 'deepseek' : resultJson?.failure_stage === 'comparison' ? 'comparison' : 'ocr';
+      const failureStage = resultJson?.failure_stage === 'deepseek' ? 'deepseek' : resultJson?.failure_stage === 'comparison' ? 'comparison' : resultJson?.failure_stage === 'authentication' ? 'connection' : 'ocr';
       const failureReasons = Array.isArray(resultJson?.failure_reasons)
         ? resultJson.failure_reasons
           .map((item: any) => `${item?.provider_slot || 'OCR'}: ${item?.reason || ''}`.trim())
           .filter(Boolean)
           .join(' | ')
         : '';
-      throw new Error(`${failureReasons || resultJson?.error || `فشل تقييم الصورة في بوابة OCR (HTTP ${response.status})`}|${failureStage}`);
+      const responseCode = typeof resultJson?.code === 'string' ? resultJson.code : '';
+      throw new Error(`${responseCode} ${failureReasons || resultJson?.error || `فشل تقييم الصورة في بوابة OCR (HTTP ${response.status})`}|${failureStage}`.trim());
     }
 
     const percentage = Math.min(100, Math.max(0, Number(result.percentage ?? result.similarity_score ?? 0)));
