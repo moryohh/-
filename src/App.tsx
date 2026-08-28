@@ -165,6 +165,7 @@ function AppContent() {
   // Authentication state - Strictly driven by Supabase Auth sessions
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
+  const localGuestModeRef = React.useRef(false);
 
   // Main app state
   const [activeTab, setActiveTab] = useState<NavTab>('home');
@@ -205,6 +206,10 @@ function AppContent() {
     let isMounted = true;
     async function loadCommunity() {
       try {
+        if (currentUser?.isGuest) {
+          if (isMounted) setCommunityPosts([]);
+          return;
+        }
         const loadedPosts = await fetchCommunityPosts(currentUser?.id);
         if (isMounted) {
           setCommunityPosts(loadedPosts || []);
@@ -232,18 +237,28 @@ function AppContent() {
   // Toast feedback state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Initialize and listen to Auth state (Google OAuth and sessions)
+  // Initialize and listen to Auth state (Google OAuth, dev bypass, sessions)
   React.useEffect(() => {
     let isMounted = true;
     getInitialAuthState().then((user) => {
       if (isMounted) {
-        if (user) setCurrentUser(user);
+        if (user) {
+          localGuestModeRef.current = false;
+          setCurrentUser(user);
+        }
         setIsAuthChecking(false);
       }
     });
 
     const unsubscribe = onAuthStateChange((user) => {
       if (isMounted) {
+        // A local guest session intentionally has no Supabase session. Do not
+        // let Supabase's INITIAL_SESSION=null event remove it immediately.
+        if (!user && localGuestModeRef.current) {
+          setIsAuthChecking(false);
+          return;
+        }
+        if (user) localGuestModeRef.current = false;
         setCurrentUser(user);
         setIsAuthChecking(false);
       }
@@ -257,6 +272,7 @@ function AppContent() {
 
   const handleSignOut = async () => {
     await signOutUser();
+    localGuestModeRef.current = false;
     setCurrentUser(null);
     setActiveTab('home');
     setHomeSubView('main_home');
@@ -479,6 +495,7 @@ function AppContent() {
   };
 
   const handleAssessmentResult = async (correctPoints: number, totalPoints: number) => {
+    if (currentUser?.isGuest) return;
     const snapshot = await recordAssessmentResult(correctPoints, totalPoints);
     if (snapshot) applyCompetitionSnapshot(snapshot);
   };
@@ -513,7 +530,7 @@ function AppContent() {
 
   // Count only visible, recently active time. The database function enforces the 5-point daily cap.
   React.useEffect(() => {
-    if (!currentUser?.id) {
+    if (!currentUser?.id || currentUser.isGuest) {
       setCompetitionSnapshot(null);
       lastActivityPointsRef.current = null;
       activityBlockStartedAtRef.current = null;
@@ -571,7 +588,7 @@ function AppContent() {
   }, [currentUser?.id]);
 
   const handleScoreUpdate = async (points: number) => {
-    if (!currentUser || points <= 0) return;
+    if (!currentUser || currentUser.isGuest || points <= 0) return;
 
     const nextTotalPoints = (currentUser.points ?? 0) + points;
     const levelSnapshot = getLevelSnapshot(nextTotalPoints);
@@ -825,6 +842,7 @@ function AppContent() {
       <div className={`min-h-screen ${theme.classes.outerBg} ${theme.classes.textMain} flex flex-col items-center justify-center font-cairo`}>
         <Toast message={toastMessage} onClear={() => setToastMessage(null)} />
         <LoginPage onLoginSuccess={(user) => {
+          localGuestModeRef.current = Boolean(user.isGuest);
           setCurrentUser(user);
           showToast(`أهلاً بك يا ${user.name}`);
         }} />
@@ -1096,6 +1114,7 @@ function AppContent() {
           onDailyExamCompleted={handleDailyExamCompleted}
           playerAvatarUrl={currentUser?.avatarUrl}
             playerId={currentUser?.id}
+            guestTest={Boolean(currentUser?.isGuest)}
           />
         </React.Suspense>
       </GamesLoadBoundary>

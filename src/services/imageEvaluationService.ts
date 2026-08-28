@@ -19,6 +19,8 @@ export interface ImageEvaluationRequest {
   branchPoints?: number;
   subject?: string;
   lessonTitle?: string;
+  /** Temporary local guest mode; only for the short-lived OCR test path. */
+  guestTest?: boolean;
 }
 
 export interface ImageEvaluationResult {
@@ -241,8 +243,8 @@ export async function submitSolutionImageForEvaluation(
     const requestId = `eval_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
     const maxScore = request.branchPoints || 5;
 
-    const accessToken = await getSupabaseAccessToken();
-    if (!accessToken) {
+    const accessToken = request.guestTest ? null : await getSupabaseAccessToken();
+    if (!request.guestTest && !accessToken) {
       throw new Error('يجب تسجيل الدخول إلى منصة نحن معك قبل إرسال صورة الإجابة إلى خادم OCR|connection');
     }
 
@@ -259,6 +261,7 @@ export async function submitSolutionImageForEvaluation(
       body: JSON.stringify({
         request_id: requestId,
         source: request.source,
+        guest_test: request.guestTest === true,
         fileName: secureFileName,
         mimeType: processedFile.type,
         imageBase64: base64Data,
