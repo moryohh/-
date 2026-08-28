@@ -274,8 +274,6 @@ export interface LeaderboardEntry {
 
 export interface UserProfile {
   id: string;
-  /** Temporary local guest marker; never represents a Supabase account. */
-  isGuest?: boolean;
   email?: string;
   name: string;
   avatarUrl?: string;

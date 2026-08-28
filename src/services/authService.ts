@@ -177,21 +177,6 @@ export async function signInWithGoogle(): Promise<{ error?: string }> {
 /**
  * 2. Sign In With Email & Password (with strict verification)
  */
-export function createGuestProfile(): UserProfile {
-  return {
-    id: `guest-test-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
-    isGuest: true,
-    name: 'ضيف التجربة',
-    avatarUrl: FALLBACK_DEFAULT_AVATAR,
-    grade: 'السادس الإعدادي',
-    branch: 'الفرع العلمي',
-    level: 1,
-    points: 0,
-    studyHours: 0,
-    streakDays: 0,
-  };
-}
-
 export async function signInWithEmailPassword(
   email: string,
   pass: string
