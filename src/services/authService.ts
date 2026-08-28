@@ -371,22 +371,30 @@ export async function getSupabaseAccessToken(): Promise<string | null> {
   const client = getSupabaseClient();
   if (!client) return null;
 
-  try {
-    const { data, error } = await client.auth.getSession();
-    if (!error && data.session?.access_token) {
-      return data.session.access_token;
+  // Mobile browsers can finish the sign-in callback a moment after the
+  // profile is rendered. Give Supabase a few short opportunities to expose
+  // the persisted session, but never create or bypass a token.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const { data, error } = await client.auth.getSession();
+      if (!error && data.session?.access_token) {
+        return data.session.access_token;
+      }
+
+      const { data: refreshed, error: refreshError } = await client.auth.refreshSession();
+      if (!refreshError && refreshed.session?.access_token) {
+        return refreshed.session.access_token;
+      }
+    } catch (err) {
+      console.debug('Could not read or refresh Supabase access token:', err);
     }
 
-    // A mobile browser can briefly keep the user profile visible while the
-    // access token is being refreshed. Refresh only when getSession did not
-    // provide a usable token; never bypass authentication or create a token.
-    const { data: refreshed, error: refreshError } = await client.auth.refreshSession();
-    if (refreshError) return null;
-    return refreshed.session?.access_token || null;
-  } catch (err) {
-    console.debug('Could not read or refresh Supabase access token:', err);
-    return null;
+    if (attempt < 2) {
+      await new Promise((resolve) => window.setTimeout(resolve, 250));
+    }
   }
+
+  return null;
 }
 
 export function onAuthStateChange(callback: (user: UserProfile | null) => void) {

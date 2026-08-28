@@ -37,6 +37,7 @@ export interface ImageEvaluationResult {
   evaluatedAt: string;
   requestId?: string;
   processingEngine?: string;
+  providerSlot?: string;
   failureStage?: 'ocr' | 'deepseek' | 'comparison' | 'connection';
   error?: string;
 }
@@ -127,8 +128,8 @@ function localizeEvaluationError(rawMessage: unknown): string {
   if (!message || normalized.includes('failed to fetch') || normalized.includes('networkerror') || normalized.includes('load failed')) {
     return 'تعذر الاتصال ببوابة C-OCR. تحقق من تسجيل الدخول واتصال الإنترنت ثم حاول مرة أخرى.';
   }
-  if (normalized.includes('401') || normalized.includes('unauthorized') || normalized.includes('authentication')) {
-    return 'لم يتم التحقق من جلسة الحساب. سجّل الدخول إلى منصة A ثم أعد المحاولة.';
+  if (normalized.includes('401') || normalized.includes('unauthorized') || normalized.includes('authentication') || normalized.includes('يجب تسجيل الدخول') || normalized.includes('جلسة المستخدم غير صالحة')) {
+    return 'لم يتم التحقق من جلسة الحساب؛ لم تبدأ قراءة الصورة. سجّل الدخول إلى منصة A ثم أعد المحاولة.';
   }
   if (normalized.includes('403') || normalized.includes('forbidden')) {
     return 'الطلب غير مسموح من جلسة الحساب الحالية. سجّل الدخول إلى منصة A ثم أعد المحاولة.';
@@ -308,6 +309,8 @@ export async function submitSolutionImageForEvaluation(
       evaluatedAt: new Date().toLocaleTimeString('ar-IQ'),
       requestId: result.request_id || resultJson.request_id || requestId,
       processingEngine: result.comparison_engine || resultJson.comparison_engine || resultJson.engine_used,
+      providerSlot: result.ocr_provider || result.provider_slot || resultJson.ocr_provider || resultJson.provider_slot,
+      failureStage: resultJson.failure_stage === 'deepseek' ? 'deepseek' : resultJson.failure_stage === 'comparison' ? 'comparison' : undefined,
     };
   } catch (err: any) {
     console.error('[Evaluation Service] Error sending image to external evaluator:', err);

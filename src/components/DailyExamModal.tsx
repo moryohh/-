@@ -568,6 +568,17 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
               const finalTone = getScoreTone(finalPercentage);
               const q1Tone = getScoreTone(getEvaluationPercentage(q1Evaluation, q1Max));
               const q2Tone = getScoreTone(getEvaluationPercentage(q2Evaluation, q2Max));
+              const getProviderLabel = (evaluation: ImageEvaluationResult | null) => {
+                if (!evaluation?.providerSlot) return '';
+                if (evaluation.providerSlot.includes('vercel')) return 'المسار: Vercel';
+                if (evaluation.providerSlot.includes('cloudflare')) return 'المسار: Cloudflare';
+                return `المسار: ${evaluation.providerSlot}`;
+              };
+              const getEvaluationDiagnosis = (evaluation: ImageEvaluationResult | null) => {
+                if (!evaluation) return 'لم تُرفع صورة لهذا السؤال؛ لا توجد قراءة OCR.';
+                if (!evaluation.success) return evaluation.feedback || 'تم رفع الصورة، لكن لم تبدأ قراءة OCR.';
+                return `${evaluation.feedback || 'تمت قراءة الصورة وتقييمها.'}${getProviderLabel(evaluation) ? ` — ${getProviderLabel(evaluation)}` : ''}`;
+              };
               return (
                 <>
                   <div className="flex items-start justify-between gap-3 border-b border-white/10 pb-4">
@@ -615,7 +626,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
                           <div className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-indigo-200 bg-indigo-300/20 text-sm font-black text-indigo-100">س1</div>
                           <div>
                             <h3 className="text-base font-black">{exam.question1.title}</h3>
-                            <p className="text-[11px]" style={{ color: q1Tone.accent }}>السؤال والجواب</p>
+                            <p className="text-[11px]" style={{ color: q1Tone.accent }}>السؤال والجواب {getProviderLabel(q1Evaluation) ? `• ${getProviderLabel(q1Evaluation)}` : ''}</p>
                           </div>
                         </div>
                         <div className="flex h-12 w-12 flex-col items-center justify-center rounded-full border-2 text-center" style={{ borderColor: q1Tone.border, backgroundColor: q1Tone.iconBackground }}>
@@ -640,7 +651,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
                           </div>
                         ))}
                       </div>
-                      <p className="mt-3 rounded-2xl bg-black/20 p-3 text-xs leading-6 text-slate-300">التشخيص: {q1Evaluation ? q1Evaluation.feedback : 'لا توجد صورة مرفوعة لهذا السؤال؛ تُعرض الإجابة النصية دون تصحيح OCR.'}</p>
+                      <p className="mt-3 rounded-2xl bg-black/20 p-3 text-xs leading-6 text-slate-300">التشخيص: {getEvaluationDiagnosis(q1Evaluation)}</p>
                     </div>
 
                       <div className="rounded-3xl border-2 p-4 transition-colors" style={{ borderColor: q2Tone.border, backgroundColor: q2Tone.background }}>
@@ -649,7 +660,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
                           <div className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-cyan-200 bg-cyan-300/20 text-sm font-black text-cyan-100">س2</div>
                           <div>
                             <h3 className="text-base font-black">{exam.question2.title}</h3>
-                            <p className="text-[11px]" style={{ color: q2Tone.accent }}>السؤال والجواب</p>
+                            <p className="text-[11px]" style={{ color: q2Tone.accent }}>السؤال والجواب {getProviderLabel(q2Evaluation) ? `• ${getProviderLabel(q2Evaluation)}` : ''}</p>
                           </div>
                         </div>
                         <div className="flex h-12 w-12 flex-col items-center justify-center rounded-full border-2 text-center" style={{ borderColor: q2Tone.border, backgroundColor: q2Tone.iconBackground }}>
@@ -672,7 +683,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
                           </div>
                         </div>
                       ))}
-                      <p className="mt-3 rounded-2xl bg-black/20 p-3 text-xs leading-6 text-slate-300">التشخيص: {q2Evaluation ? q2Evaluation.feedback : 'لا توجد صورة مرفوعة لهذا السؤال؛ تُعرض الإجابة النصية دون تصحيح OCR.'}</p>
+                      <p className="mt-3 rounded-2xl bg-black/20 p-3 text-xs leading-6 text-slate-300">التشخيص: {getEvaluationDiagnosis(q2Evaluation)}</p>
                     </div>
                   </div>
 
