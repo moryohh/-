@@ -35,6 +35,14 @@ export async function uploadEducationalData(
   records: EducationalDataRecord | EducationalDataRecord[],
   tableName = 'educational_data'
 ): Promise<UploadResult> {
+  const allowedTables = new Set(['educational_data', 'lessons_warehouse']);
+  if (!allowedTables.has(tableName)) {
+    return {
+      success: false,
+      insertedCount: 0,
+      error: 'اسم الجدول غير مسموح به.',
+    };
+  }
   const client = getSupabaseClient();
   if (!client) {
     return {
@@ -96,6 +104,14 @@ export async function uploadToWarehouse(
   records: JsonWarehouseRecord | JsonWarehouseRecord[],
   targetTable: 'json_files' | 'lessons_warehouse' = 'lessons_warehouse'
 ): Promise<UploadResult> {
+  const allowedTables = new Set(['json_files', 'lessons_warehouse']);
+  if (!allowedTables.has(targetTable)) {
+    return {
+      success: false,
+      insertedCount: 0,
+      error: 'اسم الجدول غير مسموح به.',
+    };
+  }
   const client = getSupabaseClient();
   if (!client) {
     return {

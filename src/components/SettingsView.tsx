@@ -501,16 +501,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenProfile, onBac
 
                 const { data: wareData, error: wareErr, count: wareCount } = await client
                   .from('lessons_warehouse')
-                  .select('*', { count: 'exact' })
+                  .select('id, subject, chapter, lesson_title, file_name, uploaded_at', { count: 'exact' })
                   .limit(10);
 
                 const { data: profData, error: profErr, count: profCount } = await client
                   .from('profiles')
-                  .select('id, email, full_name', { count: 'exact' })
+                  .select('id', { count: 'exact' })
                   .limit(5);
 
                 setDbTestResult({
-                  success: !eduErr || !wareErr,
+                  success: !eduErr && !wareErr && !profErr,
                   educational_data: {
                     count: eduCount ?? (eduData?.length || 0),
                     sample: eduData || [],
@@ -552,7 +552,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenProfile, onBac
               <>
                 <div className="text-emerald-400 font-sans font-bold flex items-center gap-1.5">
                   <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  <span>تم فحص جداول Supabase بنجاح:</span>
+                  <span>{dbTestResult.success ? 'تم فحص جداول Supabase بنجاح:' : 'اكتمل الفحص مع وجود أخطاء في بعض الجداول:'}</span>
                 </div>
                 <div className="text-xs space-y-1 text-slate-300 font-sans">
                   <div>

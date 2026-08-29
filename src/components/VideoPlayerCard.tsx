@@ -66,7 +66,7 @@ export const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
   useEffect(() => {
     if (isPaused) {
       if (iframeRef.current) {
-        iframeRef.current.contentWindow?.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+        iframeRef.current.contentWindow?.postMessage('{"event":"command","func":"pauseVideo","args":""}', 'https://www.youtube.com');
       }
       setIsPlaying(false);
     }
@@ -114,7 +114,7 @@ export const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
       isMounted = false;
       // Stop playback on unmount
       if (iframeRef.current) {
-        iframeRef.current.contentWindow?.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+        iframeRef.current.contentWindow?.postMessage('{"event":"command","func":"pauseVideo","args":""}', 'https://www.youtube.com');
       }
     };
   }, [lesson.id, validYoutubeId, lesson.category, openLessonContext?.subjectId, openLessonContext?.chapterNumber, openLessonContext?.lessonNumber, openLessonContext?.lessonId]);
@@ -155,7 +155,7 @@ export const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
 
   const handleNavigateToMap = () => {
     if (iframeRef.current) {
-      iframeRef.current.contentWindow?.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+      iframeRef.current.contentWindow?.postMessage('{"event":"command","func":"pauseVideo","args":""}', 'https://www.youtube.com');
     }
     setIsPlaying(false);
     onBackToMap?.();
@@ -163,7 +163,7 @@ export const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
 
   const handleNavigateToGames = () => {
     if (iframeRef.current) {
-      iframeRef.current.contentWindow?.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+      iframeRef.current.contentWindow?.postMessage('{"event":"command","func":"pauseVideo","args":""}', 'https://www.youtube.com');
     }
     setIsPlaying(false);
     onOpenGames?.();
@@ -190,7 +190,8 @@ export const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
                   className="w-full h-full border-0 pointer-events-auto"
                   src={`https://www.youtube.com/embed/${validYoutubeId}?autoplay=1&controls=1&modestbranding=1&rel=0&showinfo=0&playsinline=1&enablejsapi=1`}
                   title={lesson.title}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  referrerPolicy="strict-origin-when-cross-origin"
                   allowFullScreen
                 />
 
