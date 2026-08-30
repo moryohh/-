@@ -15,11 +15,15 @@ declare global {
 export function usePwaInstallPrompt(enabled: boolean) {
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [isIos, setIsIos] = useState(false);
 
   useEffect(() => {
     const standalone = window.matchMedia('(display-mode: standalone)').matches;
     const iosStandalone = Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
+    const iosDevice = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     setIsInstalled(standalone || iosStandalone);
+    setIsIos(iosDevice);
 
     const handleBeforeInstallPrompt = (event: BeforeInstallPromptEvent) => {
       event.preventDefault();
@@ -52,7 +56,10 @@ export function usePwaInstallPrompt(enabled: boolean) {
   }, [installEvent]);
 
   return {
+    // Chromium exposes beforeinstallprompt; iOS Safari requires manual Share > Add to Home Screen.
     canInstall: enabled && !isInstalled && Boolean(installEvent),
+    canShowInstallControl: enabled && !isInstalled && (Boolean(installEvent) || isIos),
+    isIos,
     requestInstall,
   };
 }
