@@ -25,6 +25,7 @@ import { MillionaireAuthenticIcon, TrueFalseAuthenticIcon, GibhaSahAuthenticIcon
 import { gameAudio } from '../utils/gameAudio';
 import { fetchLessonGamesData, LessonGamesBundle } from '../services/gamesService';
 import { useAppTheme } from '../services/themeService';
+import { ScientificText } from './ScientificText';
 
 interface LessonGamesModalProps {
   isOpen: boolean;
@@ -512,7 +513,7 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
                       {currentGame.title}
                     </span>
                     <h4 className="text-xs sm:text-sm font-bold text-white leading-relaxed">
-                      {currentGame.question}
+                      <ScientificText value={currentGame.question} />
                     </h4>
                   </div>
 
@@ -544,7 +545,7 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
                           onClick={() => handleSelectOption(idx)}
                           className={`w-full p-3.5 rounded-2xl border text-xs text-right transition-all flex items-center justify-between ${buttonStyle}`}
                         >
-                          <span className="leading-relaxed">{option}</span>
+                          <span className="leading-relaxed"><ScientificText value={option} /></span>
                           {isAnswered && isCorrect && (
                             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mr-2" />
                           )}
@@ -564,7 +565,7 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
                         الشرح والتوضيح:
                       </span>
                       <p className="text-gray-300 leading-relaxed text-[11px]">
-                        {currentGame.explanation}
+                        <ScientificText value={currentGame.explanation} />
                       </p>
                     </div>
                   )}

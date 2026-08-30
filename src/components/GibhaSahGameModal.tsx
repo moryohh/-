@@ -24,6 +24,7 @@ import {
 } from '../data/mockGibhaSah';
 import { gameAudio } from '../utils/gameAudio';
 import { getImageChoiceReward } from '../services/pointsService';
+import { ScientificText } from './ScientificText';
 
 interface GibhaSahGameModalProps {
   isOpen: boolean;
@@ -808,7 +809,7 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
 
                   {/* Question Text */}
                   <h4 className="text-xs sm:text-base font-bold text-white leading-relaxed text-center relative z-10 px-1">
-                    {currentQ.question}
+                    <ScientificText value={currentQ.question} />
                   </h4>
 
                   {/* Selection Confirmation Bar */}
@@ -951,7 +952,7 @@ export const GibhaSahGameModal: React.FC<GibhaSahGameModalProps> = ({
                     className="p-2.5 rounded-xl border border-white/10 bg-[#08121f] text-[11px] flex items-center justify-between"
                   >
                     <div className="space-y-0.5 max-w-[80%]">
-                      <span className="line-clamp-1 font-bold text-gray-200">{item.question.question}</span>
+                      <span className="line-clamp-1 font-bold text-gray-200"><ScientificText value={item.question.question} /></span>
                       <span className="text-[9px] text-gray-400">
                         الفائز بها: {item.winningUser}
                       </span>

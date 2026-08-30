@@ -19,6 +19,7 @@ import { TrueFalseGameConfig, TrueFalseQuestion, getTrueFalseGameForLesson } fro
 import { gameAudio } from '../utils/gameAudio';
 import { TrueFalseAuthenticIcon } from './GameIcons';
 import { getTrueFalseReward } from '../services/pointsService';
+import { ScientificText } from './ScientificText';
 
 interface TrueFalseGameModalProps {
   isOpen: boolean;
@@ -415,7 +416,7 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
                 </div>
 
                 <h4 className="text-base sm:text-lg font-black text-white leading-[2] pt-1 drop-shadow-sm">
-                  "{currentQ.question}"
+                  <ScientificText value={currentQ.question} />
                 </h4>
               </div>
 
@@ -501,7 +502,7 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
                   </div>
 
                   <p className="text-[11px] text-gray-200 leading-relaxed pt-0.5">
-                    {currentQ.explanation}
+                      <ScientificText value={currentQ.explanation} />
                   </p>
                 </div>
               )}
@@ -563,11 +564,11 @@ export const TrueFalseGameModal: React.FC<TrueFalseGameModalProps> = ({
                     }`}
                   >
                     <div className="flex items-center justify-between font-bold">
-                      <span>س {idx + 1}: {item.question.question}</span>
+                      <span>س {idx + 1}: <ScientificText value={item.question.question} /></span>
                       <span>{item.isCorrect ? '✓ صحيح' : '✗ خطأ'}</span>
                     </div>
                     <p className="text-[10px] text-gray-400 leading-normal">
-                      💡 {item.question.explanation}
+                      💡 <ScientificText value={item.question.explanation} />
                     </p>
                   </div>
                 ))}

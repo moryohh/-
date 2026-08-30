@@ -34,6 +34,7 @@ import { MillionaireGameConfig, MillionaireQuestion, StudentGameResult } from '.
 import { getMillionaireGameForLesson } from '../data/mockMillionaire';
 import { gameAudio } from '../utils/gameAudio';
 import { getMillionaireReward } from '../services/pointsService';
+import { ScientificText } from './ScientificText';
 
 interface MillionaireGameModalProps {
   isOpen: boolean;
@@ -1736,7 +1737,7 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
                   className="relative bg-gradient-to-b from-[#071339] via-[#040c26] to-[#071339] border-2 border-[#2049a4] rounded-2xl sm:rounded-3xl p-4 sm:p-6 text-center shadow-[0_0_35px_rgba(18,48,128,0.5)] flex flex-col justify-center min-h-[110px] sm:min-h-[130px]"
                 >
                   <div className="text-sm sm:text-lg font-black text-white leading-relaxed">
-                    {currentQuestion.question}
+                    <ScientificText value={currentQuestion.question} />
                   </div>
                   {gameMode === 'multiplayer' && !isYourTurn && (
                     <div className="mt-2 text-xs font-bold text-cyan-300 flex items-center justify-center gap-1.5 animate-pulse">
@@ -1794,7 +1795,7 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
                             <span className="text-[#F3C64A] font-black text-sm shrink-0">
                               {getOptionPrefix(idx)}
                             </span>
-                            <span className="font-semibold leading-relaxed">{optionText}</span>
+                            <span className="font-semibold leading-relaxed"><ScientificText value={optionText} /></span>
                           </div>
 
                           {/* Opponent Locked Choice Tag */}
@@ -1858,7 +1859,7 @@ export const MillionaireGameModal: React.FC<MillionaireGameModalProps> = ({
                     </div>
 
                     <p className="text-xs text-blue-100 leading-relaxed bg-[#040a1d] p-2.5 sm:p-3 rounded-xl border border-blue-900/50">
-                      {currentQuestion.explanation}
+                      <ScientificText value={currentQuestion.explanation} />
                     </p>
 
                     {/* Handover Notice Alert inside Answer Panel if active */}

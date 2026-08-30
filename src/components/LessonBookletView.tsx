@@ -17,6 +17,7 @@ import {
   BookletItemList,
 } from '../data/lessonBooklet';
 import { useAppTheme } from '../services/themeService';
+import { ScientificText } from './ScientificText';
 
 interface LessonBookletViewProps {
   bookletData?: LessonBookletData | null;
@@ -112,7 +113,7 @@ export const LessonBookletView: React.FC<LessonBookletViewProps> = ({
     if (val === null || val === undefined) return null;
 
     if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') {
-      return String(val);
+      return <ScientificText value={String(val)} />;
     }
 
     if (Array.isArray(val)) {
@@ -203,7 +204,7 @@ export const LessonBookletView: React.FC<LessonBookletViewProps> = ({
             theme.isLight ? 'text-emerald-950 font-medium' : 'text-emerald-100'
           }`}
         >
-          {answer}
+          <ScientificText value={answer} />
         </p>
       );
     }
