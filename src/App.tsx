@@ -36,6 +36,7 @@ import { MainHomeView } from './components/MainHomeView';
 import { SubjectLearningPathView } from './components/SubjectLearningPathView';
 import { GRADE_6_SUBJECTS } from './data/mockSubjects';
 import { Toast } from './components/Toast';
+import { PwaInstallBanner } from './components/PwaInstallBanner';
 import { cleanTeacherName } from './utils/cleanTeacherName';
 import { ThemeProvider, useAppTheme } from './services/themeService';
 import { LoginPage } from './components/LoginPage';
@@ -1099,6 +1100,10 @@ function AppContent() {
           />
         </React.Suspense>
       </GamesLoadBoundary>
+      <PwaInstallBanner
+        isAuthenticated={Boolean(currentUser)}
+        isHome={activeTab === 'home' && homeSubView === 'main_home'}
+      />
     </div>
   );
 }
