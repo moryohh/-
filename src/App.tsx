@@ -40,6 +40,7 @@ import { PwaInstallBanner } from './components/PwaInstallBanner';
 import { cleanTeacherName } from './utils/cleanTeacherName';
 import { ThemeProvider, useAppTheme } from './services/themeService';
 import { LoginPage } from './components/LoginPage';
+import { DailyExamModal } from './components/DailyExamModal';
 import {
   getInitialAuthState,
   onAuthStateChange,
@@ -228,6 +229,7 @@ function AppContent() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isTeacherInfoOpen, setIsTeacherInfoOpen] = useState(false);
   const [isGamesOpen, setIsGamesOpen] = useState(false);
+  const [isDailyExamOpen, setIsDailyExamOpen] = useState(false);
 
 
   // Toast feedback state
@@ -894,6 +896,7 @@ function AppContent() {
           onOpenNotifications={() => setIsNotificationsOpen(true)}
           onOpenProfile={() => setActiveTab('profile')}
           onOpenGames={() => setIsGamesOpen(true)}
+          onOpenExams={() => setIsDailyExamOpen(true)}
         />
 
         {/* Tab Content Router */}
@@ -1100,6 +1103,19 @@ function AppContent() {
           />
         </React.Suspense>
       </GamesLoadBoundary>
+
+      <DailyExamModal
+        isOpen={isDailyExamOpen}
+        onClose={() => setIsDailyExamOpen(false)}
+        lessonId={openLessonContext?.lessonId || lesson.id}
+        lessonTitle={openLessonContext?.lessonTitle || lesson.title}
+        category={openLessonContext?.subjectId || lesson.category}
+        openLessonContext={openLessonContext}
+        onScoreUpdate={handleScoreUpdate}
+        onAssessmentResult={handleAssessmentResult}
+        onDailyExamCompleted={handleDailyExamCompleted}
+      />
+
       <PwaInstallBanner
         isAuthenticated={Boolean(currentUser)}
         isHome={activeTab === 'home' && homeSubView === 'main_home'}
