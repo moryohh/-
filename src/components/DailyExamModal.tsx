@@ -379,25 +379,25 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
   const totalEvaluatedCount = validEvaluations.length;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-end sm:items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200 font-cairo select-none">
+    <div className="fixed inset-0 z-50 bg-[#272631]/70 backdrop-blur-md flex items-end sm:items-center justify-center p-1.5 sm:p-4 animate-in fade-in duration-200 font-cairo select-none">
       <div
-        className="w-full max-w-3xl rounded-3xl p-3.5 sm:p-6 shadow-2xl text-right relative max-h-[95vh] flex flex-col transition-all duration-300 border-2"
+        className="w-full max-w-2xl rounded-[1.75rem] overflow-hidden shadow-2xl text-right relative max-h-[95vh] flex flex-col transition-all duration-300 border"
         style={{
-          backgroundColor: theme.colors.bgCard,
-          borderColor: `${theme.colors.primary}60`,
-          boxShadow: `0 0 35px ${theme.colors.glow}`,
-          color: theme.classes.textMain,
+          backgroundColor: '#F8F7F2',
+          borderColor: '#E2DDD2',
+          boxShadow: '0 22px 70px rgba(28, 27, 36, 0.32)',
+          color: '#29272E',
         }}
       >
         {/* ======================================================== */}
         {/* MODAL TOP BAR */}
         {/* ======================================================== */}
-        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+        <div className="flex items-center justify-between gap-3 border-b border-[#E2DDD2] bg-[#F8F7F2] px-4 py-3.5 sm:px-6">
           <div className="flex items-center gap-3">
             <DailyExamAuthenticIcon className="w-11 h-11" />
             <div>
               <div className="flex items-center gap-2">
-                <h3 className={`text-base sm:text-lg font-black ${theme.classes.textMain}`}>
+                <h3 className="text-base sm:text-lg font-black text-[#29272E]">
                   الامتحان اليومي الوزاري ✍️
                 </h3>
                 <span
@@ -411,7 +411,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
                   سؤالان منهجيان
                 </span>
               </div>
-              <p className={`text-[11px] ${theme.classes.textMuted} mt-0.5`}>
+              <p className="mt-0.5 text-[11px] text-[#77727C]">
                 {category} • {lessonTitle}
               </p>
             </div>
@@ -442,7 +442,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
             <button
               onClick={onClose}
               disabled={submitState === 'processing'}
-              className={`p-1.5 rounded-full ${theme.classes.cardSubtleBg} text-gray-300 hover:text-white border ${theme.classes.cardBorder} transition-colors cursor-pointer disabled:pointer-events-none disabled:opacity-40`}
+              className="rounded-full border border-[#DAD4C8] bg-[#ECE9E2] p-2 text-[#625D66] transition-colors hover:bg-[#E3DED4] hover:text-[#29272E] disabled:pointer-events-none disabled:opacity-40"
             >
               <X className="w-5 h-5" />
             </button>
@@ -723,13 +723,13 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
         {/* ======================================================== */}
         {/* MODAL MAIN CONTENT BODY */}
         {/* ======================================================== */}
-        <div className="flex-1 overflow-y-auto py-3.5 space-y-5 pr-1 no-scrollbar">
+        <div className="flex-1 overflow-y-auto bg-[#F1F2F5] px-3 py-4 sm:px-5 space-y-4 pr-1 no-scrollbar">
 
 
           {isLoading || !exam ? (
             <div className="py-20 text-center space-y-3">
               <div className="w-10 h-10 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto" />
-              <p className="text-xs text-purple-300 font-semibold">
+              <p className="text-xs font-semibold text-[#6A568D]">
                 جاري إعداد وتجهيز سبورة الامتحان اليومي...
               </p>
             </div>
@@ -738,8 +738,8 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-300/40 bg-amber-400/10 text-amber-300">
                 <FileCheck2 className="h-8 w-8" />
               </div>
-              <h3 className={`text-lg font-black ${theme.classes.textMain}`}>الاختبار اليومي غير متوفر</h3>
-              <p className={`mx-auto max-w-md text-sm leading-7 ${theme.classes.textMuted}`}>
+              <h3 className="text-lg font-black text-[#2E2B34]">الاختبار اليومي غير متوفر</h3>
+              <p className="mx-auto max-w-md text-sm leading-7 text-[#6F6A73]">
                 لا يوجد ملف منهج أو أسئلة اختبارية لهذا الدرس حاليًا. يرجى رفع ملف JSON الخاص بالدرس أولًا.
               </p>
               <button
@@ -753,36 +753,36 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
           ) : (
             <>
               {/* Exam Info Strip */}
-              <div className="bg-gradient-to-r from-[#1b1531] via-[#151028] to-[#1b1531] border border-purple-500/30 rounded-2xl px-4 py-2.5 flex items-center justify-between text-xs text-gray-300 font-semibold shadow-inner">
+              <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#E4DFD5] bg-white px-4 py-3 text-xs font-semibold text-[#67636B] shadow-sm">
                 <div className="flex items-center gap-3">
                   <span>
-                    المادة: <b className="text-purple-300">{exam.subject}</b>
+                    المادة: <b className="text-[#65478E]">{exam.subject}</b>
                   </span>
                   <span>•</span>
                   <span>
-                    الدرجة الكلية: <b className="text-amber-400">{exam.totalPoints} درجة</b>
+                    الدرجة الكلية: <b className="text-[#9A6A16]">{exam.totalPoints} درجة</b>
                   </span>
                 </div>
-                <div className="text-[11px] text-sky-300 bg-sky-950/40 border border-sky-500/30 px-2.5 py-0.5 rounded-lg">
+                <div className="rounded-lg border border-[#D9DFEC] bg-[#F1F3F8] px-2.5 py-1 text-[11px] text-[#5B6276]">
                   الزمن المقرر: {exam.durationMinutes} دقيقة
                 </div>
               </div>
 
               {/* Status Alert when Finished */}
               {isSubmitted && (
-                <div className="bg-emerald-500/15 border border-emerald-500/30 rounded-2xl p-3.5 flex items-center justify-between text-xs text-emerald-300 animate-in fade-in">
+                <div className="flex items-center justify-between rounded-2xl border border-[#BFE1C8] bg-[#F0FAF2] p-3.5 text-xs text-[#3F7A50] animate-in fade-in">
                   <div className="flex items-center gap-2 font-bold">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                    <CheckCircle2 className="h-5 w-5 shrink-0 text-[#3D9A58]" />
                     <div>
-                      <p className="font-black text-sm text-emerald-200">تم تسليم الامتحان بنجاح!</p>
-                      <p className="text-[11px] text-emerald-300/80 mt-0.5">
+                      <p className="text-sm font-black text-[#27653A]">تم تسليم الامتحان بنجاح!</p>
+                      <p className="mt-0.5 text-[11px] text-[#568466]">
                         تم كشف دليل الأجوبة النموذجية للمراجعة والتصحيح الذاتي بالأسفل.
                       </p>
                     </div>
                   </div>
                   <button
                     onClick={handleRestartExam}
-                    className="flex items-center gap-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border border-emerald-500/30"
+                    className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-[#BFE1C8] bg-[#E1F3E5] px-3 py-1.5 text-xs font-bold text-[#357448] transition-all hover:bg-[#D4EDDA]"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                     <span>إعادة الاختبار</span>
@@ -792,15 +792,15 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
 
               {/* Evaluated Images Score Bar */}
               {totalEvaluatedCount > 0 && (
-                <div className="bg-gradient-to-r from-amber-500/15 via-purple-500/15 to-amber-500/15 border border-amber-500/30 rounded-2xl p-3 flex items-center justify-between text-xs text-amber-300 animate-in fade-in">
+                <div className="flex items-center justify-between rounded-2xl border border-[#E8D5A8] bg-[#FFF9EA] p-3 text-xs text-[#8B681F] animate-in fade-in">
                   <div className="flex items-center gap-2 font-bold">
-                    <Award className="w-4 h-4 text-amber-400 shrink-0" />
+                    <Award className="h-4 w-4 shrink-0 text-[#B4872C]" />
                     <span>
                       تم تصحيح {totalEvaluatedCount} سؤال ورقي • درجاتك المحصلة:{' '}
-                      <b className="text-white font-black underline">{totalEarnedPoints}</b> من {exam.totalPoints} درجة
+                      <b className="font-black text-[#4B3B20] underline">{totalEarnedPoints}</b> من {exam.totalPoints} درجة
                     </span>
                   </div>
-                  <span className="text-[10px] bg-amber-400 text-black font-black px-2 py-0.5 rounded-lg">
+                  <span className="rounded-lg bg-[#E8C56B] px-2 py-0.5 text-[10px] font-black text-[#4B3B20]">
                     {Math.round((totalEarnedPoints / (Number(exam.totalPoints) || 1)) * 100)}%
                   </span>
                 </div>
@@ -810,7 +810,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
               {/* 1. FIRST WHITEBOARD / السبورة الأولى (السؤال الأول) */}
               {/* ONE SHARED CAMERA / PHOTO UPLOAD FOR BOTH DEFINITIONS */}
               {/* ======================================================== */}
-              <div className="rounded-3xl border-2 border-[#E5DEC9] bg-[#FAF6E8] shadow-2xl overflow-hidden text-slate-900 transition-all">
+              <div className="overflow-hidden rounded-[1.35rem] border border-[#DED5C3] bg-[#FAF6E8] text-slate-900 shadow-[0_8px_24px_rgba(93,77,46,0.12)] transition-all">
                 {/* Hidden Camera Input for Q1 */}
                 <input
                   type="file"
@@ -853,14 +853,14 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
                     <button
                       type="button"
                       onClick={() => q1FileInputRef.current?.click()}
-                      className="group flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-b from-[#2E284A] to-[#1E1938] hover:from-[#3A335C] hover:to-[#272146] text-white text-xs font-black shadow-md border border-purple-900/60 hover:border-amber-400/70 transition-all cursor-pointer active:scale-95 shrink-0"
+                      className="group flex shrink-0 cursor-pointer items-center gap-2 rounded-xl border border-[#76539E] bg-[#65478E] px-3.5 py-1.5 text-xs font-black text-white shadow-md transition-all hover:bg-[#563A7D] hover:border-[#B391D3] active:scale-95"
                       title="تصوير ورقة إجابة السؤال الأول بالكامل بكاميرا الهاتف"
                     >
-                      <div className="w-5 h-5 rounded-md bg-amber-400/20 border border-amber-400/40 flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <Camera className="w-3 h-3 text-amber-300" />
+                      <div className="flex h-5 w-5 items-center justify-center rounded-md bg-white/15 transition-transform group-hover:scale-110">
+                        <Camera className="h-3 w-3 text-white" />
                       </div>
                       <span>
-                        {questionImages.q1 ? 'تغيير صورة الحل' : '📸 تصوير ورقة الحل'}
+                        {questionImages.q1 ? 'تغيير صورة الحل' : 'تصوير ورقة الحل'}
                       </span>
                     </button>
 
@@ -909,7 +909,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
                           <textarea
                             value={draft}
                             onChange={(e) => handleDraftChange(branch.id, e.target.value)}
-                            placeholder="✍️ دوّن إجابتك هنا على أسطر السبورة أو التقط صورة واحدة للحل من الزر بالأعلى..."
+                            placeholder="الإجابة:"
                             rows={2}
                             className="w-full bg-transparent text-slate-900 placeholder-[#8C8370] font-semibold text-xs sm:text-sm leading-[30px] focus:outline-none resize-y"
                           />
@@ -989,7 +989,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
                 return (
                   <div
                     key={branch.id}
-                    className="rounded-3xl border-2 border-[#E5DEC9] bg-[#FAF6E8] shadow-2xl overflow-hidden text-slate-900 transition-all"
+                    className="overflow-hidden rounded-[1.35rem] border border-[#DED5C3] bg-[#FAF6E8] text-slate-900 shadow-[0_8px_24px_rgba(93,77,46,0.12)] transition-all"
                   >
                     {/* Hidden Camera Input for Q2 */}
                     <input
@@ -1033,14 +1033,14 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
                         <button
                           type="button"
                           onClick={() => q2FileInputRef.current?.click()}
-                          className="group flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-b from-[#2E284A] to-[#1E1938] hover:from-[#3A335C] hover:to-[#272146] text-white text-xs font-black shadow-md border border-purple-900/60 hover:border-amber-400/70 transition-all cursor-pointer active:scale-95 shrink-0"
+                          className="group flex shrink-0 cursor-pointer items-center gap-2 rounded-xl border border-[#76539E] bg-[#65478E] px-3.5 py-1.5 text-xs font-black text-white shadow-md transition-all hover:bg-[#563A7D] hover:border-[#B391D3] active:scale-95"
                           title="تصوير ورقة إجابة السؤال الثاني بكاميرا الهاتف"
                         >
-                          <div className="w-5 h-5 rounded-md bg-amber-400/20 border border-amber-400/40 flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <Camera className="w-3 h-3 text-amber-300" />
+                          <div className="flex h-5 w-5 items-center justify-center rounded-md bg-white/15 transition-transform group-hover:scale-110">
+                            <Camera className="h-3 w-3 text-white" />
                           </div>
                           <span>
-                            {questionImages.q2 ? 'تغيير صورة الحل' : '📸 تصوير ورقة الحل'}
+                            {questionImages.q2 ? 'تغيير صورة الحل' : 'تصوير ورقة الحل'}
                           </span>
                         </button>
 
@@ -1082,7 +1082,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
                         <textarea
                           value={draft}
                           onChange={(e) => handleDraftChange(branch.id, e.target.value)}
-                          placeholder="✍️ اكتب إجابتك النموذجية وشرحك المفصل هنا على أسطر دفتر الإجابة..."
+                          placeholder="الإجابة:"
                           rows={6}
                           className="w-full bg-transparent text-slate-900 placeholder-[#8C8370] font-semibold text-xs sm:text-sm leading-[30px] focus:outline-none resize-y"
                         />
@@ -1151,10 +1151,10 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
         {/* MODAL FOOTER ACTIONS */}
         {/* ======================================================== */}
         {exam?.isAvailable && (
-          <div className="border-t border-white/10 pt-3 flex items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-3 border-t border-[#E2DDD2] bg-[#F8F7F2] px-4 pb-4 pt-3 sm:px-6">
             <button
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 text-xs font-bold transition-all cursor-pointer"
+              className="cursor-pointer rounded-xl border border-[#DAD4C8] bg-[#ECE9E2] px-4 py-2.5 text-xs font-bold text-[#625D66] transition-all hover:bg-[#E3DED4]"
             >
               إغلاق
             </button>
@@ -1162,7 +1162,7 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
             <button
               onClick={handleSubmitExam}
               disabled={submitState !== 'idle' || isSubmitted}
-              className="flex-1 py-2.5 px-4 bg-gradient-to-r from-purple-600 via-indigo-500 to-purple-600 hover:from-purple-500 hover:to-indigo-400 text-white font-black rounded-xl shadow-lg shadow-purple-600/30 flex items-center justify-center gap-2 text-xs transition-all active:scale-98 cursor-pointer disabled:pointer-events-none disabled:opacity-50"
+              className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#65478E] px-4 py-2.5 text-xs font-black text-white shadow-lg shadow-[#65478E]/25 transition-all hover:bg-[#563A7D] active:scale-98 disabled:pointer-events-none disabled:opacity-50"
             >
               {submitState === 'processing' ? <Loader2 className="w-4 h-4 animate-spin" /> : <PenTool className="w-4 h-4" />}
               <span>
