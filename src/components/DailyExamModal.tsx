@@ -4,24 +4,19 @@ import {
   ArrowRight,
   Clock,
   CheckCircle2,
-  RotateCcw,
-  Award,
   PenTool,
   Camera,
   Trash2,
   Loader2,
   FileCheck2,
   ImageIcon,
-  MessageSquareText,
 } from 'lucide-react';
 import { DailyExamConfig, fetchDailyExamForLesson } from '../services/dailyExamService';
-import { DailyExamAuthenticIcon } from './GameIcons';
 import { gameAudio } from '../utils/gameAudio';
 import {
   submitSolutionImageForEvaluation,
   ImageEvaluationResult,
 } from '../services/imageEvaluationService';
-import { useAppTheme } from '../services/themeService';
 import { OpenLessonContext } from '../types';
 import { getDailyExamReward } from '../services/pointsService';
 
@@ -57,7 +52,6 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
   onAssessmentResult,
   onDailyExamCompleted,
 }) => {
-  const { theme } = useAppTheme();
   const [exam, setExam] = useState<DailyExamConfig | null>(customExam || null);
   const [isLoading, setIsLoading] = useState(false);
   const [examRound, setExamRound] = useState(0);
@@ -379,792 +373,384 @@ export const DailyExamModal: React.FC<DailyExamModalProps> = ({
   const totalEvaluatedCount = validEvaluations.length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#101117]/85 p-0 font-cairo backdrop-blur-md animate-in fade-in duration-200 select-none sm:items-center sm:p-4">
-      <div
-        className="relative flex max-h-[calc(100vh-0.5rem)] w-full max-w-3xl flex-col overflow-hidden rounded-[2.1rem] border-2 text-right shadow-2xl transition-all duration-300 sm:max-h-[95vh]"
-        style={{
-          backgroundColor: '#FFFFFF',
-          borderColor: '#A7DCEA',
-          boxShadow: '0 22px 70px rgba(28, 27, 36, 0.32)',
-          color: '#29272E',
-        }}
-      >
-        {/* ======================================================== */}
-        {/* MODAL TOP BAR */}
-        {/* ======================================================== */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#DCE5E7] bg-white px-4 py-4 sm:flex-nowrap sm:px-6 sm:py-5">
-          <div className="flex items-center gap-3">
-            <DailyExamAuthenticIcon className="h-14 w-14 sm:h-16 sm:w-16" />
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="flex flex-col text-lg font-black leading-[1.15] text-[#14283D] sm:text-2xl">
-                  <span>الامتحان</span>
-                  <span>اليومي الوزاري</span>
-                </h3>
-                <span
-                  className="rounded-full border border-[#A7DCEA] bg-[#E5F5FA] px-2.5 py-1 text-[10px] font-black text-[#2183A1]"
-                  style={{
-                    backgroundColor: '#E5F5FA',
-                    borderColor: '#A7DCEA',
-                    color: '#2183A1',
-                  }}
-                >
-                  سؤالان منهجيان
-                </span>
-              </div>
-              <p className="mt-0.5 text-[11px] text-[#77727C]">
-                {category} • {lessonTitle}
-              </p>
-            </div>
-          </div>
+    <div className="fixed inset-0 z-50 bg-[#302f3f] font-cairo" dir="rtl">
+      <div className="relative flex h-[100dvh] w-full flex-col overflow-hidden bg-[#f8f7f1] text-[#29282b]">
+        <div
+          className="pointer-events-none absolute inset-y-0 right-[11%] z-0 w-px bg-[#d87878]/45"
+          aria-hidden="true"
+        />
 
-          <div className="flex items-center gap-2.5 sm:gap-3">
-            {/* Timer Badge */}
-            <div
-              className={`flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-mono font-black transition-all ${
-                timeLeft < 180
-                  ? 'animate-pulse border-rose-300 bg-rose-50 text-rose-600'
-                  : 'border-[#A7DCEA] bg-[#E5F5FA] text-[#2183A1]'
-              }`}
-            >
-              <Clock className="w-3.5 h-3.5" />
-              <span>{formatTime(timeLeft)}</span>
-            </div>
-
-            <button
-              onClick={onClose}
-              disabled={submitState === 'processing'}
-              className="rounded-full border border-[#D8E4E8] bg-[#F3F8FA] p-2 text-[#9BA9B0] transition-colors hover:bg-[#E8F1F4] hover:text-[#52636B] disabled:pointer-events-none disabled:opacity-40"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-
-        {/* ======================================================== */}
-        {/* SUBMISSION STATES */}
-        {/* ======================================================== */}
-        {submitState === 'confirming' && (
-          <div className="absolute inset-0 z-40 flex items-center justify-center rounded-3xl bg-slate-950/90 p-5 text-center backdrop-blur-sm">
-            <div className="w-full max-w-md rounded-3xl border border-amber-300/40 bg-slate-900 p-6 shadow-2xl">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-400/15 text-amber-300">
-                <FileCheck2 className="h-7 w-7" />
-              </div>
-              <h3 className="text-lg font-black text-white">تأكيد تسليم الامتحان</h3>
-              <p className="mt-3 text-sm leading-7 text-slate-300">
-                بعد التأكيد ستبدأ معالجة صور الإجابات، ولن تستطيع إرسال الامتحان مرة أخرى أثناء المعالجة.
-              </p>
-              <p className="mt-2 text-xs font-bold text-amber-200">
-                الصور المختارة: {[questionImages.q1, questionImages.q2].filter(Boolean).length}
-              </p>
-              <div className="mt-5 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSubmitState('idle');
-                    setIsTimerRunning(true);
-                  }}
-                  className="rounded-2xl border border-slate-500/60 bg-slate-800 px-3 py-3 text-xs font-black text-slate-200 transition hover:bg-slate-700"
-                >
-                  مراجعة الإجابات
-                </button>
-                <button
-                  type="button"
-                  onClick={confirmSubmitExam}
-                  className="rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 px-3 py-3 text-xs font-black text-slate-950 transition hover:brightness-110"
-                >
-                  تأكيد وإرسال
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {submitState === 'processing' && (
-          <div className="absolute inset-0 z-40 flex items-center justify-center rounded-3xl bg-slate-950/95 p-5 text-center backdrop-blur-sm">
-            <div className="w-full max-w-md rounded-3xl border border-cyan-300/30 bg-slate-900 p-7 shadow-2xl">
-              <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-cyan-400/15 text-cyan-300">
-                <Loader2 className="h-8 w-8 animate-spin" />
-              </div>
-              <h3 className="text-xl font-black text-white">{['جارٍ جلب النتيجة', 'جارٍ التدقيق في الصور', 'جارٍ التصحيح وحساب الدرجة'][processingPhase]}</h3>
-              <p className="mt-3 text-sm leading-7 text-slate-300">
-                تم استلام إجابتك. يرجى الانتظار وعدم إغلاق الاختبار حتى تكتمل المراحل الثلاث.
-              </p>
-              <div className="mt-5 space-y-2 text-right">
-                {['جلب النتيجة', 'التدقيق في الصور', 'التصحيح وحساب الدرجة'].map((phase, index) => (
-                  <div key={phase} className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition ${index === processingPhase ? 'bg-cyan-300/20 text-cyan-100' : index < processingPhase ? 'bg-emerald-300/10 text-emerald-200' : 'bg-white/5 text-slate-500'}`}>
-                    <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] ${index <= processingPhase ? 'bg-cyan-300 text-slate-950' : 'bg-slate-700 text-slate-400'}`}>
-                      {index < processingPhase ? '✓' : index + 1}
-                    </span>
-                    {index === processingPhase ? `جارٍ ${phase}` : index < processingPhase ? `اكتمل ${phase}` : phase}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {submitState === 'completed' && exam && (
-          <div className="absolute inset-0 z-50 flex flex-col rounded-3xl bg-slate-950/98 p-4 sm:p-6 text-right text-white backdrop-blur-md">
-            {(() => {
-              // Only an evaluation tied to an image from this submission is
-              // allowed to affect the result screen. This is a final guard
-              // against displaying stale authentication/OCR errors.
-              const q1Evaluation = questionImages.q1 ? evaluatedQuestions.q1 : null;
-              const q2Evaluation = questionImages.q2 ? evaluatedQuestions.q2 : null;
-              const visibleEvaluations: Record<'q1' | 'q2', ImageEvaluationResult | null> = {
-                q1: q1Evaluation,
-                q2: q2Evaluation,
-              };
-              const finalScore = getResultsTotal(visibleEvaluations);
-              const finalTotal = Number(exam.totalPoints) || 1;
-              const finalPercentage = Math.round((finalScore / finalTotal) * 100);
-              const q1Max = exam.question1.branches.reduce((acc, branch) => acc + branch.points, 0);
-              const q2Max = exam.question2.branches.reduce((acc, branch) => acc + branch.points, 0);
-              const cleanAnswerText = (value: string) => value
-                .replace(/--- OCR Start ---|--- OCR End ---/g, '')
-                .replace(/\s+/g, ' ')
-                .trim()
-                .slice(0, 1800);
-              const formatStudentAnswer = (branchId: string, evaluation: ImageEvaluationResult | null) => {
-                const draft = studentDrafts[branchId]?.trim();
-                if (draft) return draft;
-                if (evaluation?.identifiedTextOrSteps?.length) return cleanAnswerText(evaluation.identifiedTextOrSteps.join(' '));
-                if (evaluation?.extractedText?.trim()) return cleanAnswerText(evaluation.extractedText);
-                if (evaluation && !evaluation.success) return 'تم رفع الصورة، لكن لم يُستخرج منها نص قابل للتقييم.';
-                return 'لم تُرفع صورة أو إجابة لهذا السؤال.';
-              };
-              const getEvaluationPercentage = (evaluation: ImageEvaluationResult | null, max: number) => {
-                if (!evaluation) return 0;
-                if (Number.isFinite(evaluation.percentage)) return Math.max(0, Math.min(100, Math.round(evaluation.percentage)));
-                return Math.max(0, Math.min(100, Math.round(((evaluation.score || 0) / Math.max(1, max)) * 100)));
-              };
-              const getScoreTone = (percentage: number) => {
-                if (percentage < 50) {
-                  return {
-                    border: '#fb7185',
-                    background: 'rgba(127, 29, 29, 0.28)',
-                    accent: '#fecdd3',
-                    iconBackground: 'rgba(244, 63, 94, 0.2)',
-                    label: 'يحتاج مراجعة',
-                  };
-                }
-                if (percentage <= 75) {
-                  return {
-                    border: '#facc15',
-                    background: 'rgba(113, 63, 18, 0.28)',
-                    accent: '#fef08a',
-                    iconBackground: 'rgba(234, 179, 8, 0.2)',
-                    label: 'متوسط',
-                  };
-                }
-                return {
-                  border: '#4ade80',
-                  background: 'rgba(20, 83, 45, 0.3)',
-                  accent: '#bbf7d0',
-                  iconBackground: 'rgba(34, 197, 94, 0.2)',
-                  label: 'جيد',
-                };
-              };
-              const finalTone = getScoreTone(finalPercentage);
-              const q1Tone = getScoreTone(getEvaluationPercentage(q1Evaluation, q1Max));
-              const q2Tone = getScoreTone(getEvaluationPercentage(q2Evaluation, q2Max));
-              const getProviderLabel = (evaluation: ImageEvaluationResult | null) => {
-                if (!evaluation?.providerSlot) return '';
-                if (evaluation.providerSlot.includes('vercel')) return 'المسار: Vercel';
-                if (evaluation.providerSlot.includes('cloudflare')) return 'المسار: Cloudflare';
-                return `المسار: ${evaluation.providerSlot}`;
-              };
-              const getEvaluationDiagnosis = (evaluation: ImageEvaluationResult | null) => {
-                if (!evaluation) return 'لم تُرفع صورة لهذا السؤال؛ لا توجد قراءة OCR.';
-                if (!evaluation.success) {
-                  const details = [
-                    evaluation.feedback || 'تم رفع الصورة، لكن لم تبدأ قراءة OCR.',
-                    getProviderLabel(evaluation),
-                    evaluation.failureCode ? `رمز التشخيص: ${evaluation.failureCode}` : '',
-                    evaluation.failureReasons?.length ? `المحاولات: ${evaluation.failureReasons.join(' | ')}` : '',
-                  ].filter(Boolean);
-                  return details.join(' — ');
-                }
-                return `${evaluation.feedback || 'تمت قراءة الصورة وتقييمها.'}${getProviderLabel(evaluation) ? ` — ${getProviderLabel(evaluation)}` : ''}`;
-              };
-              return (
-                <>
-                  <div className="flex items-start justify-between gap-3 border-b border-white/10 pb-4">
-                    <div>
-                      <p className="text-xs font-bold text-cyan-300">النتيجة النهائية للاختبار اليومي</p>
-                      <h2 className="mt-1 text-xl font-black">{exam.subject} — {exam.lessonTitle}</h2>
-                      <p className="mt-1 text-xs text-slate-400">
-                        تاريخ التسليم: {completedAt ? new Date(completedAt).toLocaleString('ar-IQ') : 'الآن'}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={onClose}
-                        className="flex items-center gap-1.5 rounded-2xl border border-cyan-300/40 bg-cyan-300/10 px-3 py-2 text-xs font-black text-cyan-100 transition hover:bg-cyan-300/20"
-                      >
-                        <ArrowRight className="h-4 w-4" />
-                        <span>العودة</span>
-                      </button>
-                      <div
-                        className="flex h-20 w-20 shrink-0 flex-col items-center justify-center rounded-full border-4 text-center shadow-lg"
-                        style={{ borderColor: finalTone.border, backgroundColor: finalTone.background, boxShadow: `0 0 18px ${finalTone.border}55` }}
-                      >
-                        <span className="text-xl font-black" style={{ color: finalTone.accent }}>{finalPercentage}</span>
-                        <span className="text-[10px] font-bold" style={{ color: finalTone.accent }}>من 100</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 grid grid-cols-2 gap-2">
-                    <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-3 text-center">
-                      <p className="text-[11px] font-bold text-amber-200">درجتك في الامتحان</p>
-                      <p className="mt-1 text-xl font-black text-white">{finalScore} / {finalTotal}</p>
-                    </div>
-                    <div className="rounded-2xl border border-cyan-300/30 bg-cyan-300/10 p-3 text-center">
-                      <p className="text-[11px] font-bold text-cyan-200">نسبة الإنجاز</p>
-                      <p className="mt-1 text-xl font-black text-white">{finalPercentage}%</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 flex-1 space-y-3 overflow-y-auto pr-1">
-                      <div className="rounded-3xl border-2 p-4 transition-colors" style={{ borderColor: q1Tone.border, backgroundColor: q1Tone.background }}>
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-indigo-200 bg-indigo-300/20 text-sm font-black text-indigo-100">س1</div>
-                          <div>
-                            <h3 className="text-base font-black">{exam.question1.title}</h3>
-                            <p className="text-[11px]" style={{ color: q1Tone.accent }}>السؤال والجواب {getProviderLabel(q1Evaluation) ? `• ${getProviderLabel(q1Evaluation)}` : ''}</p>
-                          </div>
-                        </div>
-                        <div className="flex h-12 w-12 flex-col items-center justify-center rounded-full border-2 text-center" style={{ borderColor: q1Tone.border, backgroundColor: q1Tone.iconBackground }}>
-                          <span className="text-sm font-black" style={{ color: q1Tone.accent }}>{q1Evaluation?.success ? q1Evaluation.score : 0}</span>
-                          <span className="text-[9px]" style={{ color: q1Tone.accent }}>/{q1Max}</span>
-                        </div>
-                      </div>
-                      <div className="mt-3 space-y-2">
-                        {exam.question1.branches.map((branch) => (
-                          <div key={branch.id} className="rounded-2xl border border-white/10 bg-black/20 p-3">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex items-start gap-2 text-xs font-black text-indigo-100">
-                                <MessageSquareText className="mt-0.5 h-4 w-4 shrink-0 text-indigo-200" />
-                                <span>السؤال: {branch.prompt}</span>
-                              </div>
-                              <span className="shrink-0 rounded-full bg-white/10 px-2 py-1 text-[10px] font-black text-amber-200">{branch.points} درجات</span>
-                            </div>
-                            <div className="mt-2 flex items-start gap-2 text-xs leading-6" style={{ color: q1Tone.accent }}>
-                              <MessageSquareText className="mt-1 h-4 w-4 shrink-0" />
-                              <span>جواب الطالب: {formatStudentAnswer(branch.id, q1Evaluation)}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      <p className="mt-3 rounded-2xl bg-black/20 p-3 text-xs leading-6 text-slate-300">التشخيص: {getEvaluationDiagnosis(q1Evaluation)}</p>
-                    </div>
-
-                      <div className="rounded-3xl border-2 p-4 transition-colors" style={{ borderColor: q2Tone.border, backgroundColor: q2Tone.background }}>
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-cyan-200 bg-cyan-300/20 text-sm font-black text-cyan-100">س2</div>
-                          <div>
-                            <h3 className="text-base font-black">{exam.question2.title}</h3>
-                            <p className="text-[11px]" style={{ color: q2Tone.accent }}>السؤال والجواب {getProviderLabel(q2Evaluation) ? `• ${getProviderLabel(q2Evaluation)}` : ''}</p>
-                          </div>
-                        </div>
-                        <div className="flex h-12 w-12 flex-col items-center justify-center rounded-full border-2 text-center" style={{ borderColor: q2Tone.border, backgroundColor: q2Tone.iconBackground }}>
-                          <span className="text-sm font-black" style={{ color: q2Tone.accent }}>{q2Evaluation?.success ? q2Evaluation.score : 0}</span>
-                          <span className="text-[9px]" style={{ color: q2Tone.accent }}>/{q2Max}</span>
-                        </div>
-                      </div>
-                      {exam.question2.branches.map((branch) => (
-                          <div key={branch.id} className="mt-3 rounded-2xl border border-white/10 bg-black/20 p-3">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-start gap-2 text-xs font-black text-cyan-100">
-                              <MessageSquareText className="mt-0.5 h-4 w-4 shrink-0 text-cyan-200" />
-                              <span>السؤال: {branch.prompt}</span>
-                            </div>
-                            <span className="shrink-0 rounded-full bg-white/10 px-2 py-1 text-[10px] font-black text-amber-200">{branch.points} درجات</span>
-                          </div>
-                          <div className="mt-2 flex items-start gap-2 text-xs leading-6" style={{ color: q2Tone.accent }}>
-                            <MessageSquareText className="mt-1 h-4 w-4 shrink-0" />
-                            <span>جواب الطالب: {formatStudentAnswer(branch.id, q2Evaluation)}</span>
-                          </div>
-                        </div>
-                      ))}
-                      <p className="mt-3 rounded-2xl bg-black/20 p-3 text-xs leading-6 text-slate-300">التشخيص: {getEvaluationDiagnosis(q2Evaluation)}</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 flex items-center justify-between gap-3 border-t border-white/10 pt-4">
-                    <p className="text-xs font-bold text-emerald-200">تم تسجيل النتيجة في إشعارات الحساب.</p>
-                    <button
-                      type="button"
-                      onClick={onClose}
-                      className="rounded-2xl bg-gradient-to-r from-emerald-400 to-cyan-300 px-5 py-3 text-xs font-black text-slate-950 transition hover:brightness-110"
-                    >
-                      إغلاق والعودة
-                    </button>
-                  </div>
-                </>
-              );
-            })()}
-          </div>
-        )}
-
-        {/* ======================================================== */}
-        {/* MODAL MAIN CONTENT BODY */}
-        {/* ======================================================== */}
-        <div className="flex-1 overflow-y-auto bg-[#F8F9FA] px-3 py-4 sm:px-5 space-y-4 pr-1 no-scrollbar">
-
-
-          {isLoading || !exam ? (
-            <div className="py-20 text-center space-y-3">
-              <div className="w-10 h-10 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto" />
-              <p className="text-xs font-semibold text-[#6A568D]">
-                جاري إعداد وتجهيز سبورة الامتحان اليومي...
-              </p>
-            </div>
-          ) : !exam.isAvailable ? (
-            <div className="py-20 text-center space-y-4">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-300/40 bg-amber-400/10 text-amber-300">
-                <FileCheck2 className="h-8 w-8" />
-              </div>
-              <h3 className="text-lg font-black text-[#2E2B34]">الاختبار اليومي غير متوفر</h3>
-              <p className="mx-auto max-w-md text-sm leading-7 text-[#6F6A73]">
-                لا يوجد ملف منهج أو أسئلة اختبارية لهذا الدرس حاليًا. يرجى رفع ملف JSON الخاص بالدرس أولًا.
-              </p>
+        <div className="relative z-10 flex min-h-0 flex-1 flex-col">
+          <header className="shrink-0 border-b border-[#dedbd0] bg-[#f8f7f1]/95 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] shadow-sm backdrop-blur">
+            <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3">
               <button
                 type="button"
                 onClick={onClose}
-                className="mx-auto rounded-2xl bg-gradient-to-r from-purple-500 to-indigo-500 px-6 py-3 text-xs font-black text-white transition-transform active:scale-95"
+                disabled={submitState === 'processing'}
+                aria-label="إغلاق الاختبار"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#cfcac0] bg-[#efede4] text-[#403d42] transition hover:bg-[#e4e1d7] active:scale-95 disabled:pointer-events-none disabled:opacity-40"
               >
-                حسنًا
+                <X className="h-5 w-5" />
               </button>
-            </div>
-          ) : (
-            <>
-              {/* Exam Info Strip */}
-              <div className="grid grid-cols-3 items-center gap-1 rounded-[1.7rem] border border-[#382A59] bg-[#1E1636] px-2 py-3 text-center text-white shadow-[0_7px_18px_rgba(30,22,54,0.2)] sm:px-4">
-                <div className="min-w-0 px-1">
-                  <p className="text-[10px] font-bold text-[#C7B4DE] sm:text-xs">المادة</p>
-                  <p className="mt-0.5 truncate text-xs font-black text-[#E0C7FF] sm:text-sm">{exam.subject}</p>
-                </div>
-                <div className="min-w-0 border-x border-[#51436B] px-1">
-                  <p className="text-[10px] font-bold text-[#C7B4DE] sm:text-xs">الدرجة الكلية</p>
-                  <p className="mt-0.5 text-xs font-black text-[#FFD52C] sm:text-sm">{exam.totalPoints} <span className="text-[10px]">درجة</span></p>
-                </div>
-                <div className="min-w-0 px-1">
-                  <p className="text-[10px] font-bold text-[#9FDCF6] sm:text-xs">الزمن المقرر</p>
-                  <p className="mt-0.5 text-xs font-black text-[#B5E7FA] sm:text-sm">{exam.durationMinutes} <span className="text-[10px]">دقيقة</span></p>
-                </div>
+
+              <div className="min-w-0 flex-1 text-center">
+                <p className="text-[11px] font-bold text-[#766f68]">اختبار يومي</p>
+                <h1 className="truncate text-base font-black text-[#2f2d31] sm:text-lg">
+                  {lessonTitle || 'الاختبار اليومي'}
+                </h1>
               </div>
 
-              {/* Status Alert when Finished */}
-              {isSubmitted && (
-                <div className="flex items-center justify-between rounded-2xl border border-[#BFE1C8] bg-[#F0FAF2] p-3.5 text-xs text-[#3F7A50] animate-in fade-in">
-                  <div className="flex items-center gap-2 font-bold">
-                    <CheckCircle2 className="h-5 w-5 shrink-0 text-[#3D9A58]" />
-                    <div>
-                      <p className="text-sm font-black text-[#27653A]">تم تسليم الامتحان بنجاح!</p>
-                      <p className="mt-0.5 text-[11px] text-[#568466]">
-                        تم كشف دليل الأجوبة النموذجية للمراجعة والتصحيح الذاتي بالأسفل.
-                      </p>
-                    </div>
-                  </div>
+              <div className="flex h-10 min-w-[76px] items-center justify-center gap-1 rounded-full border border-[#cfc7bd] bg-[#efede4] px-2 text-sm font-black text-[#3d3940]">
+                <Clock className="h-4 w-4 text-[#6c4b88]" />
+                <span>{formatTime(timeLeft)}</span>
+              </div>
+            </div>
+          </header>
+
+          {submitState === 'confirming' && (
+            <div className="absolute inset-0 z-40 flex items-center justify-center bg-[#302f3f]/60 p-4 backdrop-blur-sm">
+              <div className="w-full max-w-sm border border-[#d8d2c7] bg-[#fbfaf4] p-6 text-center shadow-2xl">
+                <FileCheck2 className="mx-auto mb-3 h-9 w-9 text-[#6c4b88]" />
+                <h2 className="text-lg font-black text-[#302d34]">تأكيد تسليم الامتحان</h2>
+                <p className="mt-2 text-sm leading-7 text-[#6f6963]">
+                  بعد التأكيد ستبدأ معالجة الصور ولن تستطيع إرسال الامتحان مرة أخرى أثناء المعالجة.
+                </p>
+                <p className="mt-2 text-xs font-bold text-[#6c4b88]">
+                  الصور المرفوعة: {[questionImages.q1, questionImages.q2].filter(Boolean).length}
+                </p>
+                <div className="mt-5 grid grid-cols-2 gap-2">
                   <button
-                    onClick={handleRestartExam}
-                    className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-[#BFE1C8] bg-[#E1F3E5] px-3 py-1.5 text-xs font-bold text-[#357448] transition-all hover:bg-[#D4EDDA]"
+                    type="button"
+                    onClick={() => {
+                      setSubmitState('idle');
+                      setIsTimerRunning(true);
+                    }}
+                    className="border border-[#cfcac0] bg-[#efede4] px-3 py-3 text-xs font-black text-[#4b474b] transition hover:bg-[#e4e1d7]"
                   >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    <span>إعادة الاختبار</span>
+                    مراجعة الإجابات
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmSubmitExam}
+                    className="bg-[#6c4b88] px-3 py-3 text-xs font-black text-white transition hover:bg-[#5b3d76] active:scale-[0.98]"
+                  >
+                    تأكيد وإرسال
                   </button>
                 </div>
-              )}
+              </div>
+            </div>
+          )}
 
-              {/* Evaluated Images Score Bar */}
-              {totalEvaluatedCount > 0 && (
-                <div className="flex items-center justify-between rounded-2xl border border-[#E8D5A8] bg-[#FFF9EA] p-3 text-xs text-[#8B681F] animate-in fade-in">
-                  <div className="flex items-center gap-2 font-bold">
-                    <Award className="h-4 w-4 shrink-0 text-[#B4872C]" />
-                    <span>
-                      تم تصحيح {totalEvaluatedCount} سؤال ورقي • درجاتك المحصلة:{' '}
-                      <b className="font-black text-[#4B3B20] underline">{totalEarnedPoints}</b> من {exam.totalPoints} درجة
-                    </span>
-                  </div>
-                  <span className="rounded-lg bg-[#E8C56B] px-2 py-0.5 text-[10px] font-black text-[#4B3B20]">
-                    {Math.round((totalEarnedPoints / (Number(exam.totalPoints) || 1)) * 100)}%
-                  </span>
-                </div>
-              )}
-
-              {/* ======================================================== */}
-              {/* 1. FIRST WHITEBOARD / السبورة الأولى (السؤال الأول) */}
-              {/* ONE SHARED CAMERA / PHOTO UPLOAD FOR BOTH DEFINITIONS */}
-              {/* ======================================================== */}
-              <div className="overflow-hidden rounded-[1.75rem] border-2 border-[#E1D7BF] bg-[#FAF6E8] text-slate-900 shadow-[0_8px_24px_rgba(93,77,46,0.12)] transition-all">
-                {/* Hidden Camera Input for Q1 */}
-                <input
-                  type="file"
-                  ref={q1FileInputRef}
-                  accept="image/*"
-                  capture="environment"
-                  className="hidden"
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      handleImageSelected('q1', e.target.files[0]);
-                    }
-                  }}
-                />
-
-                {/* Whiteboard Top Header Bar with Sleek Unified Camera Button */}
-                <div className="flex items-center justify-between gap-3 border-b-2 border-[#DDD3BC] bg-[#EFE9D5] px-4 py-4">
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex items-center gap-1">
-                      <span className="w-2.5 h-2.5 rounded-full bg-[#3A3833] border border-[#24221E]/30" />
-                      <span className="w-2.5 h-2.5 rounded-full bg-[#3A3833] border border-[#24221E]/30" />
-                      <span className="w-2.5 h-2.5 rounded-full bg-[#3A3833] border border-[#24221E]/30" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="bg-[#3A3428] text-[#FAF6E8] text-[11px] font-black px-2 py-0.5 rounded-md">
-                          س1
-                        </span>
-                        <h4 className="text-xs sm:text-sm font-black text-[#3A3428]">
-                          {exam.question1.title}
-                        </h4>
-                      </div>
-                      <p className="text-[11px] font-bold text-[#7A6C54] mt-0.5">
-                        {exam.question1.instruction}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Sleek Elegant Camera Button (Serves both definitions in Q1) */}
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => q1FileInputRef.current?.click()}
-                      className="group flex shrink-0 cursor-pointer items-center gap-2 rounded-xl border border-[#76539E] bg-[#65478E] px-3.5 py-1.5 text-xs font-black text-white shadow-md transition-all hover:bg-[#563A7D] hover:border-[#B391D3] active:scale-95"
-                      title="تصوير ورقة إجابة السؤال الأول بالكامل بكاميرا الهاتف"
+          {submitState === 'processing' && (
+            <div className="absolute inset-0 z-40 flex items-center justify-center bg-[#302f3f]/65 p-4 backdrop-blur-sm">
+              <div className="w-full max-w-sm border border-[#d8d2c7] bg-[#fbfaf4] p-7 text-center shadow-2xl">
+                <Loader2 className="mx-auto mb-4 h-10 w-10 animate-spin text-[#6c4b88]" />
+                <h2 className="text-xl font-black text-[#302d34]">
+                  {['جارٍ جلب النتيجة', 'جارٍ التدقيق في الصور', 'جارٍ التصحيح وحساب الدرجة'][processingPhase]}
+                </h2>
+                <p className="mt-2 text-sm leading-7 text-[#6f6963]">
+                  تم استلام إجابتك. يرجى الانتظار حتى تكتمل المعالجة.
+                </p>
+                <div className="mt-5 space-y-2 text-right">
+                  {['جلب النتيجة', 'التدقيق في الصور', 'التصحيح وحساب الدرجة'].map((phase, index) => (
+                    <div
+                      key={phase}
+                      className={`flex items-center gap-2 border px-3 py-2 text-xs font-bold ${
+                        index === processingPhase
+                          ? 'border-[#bda8cd] bg-[#eee7f2] text-[#5b3d76]'
+                          : index < processingPhase
+                            ? 'border-[#b7d5bd] bg-[#edf6ee] text-[#377348]'
+                            : 'border-[#e3e0d8] bg-[#f0eee8] text-[#8c8780]'
+                      }`}
                     >
-                      <div className="flex h-5 w-5 items-center justify-center rounded-md bg-white/15 transition-transform group-hover:scale-110">
-                        <Camera className="h-3 w-3 text-white" />
-                      </div>
-                      <span>
-                        {questionImages.q1 ? 'تغيير صورة الحل' : 'تصوير ورقة الحل'}
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-current/10 text-[10px]">
+                        {index < processingPhase ? '✓' : index + 1}
                       </span>
-                    </button>
-
-                    <span className="text-[11px] bg-[#E3D9C0] text-[#423927] border border-[#C5B99B] font-black px-2.5 py-1 rounded-xl shrink-0 hidden sm:inline-block">
-                      {exam.question1.branches.reduce((acc, b) => acc + b.points, 0)} درجات
-                    </span>
-                  </div>
-                </div>
-
-                {/* Whiteboard Canvas Paper Body (Lined) */}
-                <div
-                  className="relative space-y-5 bg-[#FAF6E8] p-4 sm:p-5"
-                  style={{
-                    backgroundImage:
-                      'repeating-linear-gradient(transparent, transparent 29px, #E6DEC8 30px)',
-                    backgroundPosition: '0 10px',
-                  }}
-                >
-                  {/* Notebook Red Margin Line on the right */}
-                  <div className="absolute top-0 bottom-0 right-10 sm:right-12 w-[1.5px] bg-rose-400/40 pointer-events-none" />
-
-                  {/* Branches / Definitions of Question 1 */}
-                  {exam.question1.branches.map((branch, bIdx) => {
-                    const draft = studentDrafts[branch.id] || '';
-
-                    return (
-                      <div key={branch.id} className="space-y-2 relative z-10">
-                        {/* Branch Sub-Header inside Notebook */}
-                        <div className="flex items-center justify-between gap-2 rounded-[1.1rem] border border-[#D5CABB] bg-[#F0E8D6]/95 px-3 py-2 shadow-sm">
-                          <div className="flex items-center gap-2">
-                            <span className="w-5 h-5 rounded-md bg-[#3A3428] text-white flex items-center justify-center text-xs font-black shrink-0">
-                              {branch.label}
-                            </span>
-                            <span className="text-xs sm:text-sm font-black text-[#2B271E]">
-                              {branch.prompt}
-                            </span>
-                          </div>
-
-                          <span className="text-[10px] text-[#6E5B3D] font-bold bg-[#DFD4BC] px-2 py-0.5 rounded-md">
-                            {branch.points} درجات
-                          </span>
-                        </div>
-
-                        {/* Text Draft Area on notebook lines */}
-                        <div className="pr-6 sm:pr-8">
-                          <textarea
-                            value={draft}
-                            onChange={(e) => handleDraftChange(branch.id, e.target.value)}
-                            placeholder="الإجابة:"
-                            rows={2}
-                            className="w-full bg-transparent text-slate-900 placeholder-[#8C8370] font-semibold text-xs sm:text-sm leading-[30px] focus:outline-none resize-y"
-                          />
-                        </div>
-
-                        {/* Model answer revealed ONLY after submission */}
-                        {isSubmitted && (
-                          <div className="bg-[#E4D9BD] border border-[#CBBDA0] p-3 rounded-xl space-y-1 text-xs mr-6 sm:mr-8 animate-in fade-in">
-                            <span className="text-[11px] font-black text-[#4A3D2A] flex items-center gap-1">
-                              <FileCheck2 className="w-3.5 h-3.5 text-[#4A3D2A]" />
-                              الإجابة النموذجية للفرع ({branch.label}):
-                            </span>
-                            <p className="text-[#2B2317] text-xs leading-relaxed whitespace-pre-line font-bold">
-                              {branch.modelAnswer}
-                            </p>
-                          </div>
-                        )}
-
-                        {bIdx < exam.question1.branches.length - 1 && (
-                          <div className="border-b border-[#DDD3BC] pt-1" />
-                        )}
-                      </div>
-                    );
-                  })}
-
-                  {/* Error in Q1 */}
-                  {questionErrors.q1 && (
-                    <div className="text-xs text-rose-700 bg-rose-100 border border-rose-300 p-2 rounded-lg mr-6 sm:mr-8 relative z-10">
-                      {questionErrors.q1}
+                      {index === processingPhase ? `جارٍ ${phase}` : index < processingPhase ? `اكتمل ${phase}` : phase}
                     </div>
-                  )}
-
-                  {/* Shared Attached Image Card for Question 1 */}
-                  {questionImages.q1 && (
-                    <div className="bg-white/95 border-2 border-[#D9CEB4] rounded-xl p-3 shadow-md space-y-2 mr-6 sm:mr-8 relative z-10 animate-in fade-in">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                          <ImageIcon className="w-4 h-4 text-indigo-600" />
-                          <span>
-                            ورقة حل السؤال الأول بالكامل (
-                            {exam.question1.branches.reduce((acc, b) => acc + b.points, 0)} درجات)
-                          </span>
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveImage('q1')}
-                          className="text-xs text-rose-600 hover:text-rose-700 font-bold flex items-center gap-1 cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>حذف الصورة</span>
-                        </button>
-                      </div>
-
-                      <div className="relative rounded-lg overflow-hidden border border-slate-200 max-h-52 bg-black/5 flex items-center justify-center">
-                        <img
-                          src={questionImages.q1.previewUrl}
-                          alt="Captured solution Q1"
-                          className="max-h-52 w-auto object-contain rounded"
-                        />
-                      </div>
-
-                      <p className="text-center text-[11px] font-bold text-slate-500">
-                        تم حفظ الصورة. سيتم تصحيحها مع بقية الإجابات عند تسليم الامتحان.
-                      </p>
-                    </div>
-                  )}
+                  ))}
                 </div>
               </div>
+            </div>
+          )}
 
-              {/* ======================================================== */}
-              {/* 2. SECOND WHITEBOARD / السبورة الثانية (السؤال الثاني) */}
-              {/* HAS ITS OWN SEPARATE CAMERA / PHOTO UPLOAD */}
-              {/* ======================================================== */}
-              {exam.question2.branches.map((branch) => {
-                const draft = studentDrafts[branch.id] || '';
-
+          {submitState === 'completed' && exam && (
+            <div className="absolute inset-0 z-50 flex min-h-0 flex-col bg-[#302f3f] text-right text-white">
+              {(() => {
+                const q1Evaluation = questionImages.q1 ? evaluatedQuestions.q1 : null;
+                const q2Evaluation = questionImages.q2 ? evaluatedQuestions.q2 : null;
+                const finalScore = getResultsTotal({ q1: q1Evaluation, q2: q2Evaluation });
+                const finalTotal = Number(exam.totalPoints) || 1;
+                const finalPercentage = Math.round((finalScore / finalTotal) * 100);
+                const q1Max = exam.question1.branches.reduce((acc, branch) => acc + branch.points, 0);
+                const q2Max = exam.question2.branches.reduce((acc, branch) => acc + branch.points, 0);
+                const percentageFor = (evaluation: ImageEvaluationResult | null, max: number) => {
+                  if (!evaluation) return 0;
+                  if (Number.isFinite(evaluation.percentage)) return Math.max(0, Math.min(100, Math.round(evaluation.percentage)));
+                  return Math.max(0, Math.min(100, Math.round(((evaluation.score || 0) / Math.max(1, max)) * 100)));
+                };
+                const toneFor = (percentage: number) => {
+                  if (percentage < 50) return { border: '#c95c68', bg: '#512f38', text: '#ffd7dc', label: 'يحتاج مراجعة' };
+                  if (percentage <= 75) return { border: '#c59c36', bg: '#534528', text: '#ffeeb0', label: 'متوسط' };
+                  return { border: '#58a66b', bg: '#284934', text: '#d6f6dc', label: 'جيد' };
+                };
+                const answerFor = (branchId: string, evaluation: ImageEvaluationResult | null) => {
+                  const draft = studentDrafts[branchId]?.trim();
+                  if (draft) return draft;
+                  if (evaluation?.identifiedTextOrSteps?.length) return evaluation.identifiedTextOrSteps.join(' ');
+                  if (evaluation?.extractedText?.trim()) return evaluation.extractedText.trim();
+                  if (evaluation && !evaluation.success) return 'تم رفع الصورة، لكن لم يُستخرج منها نص قابل للتقييم.';
+                  return 'لم تُرفع صورة أو إجابة لهذا السؤال.';
+                };
+                const renderResultCard = (
+                  label: string,
+                  title: string,
+                  branches: DailyExamConfig['question1']['branches'],
+                  evaluation: ImageEvaluationResult | null,
+                  max: number,
+                ) => {
+                  const tone = toneFor(percentageFor(evaluation, max));
+                  return (
+                    <section className="border p-4" style={{ borderColor: tone.border, backgroundColor: tone.bg }}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold" style={{ color: tone.text }}>{label}</p>
+                          <h3 className="mt-1 text-base font-black text-white">{title}</h3>
+                        </div>
+                        <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-full border-2" style={{ borderColor: tone.border, color: tone.text }}>
+                          <span className="text-base font-black">{evaluation?.success ? evaluation.score : 0}</span>
+                          <span className="text-[9px]">/{max}</span>
+                        </div>
+                      </div>
+                      <div className="mt-3 space-y-2">
+                        {branches.map((branch) => (
+                          <div key={branch.id} className="border border-white/10 bg-black/15 p-3">
+                            <p className="text-xs font-black" style={{ color: tone.text }}>السؤال: {branch.prompt}</p>
+                            <p className="mt-2 text-xs leading-6 text-white/85">جواب الطالب: {answerFor(branch.id, evaluation)}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="mt-3 text-[11px] leading-6" style={{ color: tone.text }}>
+                        الحالة: {tone.label}{evaluation?.feedback ? ` — ${evaluation.feedback}` : ''}
+                      </p>
+                    </section>
+                  );
+                };
+                const finalTone = toneFor(finalPercentage);
                 return (
-                  <div
-                    key={branch.id}
-                    className="overflow-hidden rounded-[1.75rem] border-2 border-[#E1D7BF] bg-[#FAF6E8] text-slate-900 shadow-[0_8px_24px_rgba(93,77,46,0.12)] transition-all"
+                  <>
+                    <div className="shrink-0 border-b border-white/10 px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))]">
+                      <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
+                        <button
+                          type="button"
+                          onClick={onClose}
+                          className="flex items-center gap-1.5 border border-white/20 bg-white/10 px-3 py-2 text-xs font-black text-white transition hover:bg-white/15"
+                        >
+                          <ArrowRight className="h-4 w-4" />
+                          العودة
+                        </button>
+                        <div className="text-center">
+                          <p className="text-xs font-bold text-white/65">نتيجة الاختبار اليومي</p>
+                          <p className="mt-1 text-sm font-black">{exam.subject} — {exam.lessonTitle}</p>
+                        </div>
+                        <div className="flex h-16 w-16 flex-col items-center justify-center rounded-full border-2" style={{ borderColor: finalTone.border, backgroundColor: finalTone.bg, color: finalTone.text }}>
+                          <span className="text-lg font-black">{finalPercentage}</span>
+                          <span className="text-[9px]">من 100</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+                      <div className="mx-auto max-w-2xl space-y-3">
+                        <div className="border border-white/10 bg-white/10 p-3 text-center">
+                          <p className="text-xs font-bold text-white/65">درجتك في هذا الامتحان</p>
+                          <p className="mt-1 text-2xl font-black">{finalScore} / {finalTotal}</p>
+                        </div>
+                        {renderResultCard('السؤال الأول', exam.question1.title, exam.question1.branches, q1Evaluation, q1Max)}
+                        {renderResultCard('السؤال الثاني', exam.question2.title, exam.question2.branches, q2Evaluation, q2Max)}
+                        <p className="pb-4 text-center text-xs font-bold text-emerald-200">تم تسجيل النتيجة في إشعارات الحساب.</p>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          )}
+
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {isLoading || !exam ? (
+              <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 px-6 text-center">
+                <Loader2 className="h-9 w-9 animate-spin text-[#6c4b88]" />
+                <p className="text-sm font-bold text-[#6f6963]">جاري إعداد الاختبار اليومي...</p>
+              </div>
+            ) : !exam.isAvailable ? (
+              <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-6 text-center">
+                <FileCheck2 className="h-10 w-10 text-[#6c4b88]" />
+                <h2 className="text-lg font-black text-[#302d34]">الاختبار اليومي غير متوفر</h2>
+                <p className="max-w-sm text-sm leading-7 text-[#6f6963]">
+                  لا يوجد ملف منهج أو أسئلة اختبارية لهذا الدرس حاليًا.
+                </p>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="bg-[#6c4b88] px-6 py-3 text-xs font-black text-white transition hover:bg-[#5b3d76]"
+                >
+                  حسنًا
+                </button>
+              </div>
+            ) : (
+              <>
+                <main className="mx-auto max-w-2xl space-y-4 px-4 pb-28 pt-4">
+                  <div className="flex items-center justify-between border-b border-[#dedbd0] pb-3 text-xs font-bold text-[#716b65]">
+                    <span>{exam.subject}</span>
+                    <span className="text-[#6c4b88]">الدرجة الكلية: {exam.totalPoints}</span>
+                  </div>
+
+                  {isSubmitted && (
+                    <div className="flex items-center justify-between gap-3 border border-[#b7d5bd] bg-[#edf6ee] p-3 text-xs font-bold text-[#377348]">
+                      <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4" /> تم تسليم الامتحان بنجاح.</span>
+                      <button type="button" onClick={handleRestartExam} className="shrink-0 underline">إعادة</button>
+                    </div>
+                  )}
+
+                  <section
+                    className="relative overflow-hidden border border-[#ddd9ce] bg-[#fbfaf4] shadow-[0_8px_24px_rgba(63,52,38,0.12)]"
+                    style={{ backgroundImage: 'repeating-linear-gradient(to bottom, transparent 0, transparent 33px, rgba(181,191,194,0.42) 34px)' }}
                   >
-                    {/* Hidden Camera Input for Q2 */}
                     <input
                       type="file"
-                      ref={q2FileInputRef}
+                      ref={q1FileInputRef}
                       accept="image/*"
                       capture="environment"
                       className="hidden"
-                      onChange={(e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          handleImageSelected('q2', e.target.files[0]);
-                        }
+                      onChange={(event) => {
+                        if (event.target.files?.[0]) handleImageSelected('q1', event.target.files[0]);
                       }}
                     />
-
-                    {/* Whiteboard Top Header Bar with Sleek Camera Button for Q2 */}
-                    <div className="flex items-center justify-between gap-3 border-b-2 border-[#DDD3BC] bg-[#EFE9D5] px-4 py-4">
-                      <div className="flex items-center gap-2.5">
-                        <div className="flex items-center gap-1">
-                          <span className="w-2.5 h-2.5 rounded-full bg-[#3A3833] border border-[#24221E]/30" />
-                          <span className="w-2.5 h-2.5 rounded-full bg-[#3A3833] border border-[#24221E]/30" />
-                          <span className="w-2.5 h-2.5 rounded-full bg-[#3A3833] border border-[#24221E]/30" />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="bg-[#24293D] text-[#FAF6E8] text-[11px] font-black px-2 py-0.5 rounded-md">
-                              س2
-                            </span>
-                            <h4 className="text-xs sm:text-sm font-black text-[#24293D]">
-                              {exam.question2.title}
-                            </h4>
+                    <div className="relative z-10 px-5 pb-5 pt-7 sm:px-8">
+                      <h2 className="text-lg font-black leading-8 text-[#2f2d31]">س1: {exam.question1.title}</h2>
+                      <p className="mt-1 text-sm font-bold text-[#716b65]">{exam.question1.instruction || 'الإجابة:'}</p>
+                      <div className="mt-3 divide-y divide-[#dedbd0]">
+                        {exam.question1.branches.map((branch) => (
+                          <div key={branch.id} className="py-3 first:pt-2">
+                            <div className="flex items-start justify-between gap-3">
+                              <p className="text-sm font-black leading-7 text-[#37343a]">{branch.label ? `${branch.label}: ` : ''}{branch.prompt}</p>
+                              <span className="shrink-0 text-[10px] font-black text-[#806a45]">{branch.points} د</span>
+                            </div>
+                            <textarea
+                              value={studentDrafts[branch.id] || ''}
+                              onChange={(event) => handleDraftChange(branch.id, event.target.value)}
+                              placeholder="اكتب إجابتك هنا..."
+                              rows={2}
+                              disabled={submitState !== 'idle' || isSubmitted}
+                              className="mt-2 w-full resize-y bg-transparent text-sm font-semibold leading-[34px] text-[#343238] placeholder-[#9a9188] outline-none disabled:opacity-70"
+                            />
                           </div>
-                          <p className="text-[11px] font-bold text-[#57607C] mt-0.5">
-                            {exam.question2.instruction}
-                          </p>
-                        </div>
+                        ))}
                       </div>
+                      {questionErrors.q1 && <p className="mt-2 border border-[#e3a1a8] bg-[#fff0f1] p-2 text-xs font-bold text-[#a33846]">{questionErrors.q1}</p>}
+                      {questionImages.q1 && (
+                        <div className="mt-4 border border-[#d4ccb9] bg-white/80 p-3">
+                          <div className="flex items-center justify-between gap-2 text-xs font-black text-[#514a42]">
+                            <span className="flex items-center gap-1.5"><ImageIcon className="h-4 w-4 text-[#6c4b88]" /> تم حفظ صورة الإجابة</span>
+                            <button type="button" onClick={() => handleRemoveImage('q1')} className="flex items-center gap-1 text-[#a33846] disabled:opacity-40" disabled={submitState !== 'idle'}>
+                              <Trash2 className="h-3.5 w-3.5" /> حذف
+                            </button>
+                          </div>
+                          <img src={questionImages.q1.previewUrl} alt="صورة إجابة السؤال الأول" className="mt-2 max-h-48 w-full object-contain" />
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => q1FileInputRef.current?.click()}
+                        disabled={submitState !== 'idle' || isSubmitted}
+                        className="mt-4 flex w-full items-center justify-center gap-2 bg-[#6c4b88] px-4 py-3 text-sm font-black text-white transition hover:bg-[#5b3d76] active:scale-[0.99] disabled:pointer-events-none disabled:opacity-45"
+                      >
+                        <Camera className="h-5 w-5" />
+                        {questionImages.q1 ? 'تغيير صورة الحل' : 'تصوير ورقة الحل'}
+                      </button>
+                    </div>
+                  </section>
 
-                      {/* Sleek Camera Button for Q2 */}
-                      <div className="flex items-center gap-2">
+                  {exam.question2.branches.map((branch) => (
+                    <section
+                      key={branch.id}
+                      className="relative overflow-hidden border border-[#ddd9ce] bg-[#fbfaf4] shadow-[0_8px_24px_rgba(63,52,38,0.12)]"
+                      style={{ backgroundImage: 'repeating-linear-gradient(to bottom, transparent 0, transparent 33px, rgba(181,191,194,0.42) 34px)' }}
+                    >
+                      <input
+                        type="file"
+                        ref={q2FileInputRef}
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={(event) => {
+                          if (event.target.files?.[0]) handleImageSelected('q2', event.target.files[0]);
+                        }}
+                      />
+                      <div className="relative z-10 px-5 pb-5 pt-7 sm:px-8">
+                        <h2 className="text-lg font-black leading-8 text-[#2f2d31]">س2: {exam.question2.title}</h2>
+                        <p className="mt-1 text-sm font-bold text-[#716b65]">{exam.question2.instruction || 'الإجابة:'}</p>
+                        <div className="mt-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <p className="text-sm font-black leading-7 text-[#37343a]">{branch.label ? `${branch.label}: ` : ''}{branch.prompt}</p>
+                            <span className="shrink-0 text-[10px] font-black text-[#806a45]">{branch.points} د</span>
+                          </div>
+                          <textarea
+                            value={studentDrafts[branch.id] || ''}
+                            onChange={(event) => handleDraftChange(branch.id, event.target.value)}
+                            placeholder="اكتب إجابتك هنا..."
+                            rows={6}
+                            disabled={submitState !== 'idle' || isSubmitted}
+                            className="mt-2 w-full resize-y bg-transparent text-sm font-semibold leading-[34px] text-[#343238] placeholder-[#9a9188] outline-none disabled:opacity-70"
+                          />
+                        </div>
+                        {questionErrors.q2 && <p className="mt-2 border border-[#e3a1a8] bg-[#fff0f1] p-2 text-xs font-bold text-[#a33846]">{questionErrors.q2}</p>}
+                        {questionImages.q2 && (
+                          <div className="mt-4 border border-[#d4ccb9] bg-white/80 p-3">
+                            <div className="flex items-center justify-between gap-2 text-xs font-black text-[#514a42]">
+                              <span className="flex items-center gap-1.5"><ImageIcon className="h-4 w-4 text-[#6c4b88]" /> تم حفظ صورة الإجابة</span>
+                              <button type="button" onClick={() => handleRemoveImage('q2')} className="flex items-center gap-1 text-[#a33846] disabled:opacity-40" disabled={submitState !== 'idle'}>
+                                <Trash2 className="h-3.5 w-3.5" /> حذف
+                              </button>
+                            </div>
+                            <img src={questionImages.q2.previewUrl} alt="صورة إجابة السؤال الثاني" className="mt-2 max-h-52 w-full object-contain" />
+                          </div>
+                        )}
                         <button
                           type="button"
                           onClick={() => q2FileInputRef.current?.click()}
-                          className="group flex shrink-0 cursor-pointer items-center gap-2 rounded-xl border border-[#76539E] bg-[#65478E] px-3.5 py-1.5 text-xs font-black text-white shadow-md transition-all hover:bg-[#563A7D] hover:border-[#B391D3] active:scale-95"
-                          title="تصوير ورقة إجابة السؤال الثاني بكاميرا الهاتف"
+                          disabled={submitState !== 'idle' || isSubmitted}
+                          className="mt-4 flex w-full items-center justify-center gap-2 bg-[#6c4b88] px-4 py-3 text-sm font-black text-white transition hover:bg-[#5b3d76] active:scale-[0.99] disabled:pointer-events-none disabled:opacity-45"
                         >
-                          <div className="flex h-5 w-5 items-center justify-center rounded-md bg-white/15 transition-transform group-hover:scale-110">
-                            <Camera className="h-3 w-3 text-white" />
-                          </div>
-                          <span>
-                            {questionImages.q2 ? 'تغيير صورة الحل' : 'تصوير ورقة الحل'}
-                          </span>
+                          <Camera className="h-5 w-5" />
+                          {questionImages.q2 ? 'تغيير صورة الحل' : 'تصوير ورقة الحل'}
                         </button>
-
-                        <span className="text-[11px] bg-[#E3D9C0] text-[#343A4F] border border-[#C5B99B] font-black px-2.5 py-1 rounded-xl shrink-0 hidden sm:inline-block">
-                          {branch.points} درجات
-                        </span>
                       </div>
-                    </div>
+                    </section>
+                  ))}
+                </main>
 
-                    {/* Whiteboard Canvas Paper Body */}
-                    <div
-                      className="relative space-y-4 bg-[#FAF6E8] p-4 sm:p-5"
-                      style={{
-                        backgroundImage:
-                          'repeating-linear-gradient(transparent, transparent 29px, #E6DEC8 30px)',
-                        backgroundPosition: '0 10px',
-                      }}
+                <div className="fixed inset-x-0 bottom-0 z-20 border-t border-[#d7d3ca] bg-[#f8f7f1]/95 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-6px_18px_rgba(63,52,38,0.10)] backdrop-blur">
+                  <div className="mx-auto flex max-w-2xl items-center gap-3 px-4">
+                    <div className="flex min-w-[76px] flex-col items-center justify-center text-[#5d5650]">
+                      <span className="text-[10px] font-bold">الوقت المتبقي</span>
+                      <span className={`text-lg font-black ${timeLeft < 180 ? 'text-[#b14450]' : 'text-[#6c4b88]'}`}>{formatTime(timeLeft)}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleSubmitExam}
+                      disabled={submitState !== 'idle' || isSubmitted}
+                      className="flex flex-1 items-center justify-center gap-2 bg-[#6c4b88] px-4 py-3.5 text-sm font-black text-white transition hover:bg-[#5b3d76] active:scale-[0.99] disabled:pointer-events-none disabled:opacity-45"
                     >
-                      {/* Red Margin Line */}
-                      <div className="absolute top-0 bottom-0 right-10 sm:right-12 w-[1.5px] bg-rose-400/40 pointer-events-none" />
-
-                      {/* Question Comprehensive Prompt Header */}
-                      <div className="relative z-10 flex items-start justify-between gap-3 rounded-[1.1rem] border border-[#D5CABB] bg-[#F0E8D6] p-3 shadow-sm">
-                        <div className="flex items-start gap-2.5">
-                          <span className="w-5 h-5 rounded-md bg-[#24293D] text-white flex items-center justify-center text-xs font-black shrink-0 mt-0.5">
-                            {branch.label}
-                          </span>
-                          <span className="text-xs sm:text-base font-black text-[#1F2436] leading-relaxed">
-                            {branch.prompt}
-                          </span>
-                        </div>
-                        <span className="text-[10px] text-[#554731] font-bold bg-[#DCD1BA] px-2 py-0.5 rounded-md shrink-0">
-                          {branch.points} درجات
-                        </span>
-                      </div>
-
-                      {/* Large Lined Text Area */}
-                      <div className="pr-6 sm:pr-8 relative z-10">
-                        <textarea
-                          value={draft}
-                          onChange={(e) => handleDraftChange(branch.id, e.target.value)}
-                          placeholder="الإجابة:"
-                          rows={6}
-                          className="w-full bg-transparent text-slate-900 placeholder-[#8C8370] font-semibold text-xs sm:text-sm leading-[30px] focus:outline-none resize-y"
-                        />
-                      </div>
-
-                      {/* Error */}
-                      {questionErrors.q2 && (
-                        <div className="text-xs text-rose-700 bg-rose-100 border border-rose-300 p-2 rounded-lg mr-6 sm:mr-8 relative z-10">
-                          {questionErrors.q2}
-                        </div>
-                      )}
-
-                      {/* Captured Camera Photo Container in Q2 */}
-                      {questionImages.q2 && (
-                        <div className="bg-white/95 border-2 border-[#D9CEB4] rounded-xl p-3 shadow-md space-y-2 mr-6 sm:mr-8 relative z-10 animate-in fade-in">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                              <ImageIcon className="w-4 h-4 text-indigo-600" />
-                              <span>صورة الحل والشرح للسؤال الثاني ({branch.points} درجات)</span>
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveImage('q2')}
-                              className="text-xs text-rose-600 hover:text-rose-700 font-bold flex items-center gap-1 cursor-pointer"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                              <span>حذف الصورة</span>
-                            </button>
-                          </div>
-
-                          <div className="relative rounded-lg overflow-hidden border border-slate-200 max-h-60 bg-black/5 flex items-center justify-center">
-                            <img
-                              src={questionImages.q2.previewUrl}
-                              alt="Captured solution Q2"
-                              className="max-h-60 w-auto object-contain rounded"
-                            />
-                          </div>
-
-                          <p className="text-center text-[11px] font-bold text-slate-500">
-                            تم حفظ الصورة. سيتم تصحيحها مع بقية الإجابات عند تسليم الامتحان.
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Model Answer revealed ONLY after submission */}
-                      {isSubmitted && (
-                        <div className="bg-[#E4D9BD] border border-[#CBBDA0] p-3.5 rounded-xl space-y-1.5 text-xs mr-6 sm:mr-8 relative z-10 animate-in fade-in">
-                          <span className="text-[11px] font-black text-[#2D3347] flex items-center gap-1">
-                            <FileCheck2 className="w-4 h-4 text-[#2D3347]" />
-                            الإجابة والشرح النموذجي المعتمد في مركز الفحص:
-                          </span>
-                          <p className="text-[#1A1E2D] text-xs leading-relaxed whitespace-pre-line font-bold">
-                            {branch.modelAnswer}
-                          </p>
-                        </div>
-                      )}
-                    </div>
+                      <PenTool className="h-4 w-4" />
+                      تسليم الامتحان
+                    </button>
                   </div>
-                );
-              })}
-            </>
-          )}
-        </div>
-
-        {/* ======================================================== */}
-        {/* MODAL FOOTER ACTIONS */}
-        {/* ======================================================== */}
-        {exam?.isAvailable && (
-          <div className="flex items-center justify-between gap-3 border-t border-[#E2DDD2] bg-[#F8F7F2] px-4 pb-4 pt-3 sm:px-6">
-            <button
-              onClick={onClose}
-              className="cursor-pointer bg-transparent px-3 py-2.5 text-sm font-bold text-[#B4B3B8] transition-all hover:text-[#77747D]"
-            >
-              إغلاق
-            </button>
-
-            <button
-              onClick={handleSubmitExam}
-              disabled={submitState !== 'idle' || isSubmitted}
-              className="flex min-h-[3.35rem] flex-1 cursor-pointer items-center justify-center gap-2 rounded-[1.15rem] bg-gradient-to-r from-[#8B12F5] via-[#A51CF6] to-[#8B12F5] px-4 py-3 text-sm font-black text-white shadow-lg shadow-[#8B12F5]/30 transition-all hover:brightness-110 active:scale-98 disabled:pointer-events-none disabled:opacity-50"
-            >
-              {submitState === 'processing' ? <Loader2 className="w-4 h-4 animate-spin" /> : <PenTool className="w-4 h-4" />}
-              <span>
-                {submitState === 'completed'
-                  ? 'تم تسليم الامتحان وإنهاء الاختبار'
-                  : 'تسليم الامتحان وإنهاء الاختبار'}
-              </span>
-            </button>
+                </div>
+              </>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
