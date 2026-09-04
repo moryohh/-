@@ -20,7 +20,7 @@ import { EducationalGame, OpenLessonContext } from '../types';
 import { MillionaireGameModal } from './MillionaireGameModal';
 import { TrueFalseGameModal } from './TrueFalseGameModal';
 import { GibhaSahGameModal } from './GibhaSahGameModal';
-import { DailyExamModal } from './DailyExamModal';
+import { ExamModeModal } from './ExamModeModal';
 import { MillionaireAuthenticIcon, TrueFalseAuthenticIcon, GibhaSahAuthenticIcon, DailyExamAuthenticIcon } from './GameIcons';
 import { gameAudio } from '../utils/gameAudio';
 import { fetchLessonGamesData, LessonGamesBundle } from '../services/gamesService';
@@ -64,9 +64,9 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
   playerId,
 }) => {
   const { theme } = useAppTheme();
-  // Mode: 'menu' | 'millionaire' | 'true_false' | 'gibha_sah' | 'daily_exam' | 'quick'
+  // The exam entry point lives inside the selected lesson only.
   const [activeGameMode, setActiveGameMode] = useState<
-    'menu' | 'millionaire' | 'true_false' | 'gibha_sah' | 'daily_exam' | 'quick'
+    'menu' | 'millionaire' | 'true_false' | 'gibha_sah' | 'exam_picker' | 'monthly_exam' | 'comprehensive_exam' | 'quick'
   >('menu');
 
   // Dynamic Supabase Games Bundle (Lazy-loaded on demand only when modal opens)
@@ -257,20 +257,51 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
     );
   }
 
-  // Render Daily Exam Modal (2 structured questions extracted from Curriculum JSON)
-  if (activeGameMode === 'daily_exam') {
+  const examModalProps = {
+    isOpen: true,
+    onClose: () => setActiveGameMode('exam_picker' as const),
+    lessonId: openLessonContext?.lessonId || lessonId,
+    lessonTitle: openLessonContext?.lessonTitle || lessonTitle,
+    category: openLessonContext?.subjectId || category,
+    openLessonContext,
+    onScoreUpdate: (points: number) => awardLessonReward('daily_exam', points),
+    onAssessmentResult,
+    onDailyExamCompleted,
+  };
+
+  if (activeGameMode === 'monthly_exam' || activeGameMode === 'comprehensive_exam') {
     return (
-      <DailyExamModal
-        isOpen={true}
-        onClose={() => setActiveGameMode('menu')}
-        lessonId={openLessonContext?.lessonId || lessonId}
-        lessonTitle={openLessonContext?.lessonTitle || lessonTitle}
-        category={openLessonContext?.subjectId || category}
-        openLessonContext={openLessonContext}
-        onScoreUpdate={(points) => awardLessonReward('daily_exam', points)}
-        onAssessmentResult={onAssessmentResult}
-        onDailyExamCompleted={onDailyExamCompleted}
+      <ExamModeModal
+        {...examModalProps}
+        mode={activeGameMode === 'monthly_exam' ? 'monthly' : 'comprehensive'}
       />
+    );
+  }
+
+  if (activeGameMode === 'exam_picker') {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 font-cairo" dir="rtl">
+        <div className="w-full max-w-md border-2 border-[#8b6ba8]/60 bg-[#111522] p-5 text-right shadow-2xl">
+          <div className="mb-5 flex items-center justify-between gap-3 border-b border-white/10 pb-4">
+            <div>
+              <p className="text-xs font-bold text-[#c7acd9]">اختبارات المادة</p>
+              <h2 className="mt-1 text-xl font-black text-white">اختر نوع الامتحان</h2>
+              <p className="mt-1 text-[11px] text-slate-400">{openLessonContext?.title || lessonTitle}</p>
+            </div>
+            <button type="button" onClick={() => setActiveGameMode('menu')} className="rounded-full border border-white/15 p-2 text-slate-300 hover:bg-white/10" aria-label="العودة"><X className="h-5 w-5" /></button>
+          </div>
+          <div className="space-y-3">
+            <button type="button" onClick={() => { gameAudio.playGameStart(); setActiveGameMode('monthly_exam'); }} className="w-full border border-[#bda8cd]/50 bg-gradient-to-r from-[#352148] to-[#20162d] p-4 text-right text-white transition hover:border-[#d8b8e9] active:scale-[0.99]">
+              <span className="block text-base font-black">الامتحان الشهري</span>
+              <span className="mt-1 block text-xs leading-6 text-[#d9c9e4]">4 أسئلة من الفصل المحدد، مع تنويع نوع كل سؤال.</span>
+            </button>
+            <button type="button" onClick={() => { gameAudio.playGameStart(); setActiveGameMode('comprehensive_exam'); }} className="w-full border border-[#6aa0bd]/50 bg-gradient-to-r from-[#17354a] to-[#102530] p-4 text-right text-white transition hover:border-[#9bd5ef] active:scale-[0.99]">
+              <span className="block text-base font-black">الامتحان الشامل</span>
+              <span className="mt-1 block text-xs leading-6 text-[#c5e5f2]">5 أسئلة عشوائية من جميع الفصول، مع تنويع نوع كل سؤال.</span>
+            </button>
+          </div>
+        </div>
+      </div>
     );
   }
 
@@ -365,27 +396,23 @@ export const LessonGamesModal: React.FC<LessonGamesModalProps> = ({
 
               {/* 2x2 Grid (4 Quadrants / Square Sides) */}
               <div className="grid grid-cols-2 gap-3 pt-1">
-                {/* 1. TOP RIGHT: امتحان يومي (الأول على اليمين) */}
+                {/* 1. TOP RIGHT: امتحانات المادة */}
                 <div className="bg-gradient-to-b from-[#25133d] via-[#1a0c2c] to-[#0e0719] border-2 border-purple-500/40 hover:border-purple-400 rounded-2xl p-3.5 flex flex-col items-center justify-between text-center shadow-xl relative overflow-hidden group transition-all">
                   <div className="absolute -top-8 -right-8 w-20 h-20 bg-purple-500/15 rounded-full blur-xl pointer-events-none" />
-                  
                   <div className="flex flex-col items-center">
                     <DailyExamAuthenticIcon className="w-16 h-16 transform group-hover:scale-105 transition-transform duration-300" />
-                    <h4 className="text-xs sm:text-sm font-black text-white mt-2">
-                      امتحان يومي
-                    </h4>
+                    <h4 className="text-xs sm:text-sm font-black text-white mt-2">امتحانات المادة</h4>
                   </div>
-
                   <button
                     onClick={() => {
-                      if (!canOpenDailyExam) return;
+                      if (!canLoadGame) return;
                       gameAudio.playGameStart();
-                      setActiveGameMode('daily_exam');
+                      setActiveGameMode('exam_picker');
                     }}
-                    disabled={!canOpenDailyExam}
+                    disabled={!canLoadGame}
                     className="w-full mt-3 py-2 px-2.5 bg-gradient-to-r from-purple-500 via-indigo-500 to-purple-500 hover:from-purple-400 hover:to-indigo-400 text-white font-bold rounded-xl text-xs shadow-md shadow-purple-600/25 flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    <span>{hasDailyExam ? 'ابدأ الآن' : 'غير متوفر'}</span>
+                    <span>{canLoadGame ? 'اختر الامتحان' : 'جاري التحميل'}</span>
                     <ArrowRight className="w-3.5 h-3.5 rotate-180" />
                   </button>
                 </div>
