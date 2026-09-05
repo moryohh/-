@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bell, ArrowRight } from 'lucide-react';
+import { Bell, ArrowRight, ClipboardCheck } from 'lucide-react';
 import { useAppTheme } from '../services/themeService';
 
 interface HeaderProps {
@@ -10,6 +10,7 @@ interface HeaderProps {
   onOpenNotifications: () => void;
   onOpenProfile: () => void;
   onOpenGames?: () => void;
+  onOpenExams?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -18,6 +19,7 @@ export const Header: React.FC<HeaderProps> = ({
   onBack,
   onOpenNotifications,
   onOpenProfile,
+  onOpenExams,
 }) => {
   const { theme } = useAppTheme();
 
@@ -77,8 +79,20 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Left side: Icons (Notification & Profile Avatar) */}
+      {/* Left side: Icons (اختبر نفسك، الإشعارات، والملف الشخصي) */}
       <div className="flex items-center gap-2.5 z-10">
+        {/* Restored educational games shortcut */}
+        <button
+          onClick={onOpenExams}
+          disabled={!onOpenExams}
+          className="relative flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-[#D5A33A] bg-gradient-to-br from-[#FFF8D9] to-[#F3D47A] text-[#95630B] shadow-[0_3px_10px_rgba(196,145,34,0.25)] transition-all hover:from-[#FFF2B9] hover:to-[#E9BF55] active:scale-95 disabled:pointer-events-none disabled:opacity-60"
+          aria-label="اختبر نفسك"
+          title="اختبر نفسك"
+        >
+          <ClipboardCheck className="h-[18px] w-[18px]" />
+          <span className="absolute -bottom-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-[#FFF8D9] bg-[#B98519] text-[7px] font-black text-white">✓</span>
+        </button>
+
         {/* Notification Bell with Badge */}
         <button
           onClick={onOpenNotifications}
